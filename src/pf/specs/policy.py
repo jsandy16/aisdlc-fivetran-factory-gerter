@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import field_validator, Field, model_validator
 
 from .common import Environment, IamRoleArn, SecretRef, StrictModel
 from .destination import BucketName
@@ -34,6 +34,16 @@ class OriginalsEnvironment(StrictModel):
     region: str = Field(pattern=r"^[a-z]{2}(-gov)?-[a-z]+-\d$")
     access_key_id: SecretRef
     secret_access_key: SecretRef
+    endpoint_url: str | None = Field(default=None, description="S3-compatible endpoint (tests only); https unless localhost")
+
+    @field_validator("endpoint_url")
+    @classmethod
+    def _https(cls, v: str | None) -> str | None:
+        import re
+
+        if v and not (v.startswith("https://") or re.match(r"^http://(127\.0\.0\.1|localhost)(:\d+)?/?$", v)):
+            raise ValueError("endpoint_url must be https (http only for localhost test stand-ins)")
+        return v
 
 
 class EnvironmentPolicy(StrictModel):
@@ -45,7 +55,14 @@ class EnvironmentPolicy(StrictModel):
 class Retention(StrictModel):
     days: int = Field(ge=1)
     rationale: str = Field(min_length=10, description="Why this long — never a default")
-    object_lock_days: int = Field(ge=1, description="Object Lock retention for originals and evidence")
+    object_lock_days: int = Field(ge=1, description="Object Lock retention for originals and evidence (>= days)")
+
+    @model_validator(mode="after")
+    def _lock_covers_retention(self) -> "Retention":
+        if self.object_lock_days < self.days:
+            raise ValueError(f"object_lock_days ({self.object_lock_days}) must be at least retention days ({self.days}): "
+                             "otherwise evidence and originals become deletable before the retention period ends")
+        return self
 
 
 class PolicyFile(StrictModel):

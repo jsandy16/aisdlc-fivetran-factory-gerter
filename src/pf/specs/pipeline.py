@@ -23,7 +23,10 @@ class Requirement(StrictModel):
     purpose: str = Field(min_length=10)
     consumers: list[str] = Field(min_length=1)
     freshness_sla_hours: int = Field(ge=1)
-    late_data_policy: Literal["wait", "load_late", "reject_late"] = "load_late"
+    late_data_policy: Literal["wait", "load_late", "reject_late"] = Field(
+        default="wait", description="wait: hold newer deliveries while an older one is not ready, and reject deliveries "
+        "that arrive after newer ones were loaded; load_late: load them anyway (an older delivery can overwrite newer "
+        "upserted rows); reject_late: reject them but do not hold newer ones back")
     source_document: str | None = Field(default=None, description="Requirement document this spec was drafted from")
 
 

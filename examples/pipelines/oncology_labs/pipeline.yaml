@@ -14,7 +14,7 @@ requirement:
   purpose: Land central-lab results for oncology studies daily so safety and efficacy analytics use one trusted copy.
   consumers: [clinical-safety-analytics, biostatistics]
   freshness_sla_hours: 24
-  late_data_policy: load_late
+  late_data_policy: wait
   source_document: null
 environments: [dev, prod]
 schedule:

@@ -1,6 +1,7 @@
 """Streaming readers for package members: CSV, JSON Lines, JSON array."""
 from __future__ import annotations
 
+import codecs
 import csv
 import io
 import json
@@ -29,7 +30,7 @@ class Reader:
 
     def _text(self):
         enc = self.fmt.get("encoding", "utf-8")
-        if enc.lower().replace("-", "") == "utf8":
+        if codecs.lookup(enc).name == "utf-8":  # any spelling (utf8, UTF-8, utf_8)
             enc = "utf-8-sig"  # tolerate a byte-order mark
         return io.open(self.path, "r", encoding=enc, newline="")
 
@@ -45,11 +46,15 @@ class Reader:
                     except StopIteration:
                         self.header = []
                         return
+                    if len(set(self.header)) != len(self.header):
+                        raise PackageRejected("csv_header", "duplicate column names in the header")
                 else:
                     self.header = list(self.expected)
                 n_cols = len(self.header)
                 for i, rec in enumerate(rd, start=1):
-                    if not rec or (len(rec) == 1 and rec[0] == ""):
+                    if n_cols == 1 and not rec:
+                        rec = [""]  # one-column file: an empty line is an empty (null) value, not a blank line
+                    elif not rec or (len(rec) == 1 and rec[0] == ""):
                         continue  # blank line
                     if len(rec) != n_cols:
                         yield i, {"__pf_malformed__": True}

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import field_validator, Field, model_validator
 
 from .common import FivetranType, Identifier, Regex, StrictModel
 from .rules import AttributeCheck, AttributeTransform, EntityCheck, RowCheck
@@ -16,6 +16,17 @@ class FileFormat(StrictModel):
     header: bool = True
     encoding: str = "utf-8"
     null_tokens: list[str] = Field(default_factory=lambda: [""])
+
+    @field_validator("encoding")
+    @classmethod
+    def _known_encoding(cls, v: str) -> str:
+        import codecs
+
+        try:
+            codecs.lookup(v)
+        except LookupError:
+            raise ValueError(f"unknown encoding '{v}'") from None
+        return v
 
 
 class FileBinding(StrictModel):

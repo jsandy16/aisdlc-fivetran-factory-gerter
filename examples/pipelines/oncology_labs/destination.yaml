@@ -20,5 +20,5 @@ destination:
       region: us-east-1
       fivetran_role_arn: arn:aws:iam::222222222222:role/fivetran-mdls-prod
       glue_catalog: true
-      snapshot_retention_period: FOUR_WEEKS
+      snapshot_retention_period: RETAIN_ALL_SNAPSHOTS
       write_delta: false

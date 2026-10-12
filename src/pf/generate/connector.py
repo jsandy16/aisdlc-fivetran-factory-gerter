@@ -51,6 +51,9 @@ def check_imports(files: dict[str, str | bytes], reqs: list[str]) -> None:
                 elif isinstance(arg, ast.JoinedStr) and arg.values and isinstance(arg.values[0], ast.Constant) \
                         and str(arg.values[0].value).startswith("pf_rules."):
                     names = ["pf_rules"]  # custom rule modules, resolved from the reviewed rules/ folder
+                elif isinstance(arg, ast.JoinedStr) and arg.values and isinstance(arg.values[0], ast.FormattedValue) \
+                        and getattr(arg.values[0].value, "id", "") in ("__name__", "__package__"):
+                    names = ["pf_runtime"]  # relative: a module of the vendored runtime
                 else:
                     problems.append(f"{path}: dynamic import with a non-literal module name")
             for n in names:
@@ -61,8 +64,31 @@ def check_imports(files: dict[str, str | bytes], reqs: list[str]) -> None:
                     problems.append(f"{path}: import '{top}' is not an allowed dependency")
                 elif IMPORT_TO_DIST[top] and IMPORT_TO_DIST[top] not in pinned:
                     problems.append(f"{path}: import '{top}' needs {IMPORT_TO_DIST[top]}, which this pipeline does not install")
+    problems += _pipreqs_view(files)
     if problems:
         raise PfError("connector dependency check failed:\n" + "\n".join(problems), "dependencies")
+
+
+def _pipreqs_view(files: dict[str, str | bytes]) -> list[str]:
+    """Run the import scan the Connector SDK runs at deploy (pipreqs) over the generated project: every name it
+    reports must be one the framework pins under a known import name. Anything else would be looked up on PyPI by
+    import name at deploy, and `fivetran deploy --yes` would add whatever package answers to that name."""
+    import tempfile
+
+    try:
+        from pipreqs import pipreqs as pr
+    except ImportError:  # pipreqs ships with the Connector SDK CLI; without it this check cannot run
+        return []
+    with tempfile.TemporaryDirectory() as d:
+        for path, content in files.items():
+            if path.endswith(".py"):
+                f = Path(d) / path
+                f.parent.mkdir(parents=True, exist_ok=True)
+                f.write_bytes(content if isinstance(content, bytes) else content.encode())
+        names = pr.get_all_imports(d, encoding="utf-8")
+    allowed = set(IMPORT_TO_DIST)
+    return [f"the Connector SDK's dependency scan would see import '{n}', which the framework does not pin" for n in sorted(names)
+            if n not in allowed]
 
 
 CONNECTOR_PY = '''{header}"""Fivetran Connector SDK connector for pipeline `{name}` — {title}.

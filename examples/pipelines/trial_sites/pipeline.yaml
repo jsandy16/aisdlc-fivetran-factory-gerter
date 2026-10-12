@@ -14,7 +14,7 @@ requirement:
   purpose: "Provide the current list of investigator sites for feasibility analytics."  # from trial_sites.docx: "provide the current list of investigator sites for feasibility analytics"
   consumers: ["Feasibility analytics"]
   freshness_sla_hours: 24
-  late_data_policy: load_late          # wait | load_late | reject_late
+  late_data_policy: wait               # wait (hold newer until older are ready; reject late) | load_late | reject_late
   source_document: trial_sites.docx    # set by `pf intake` when drafted from a requirement document
 environments: [dev, prod]
 schedule:

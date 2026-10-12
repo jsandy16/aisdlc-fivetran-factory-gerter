@@ -25,6 +25,10 @@ class PackageSpec(StrictModel):
     on_unmatched: Literal["warn", "ignore"] = Field(
         default="warn", description="files matching no delivery pattern: warn = audited once in pf_package_audit + Fivetran warning"
     )
+    change_detection: Literal["metadata", "content"] = Field(
+        default="metadata", description="metadata: a known delivery is re-read only if size or mtime changed; content: "
+        "re-download and hash every known delivery each sync (catches re-uploads that keep size and mtime)"
+    )
     on_redelivery: Literal["skip", "reprocess", "reject"] = Field(
         default="reject", description="Same package path seen again with different content"
     )

@@ -6,7 +6,7 @@ archive_originals: false                    # keep every received file byte-for-
 retention:
   days: 3650
   rationale: "Reference data, 10 years"
-  object_lock_days: 365
+  object_lock_days: 3650
 environments:
   dev:
     access: []                              # e.g. - {principal: arn:aws:iam::123456789012:role/analyst, classifications: [internal], justification: "..."}

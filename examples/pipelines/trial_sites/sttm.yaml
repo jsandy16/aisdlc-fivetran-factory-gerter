@@ -104,7 +104,7 @@ entities:
             description: Between 1 and 500  # evidence: "between 1 and 500"
       - name: updated_at
         type: NAIVE_DATETIME
-        nullable: true
+        nullable: false
         description: Last change
         business_rule: Last change
         transforms: []

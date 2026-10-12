@@ -169,6 +169,25 @@ def _python_ref_ok(root: Path, ref: str) -> str | None:
     return None
 
 
+def _bound_fits(bound: Any, type_: str) -> bool:
+    import datetime as _dt
+
+    numeric = type_ in ("SHORT", "INT", "LONG", "FLOAT", "DOUBLE", "DECIMAL")
+    if isinstance(bound, bool):
+        return False
+    if numeric:
+        return isinstance(bound, (int, float))
+    if type_ in ("NAIVE_DATE", "NAIVE_DATETIME", "UTC_DATETIME"):
+        try:
+            (_dt.date.fromisoformat if type_ == "NAIVE_DATE" else lambda x: _dt.datetime.fromisoformat(x.replace("Z", "+00:00")))(str(bound))
+            return True
+        except ValueError:
+            return False
+    if type_ == "STRING":
+        return isinstance(bound, str)
+    return False
+
+
 def cross_validate(b: Bundle) -> list[Issue]:
     out: list[Issue] = []
     p, s, d, t, q, pol = b.pipeline, b.source, b.destination, b.sttm, b.quality, b.policy
@@ -192,13 +211,34 @@ def cross_validate(b: Bundle) -> list[Issue]:
             out.append(Issue(file="sttm.yaml", loc=f"entities.{i}.load", code="cross_ref", msg="rds entities must use load: upsert (append keys rows by package)"))
         if not file_source and e.checks:
             for j, c in enumerate(e.checks):
-                if c.kind == "control_count":
-                    out.append(Issue(file="sttm.yaml", loc=f"entities.{i}.checks.{j}", code="cross_ref", msg="control_count applies to file sources only"))
+                if c.kind in ("control_count", "unique"):
+                    out.append(Issue(file="sttm.yaml", loc=f"entities.{i}.checks.{j}", code="cross_ref",
+                                     msg=f"{c.kind} applies to file sources only (database rows are keyed by primary_key)"))
         attr_names = {a.name for a in e.attributes}
         sources = {a.source_column for a in e.attributes}
         if e.table and e.table.incremental and e.table.incremental.cursor_column not in sources:
             out.append(Issue(file="sttm.yaml", loc=f"entities.{i}.table.incremental.cursor_column", code="cross_ref",
                              msg=f"cursor column '{e.table.incremental.cursor_column}' must be mapped by an attribute"))
+        if e.table and e.table.incremental:
+            cur = next((a for a in e.attributes if a.source_column == e.table.incremental.cursor_column), None)
+            if cur is not None and cur.nullable:
+                out.append(Issue(file="sttm.yaml", loc=f"entities.{i}.attributes.{e.attributes.index(cur)}.nullable", code="cross_ref",
+                                 msg="the incremental cursor column must be nullable: false — rows with a NULL cursor are never read again "
+                                     "(fix the source column, or drop incremental for a full reload)"))
+        if file_source and e.load == "append" and s.source.package.on_redelivery == "reprocess":
+            out.append(Issue(file="source.yaml", loc="source.package.on_redelivery", code="cross_ref",
+                             msg=f"on_redelivery: reprocess with load: append (entity '{e.name}') keeps the old rows next to the new ones; use upsert or reject"))
+        for j, a in enumerate(e.attributes):
+            for k, c in enumerate(a.checks):
+                if c.kind == "range":
+                    for bound in (c.min, c.max):
+                        if bound is not None and not _bound_fits(bound, a.type):
+                            out.append(Issue(file="sttm.yaml", loc=f"entities.{i}.attributes.{j}.checks.{k}", code="invalid",
+                                             msg=f"range bound {bound!r} is not a {a.type} value (numbers for numeric types, "
+                                                 "ISO dates/datetimes for date types, text only for STRING)"))
+            if a.type == "DECIMAL" and (a.scale or 0) > 10:
+                out.append(Issue(file="sttm.yaml", loc=f"entities.{i}.attributes.{j}.scale", code="invalid",
+                                 msg="the Managed Data Lake stores DECIMAL with scale above 10 as DECIMAL(38,10) (or STRING for keys); use scale <= 10"))
         for j, c in enumerate(e.checks):
             if c.kind == "unique":
                 bad = [x for x in c.columns if x not in attr_names]
@@ -263,8 +303,14 @@ def cross_validate(b: Bundle) -> list[Issue]:
                     out.append(Issue(file="policy.yaml", loc=f"environments.{env}.originals", code="required",
                                      msg="archive_originals is true: set the originals bucket for this environment"))
         if s.source.type == "ftp" and s.source.tls == "none":
-            out.append(Issue(severity="warning", file="source.yaml", loc="source.tls",
-                             msg="plain FTP sends credentials and data unencrypted; needs a documented governance exception"))
+            gxp_ftp = p.gxp_tier != "non_gxp"
+            out.append(Issue(severity="error" if gxp_ftp else "warning", file="source.yaml", loc="source.tls",
+                             msg="plain FTP sends credentials and data unencrypted" + (" — not allowed for GxP pipelines" if gxp_ftp
+                                                                                       else "; needs a documented governance exception")))
+        if p.gxp_tier != "non_gxp" and s.source.package.change_detection == "metadata":
+            out.append(Issue(severity="warning", file="source.yaml", loc="source.package.change_detection",
+                             msg="GxP: a re-upload that keeps size and modification time is not noticed with change_detection: metadata; "
+                                 "consider content (costs a download per known delivery per sync)"))
 
     if b.source and b.pipeline and b.source.source.type == "rds":
         mode = b.source.source.ssl_mode
@@ -282,10 +328,29 @@ def cross_validate(b: Bundle) -> list[Issue]:
     if t:
         for i, e in enumerate(t.entities):
             for loc, nm in [(f"entities.{i}.name", e.name)] + [(f"entities.{i}.attributes.{j}.name", a.name) for j, a in enumerate(e.attributes)]:
-                if re.search(r"[a-z][0-9]|[0-9][a-z]", nm):
-                    fixed = re.sub(r"(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])", "_", nm)
+                if re.search(r"[a-z][0-9]|[0-9][a-z]|__|_$", nm):
+                    fixed = re.sub(r"_+", "_", re.sub(r"(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])", "_", nm)).rstrip("_")
                     out.append(Issue(file="sttm.yaml", loc=loc, code="invalid",
                                      msg=f"'{nm}' would be renamed '{fixed}' in the destination (Fivetran naming); use '{fixed}'"))
+
+    # Glue allows one table per schema.table per region: two environments in one account+region would collide
+    if d.destination.environments:
+        seen_loc: dict[tuple, str] = {}
+        for env, de in d.destination.environments.items():
+            if not de.glue_catalog:
+                continue
+            key = (de.fivetran_role_arn.split(":")[4], de.region)
+            if key in seen_loc:
+                out.append(Issue(file="destination.yaml", loc=f"destination.environments.{env}", code="cross_ref",
+                                 msg=f"'{env}' and '{seen_loc[key]}' register the same Glue database '{p.name}' in account {key[0]} "
+                                     f"region {key[1]}; use separate accounts or regions per environment"))
+            seen_loc[key] = env
+        if p.gxp_tier != "non_gxp":
+            for env, de in d.destination.environments.items():
+                if env in ("prod", "production") and de.snapshot_retention_period != "RETAIN_ALL_SNAPSHOTS":
+                    out.append(Issue(severity="warning", file="destination.yaml", loc=f"destination.environments.{env}.snapshot_retention_period",
+                                     msg="GxP: Iceberg history of the lake tables expires after this period; evidence is also written "
+                                         "write-once to the audit bucket, but consider RETAIN_ALL_SNAPSHOTS"))
 
     # every check id unique across the pipeline (evidence and rules.lock are keyed by id)
     ids: dict[str, str] = {}

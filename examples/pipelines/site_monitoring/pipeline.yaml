@@ -16,7 +16,7 @@ requirement:
   consumers: # from site_monitoring.md: "**Business owner:** Clinical Operations — Site Performance"
     - Clinical Operations — Site Performance
   freshness_sla_hours: 24
-  late_data_policy: load_late          # wait | load_late | reject_late
+  late_data_policy: wait               # wait (hold newer until older are ready; reject late) | load_late | reject_late
   source_document: site_monitoring.md  # set by `pf intake` when drafted from a requirement document
 environments: [dev, prod]
 schedule:

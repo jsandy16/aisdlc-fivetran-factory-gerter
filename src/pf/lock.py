@@ -89,6 +89,7 @@ def build_lock(b: Bundle) -> dict:
         "version": p.version,
         "title": p.title,
         "gxp_tier": p.gxp_tier,
+        "late_data_policy": p.requirement.late_data_policy,
         "environments": list(p.environments),
         "runtime": p.runtime.model_dump(mode="json"),
         "source": source,

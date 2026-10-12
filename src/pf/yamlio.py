@@ -17,12 +17,23 @@ def _yaml() -> YAML:
     return y
 
 
+def _no_aliases(text: str) -> None:
+    """Spec files may not use YAML anchors/aliases: expansion is unbounded (billion laughs) and hides values from review."""
+    from ruamel.yaml.events import AliasEvent
+
+    for ev in YAML(typ="safe", pure=True).parse(text):
+        if isinstance(ev, AliasEvent):
+            raise ValueError("YAML aliases (*name) are not allowed in spec files")
+
+
 def load(path: Path) -> Any:
-    with open(path, encoding="utf-8") as fh:
-        return _yaml().load(fh)
+    text = Path(path).read_text(encoding="utf-8")
+    _no_aliases(text)
+    return _yaml().load(text)
 
 
 def loads(text: str) -> Any:
+    _no_aliases(text)
     return _yaml().load(text)
 
 

@@ -85,3 +85,37 @@ def test_sql_assert_must_be_select():
     with pytest.raises(Exception):
         QualityFile.model_validate({"ticket_route": "x", "checks": [
             {"id": "q", "kind": "sql_assert", "entity": "e", "sql": "DELETE FROM t", "severity": "blocker", "description": "d"}]})
+
+
+@pytest.mark.parametrize("example,file,path,value,needle", [
+    ("trial_sites", "sttm.yaml", "entities[sites].attributes[updated_at].nullable", "true", "cursor column must be nullable: false"),
+    ("trial_sites", "sttm.yaml", "entities[sites].checks", "[{id: u, kind: unique, columns: [site_id], description: check under test}]", "file sources only"),
+    ("oncology_labs", "source.yaml", "source.package.on_redelivery", "reprocess", None),
+    ("oncology_labs", "sttm.yaml", "entities[lab_results].attributes[site_id].checks[site_id_format]",
+     "{id: site_id_format, kind: range, min: 1, max: 10, description: check under test}", "not a STRING value"),
+    ("oncology_labs", "sttm.yaml", "entities[lab_results].attributes[result_value].scale", "12", "scale <= 10"),
+    ("oncology_labs", "sttm.yaml", "entities[lab_results].attributes[result_unit].name", "result__unit", "result_unit"),
+    ("oncology_labs", "policy.yaml", "retention.object_lock_days", "100", "must be at least retention days"),
+])
+def test_unsafe_combinations_rejected(repo, example, file, path, value, needle):
+    """Runtime-unsafe combinations found in the independent review are rejected before build."""
+    import shutil
+
+    from tests.conftest import FRAMEWORK
+
+    if example != "oncology_labs":
+        shutil.copytree(FRAMEWORK / "examples" / "pipelines" / example, repo / "pipelines" / example, ignore=shutil.ignore_patterns("build"))
+    pth = repo / "pipelines" / example
+    if example == "oncology_labs" and path == "source.package.on_redelivery":
+        apply_edit(pth, "sttm.yaml", "entities[lab_results].load", "set", "append", keep_invalid=True)
+        needle = "keeps the old rows"
+    issues = apply_edit(pth, file, path, "set", value, keep_invalid=True)
+    msgs = " | ".join(i.msg for i in load_bundle(pth).issues if i.severity == "error") + " | ".join(i.msg for i in issues)
+    assert needle in msgs, msgs
+
+
+def test_yaml_aliases_rejected(onc):
+    text = (onc / "quality.yaml").read_text()
+    (onc / "quality.yaml").write_text("x: &a [1, 2]\ny: *a\n" + text)
+    b = load_bundle(onc)
+    assert any("aliases" in i.msg for i in b.issues), [i.msg for i in b.issues][:3]
