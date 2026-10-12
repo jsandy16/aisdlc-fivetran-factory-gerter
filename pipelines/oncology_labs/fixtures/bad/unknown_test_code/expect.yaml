@@ -1,0 +1,3 @@
+status: loaded
+rule_id: test_code_known
+quarantined: {test_code_known: 1}

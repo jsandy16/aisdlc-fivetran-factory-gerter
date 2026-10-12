@@ -1,0 +1,3 @@
+status: loaded
+rule_id: visit_before_receipt
+quarantined: {visit_before_receipt: 1}

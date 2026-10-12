@@ -1,0 +1,29 @@
+Metadata-Version: 2.4
+Name: pipeline-factory
+Version: 0.1.0
+Summary: AI-SDLC pipeline factory: spec-driven Fivetran Connector SDK pipelines with governance outside Fivetran
+Requires-Python: >=3.10
+Requires-Dist: pydantic<3,>=2.9
+Requires-Dist: ruamel.yaml<0.20,>=0.18
+Requires-Dist: jinja2<4,>=3.1
+Requires-Dist: cel-python==0.5.0
+Provides-Extra: runtime
+Requires-Dist: paramiko<6,>=3.5; extra == "runtime"
+Requires-Dist: psycopg2-binary<3,>=2.9; extra == "runtime"
+Requires-Dist: pymysql<2,>=1.1; extra == "runtime"
+Requires-Dist: boto3>=1.35; extra == "runtime"
+Provides-Extra: agent
+Requires-Dist: claude-agent-sdk==0.2.165; extra == "agent"
+Provides-Extra: docs
+Requires-Dist: python-docx>=1.1; extra == "docs"
+Requires-Dist: pypdf>=4; extra == "docs"
+Provides-Extra: fivetran
+Requires-Dist: fivetran-connector-sdk==2.12.1; extra == "fivetran"
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: asyncssh>=2.14; extra == "dev"
+Requires-Dist: pyftpdlib>=2; extra == "dev"
+Requires-Dist: moto[server]>=5; extra == "dev"
+Requires-Dist: duckdb>=1.1; extra == "dev"
+Requires-Dist: pytz; extra == "dev"
+Requires-Dist: python-hcl2>=7; extra == "dev"

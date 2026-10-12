@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash",
+        "hooks": [{ "type": "command", "command": "pf hook pre-tool", "timeout": 30 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [{ "type": "command", "command": "pf hook post-edit", "timeout": 60 }]
+      }
+    ]
+  }
+}

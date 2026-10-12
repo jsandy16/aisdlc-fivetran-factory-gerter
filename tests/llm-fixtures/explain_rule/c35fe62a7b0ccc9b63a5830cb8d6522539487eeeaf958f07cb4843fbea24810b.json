@@ -1,0 +1,16 @@
+{
+  "output": {
+    "explanation": "Checks that each row has both a visit_date and a received_date, and that the visit took place on or before the day the record was received. A row with either date missing fails.",
+    "fails_when": [
+      "visit_date is null (missing), so a null counts as a failure, not as a skipped check",
+      "received_date is null (missing), so a null counts as a failure, not as a skipped check",
+      "visit_date is later than received_date, meaning the data was received before the visit happened"
+    ],
+    "passes_when": [
+      "visit_date and received_date are both present and visit_date is earlier than received_date",
+      "visit_date and received_date are both present and are the same day (the comparison is inclusive)"
+    ]
+  },
+  "skill": "explaining-compiled-rules",
+  "task": "explain_rule"
+}

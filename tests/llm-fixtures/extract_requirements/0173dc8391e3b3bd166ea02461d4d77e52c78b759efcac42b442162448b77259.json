@@ -1,0 +1,232 @@
+{
+  "output": {
+    "english_rules": [
+      {
+        "attribute": null,
+        "entity": "site_monitoring",
+        "evidence": "A report must be finalised no more than 10 calendar days after the visit date.",
+        "id": "report_finalised_within_10_days",
+        "text": "A report must be finalised no more than 10 calendar days after the visit date."
+      },
+      {
+        "attribute": "open_issues",
+        "entity": "site_monitoring",
+        "evidence": "Open issues can never be negative.",
+        "id": "open_issues_non_negative",
+        "text": "Open issues can never be negative."
+      },
+      {
+        "attribute": null,
+        "entity": "site_monitoring",
+        "evidence": "Close-out visits (COV) must have zero open issues.",
+        "id": "cov_zero_open_issues",
+        "text": "Close-out visits (COV) must have zero open issues."
+      },
+      {
+        "attribute": "visit_id",
+        "entity": "site_monitoring",
+        "evidence": "unique, mandatory",
+        "id": "visit_id_unique_mandatory",
+        "text": "VISIT_ID is unique and mandatory."
+      },
+      {
+        "attribute": "site_no",
+        "entity": "site_monitoring",
+        "evidence": "mandatory, 4 digits",
+        "id": "site_no_four_digits",
+        "text": "SITE_NO is mandatory and 4 digits."
+      }
+    ],
+    "entities": [
+      {
+        "attributes": [
+          {
+            "business_rule": "unique, mandatory",
+            "description": "CRO identifier of the monitoring visit",
+            "evidence": "| VISIT_ID    | CRO identifier of the monitoring visit        | unique, mandatory",
+            "input_format": null,
+            "name": "visit_id",
+            "nullable": false,
+            "precision": null,
+            "scale": null,
+            "source_column": "VISIT_ID",
+            "type": "STRING"
+          },
+          {
+            "business_rule": "mandatory, 4 digits",
+            "description": "Investigator site number",
+            "evidence": "| SITE_NO     | Investigator site number                      | mandatory, 4 digits",
+            "input_format": null,
+            "name": "site_no",
+            "nullable": false,
+            "precision": null,
+            "scale": null,
+            "source_column": "SITE_NO",
+            "type": "STRING"
+          },
+          {
+            "business_rule": "mandatory",
+            "description": "Study code, e.g. D1234C00001",
+            "evidence": "| STUDY       | Study code, e.g. D1234C00001",
+            "input_format": null,
+            "name": "study",
+            "nullable": false,
+            "precision": null,
+            "scale": null,
+            "source_column": "STUDY",
+            "type": "STRING"
+          },
+          {
+            "business_rule": "mandatory; one of SIV, IMV, COV",
+            "description": "Visit type: SIV initiation, IMV interim, COV close-out",
+            "evidence": "SIV, IMV, COV (initiation, interim, close-out)",
+            "input_format": null,
+            "name": "visit_type",
+            "nullable": false,
+            "precision": null,
+            "scale": null,
+            "source_column": "VISIT_TYPE",
+            "type": "STRING"
+          },
+          {
+            "business_rule": "mandatory",
+            "description": "Date of the visit",
+            "evidence": "Date of the visit, format YYYY-MM-DD",
+            "input_format": "%Y-%m-%d",
+            "name": "visit_date",
+            "nullable": false,
+            "precision": null,
+            "scale": null,
+            "source_column": "VISIT_DATE",
+            "type": "NAIVE_DATE"
+          },
+          {
+            "business_rule": "optional until finalised",
+            "description": "Date the report was finalised",
+            "evidence": "Date the report was finalised, YYYY-MM-DD",
+            "input_format": "%Y-%m-%d",
+            "name": "report_date",
+            "nullable": true,
+            "precision": null,
+            "scale": null,
+            "source_column": "REPORT_DATE",
+            "type": "NAIVE_DATE"
+          },
+          {
+            "business_rule": "whole number, zero or more",
+            "description": "Number of open issues at the site",
+            "evidence": "Number of open issues at the site",
+            "input_format": null,
+            "name": "open_issues",
+            "nullable": true,
+            "precision": null,
+            "scale": null,
+            "source_column": "OPEN_ISSUES",
+            "type": "INT"
+          },
+          {
+            "business_rule": "personal data",
+            "description": "Email of the monitor",
+            "evidence": "| CRA_EMAIL   | Email of the monitor",
+            "input_format": null,
+            "name": "cra_email",
+            "nullable": true,
+            "precision": null,
+            "scale": null,
+            "source_column": "CRA_EMAIL",
+            "type": "STRING"
+          }
+        ],
+        "cursor_column": null,
+        "description": "One row per monitoring visit to an investigator site, with report finalisation date and open issue count.",
+        "evidence": "Each row is one monitoring visit.",
+        "member_pattern": "SMV_\\d{8}_\\d{2}\\.csv",
+        "name": "site_monitoring",
+        "primary_key": [
+          "visit_id"
+        ],
+        "table": null
+      }
+    ],
+    "fields": [
+      {
+        "confidence": "high",
+        "evidence": "# Requirement: Site monitoring visit reports (CRO FTPS feed)",
+        "file": "pipeline.yaml",
+        "path": "title",
+        "value_json": "\"Site monitoring visit reports (CRO FTPS feed)\""
+      },
+      {
+        "confidence": "high",
+        "evidence": "Give clinical operations a daily view of monitoring visits and open issues per investigator site",
+        "file": "pipeline.yaml",
+        "path": "requirement.purpose",
+        "value_json": "\"Give clinical operations a daily view of monitoring visits and open issues per investigator site, so that overdue sites are escalated within one business day.\""
+      },
+      {
+        "confidence": "medium",
+        "evidence": "**Business owner:** Clinical Operations \u2014 Site Performance",
+        "file": "pipeline.yaml",
+        "path": "requirement.consumers",
+        "value_json": "[\"Clinical Operations \u2014 Site Performance\"]"
+      },
+      {
+        "confidence": "medium",
+        "evidence": "The feed should refresh every 6 hours.",
+        "file": "pipeline.yaml",
+        "path": "requirement.freshness_sla_hours",
+        "value_json": "6"
+      },
+      {
+        "confidence": "high",
+        "evidence": "FTPS server `ftps.cro-partner.example` (port 21, explicit TLS",
+        "file": "source.yaml",
+        "path": "source.host",
+        "value_json": "\"ftps.cro-partner.example\""
+      },
+      {
+        "confidence": "high",
+        "evidence": "(port 21, explicit TLS, passive mode)",
+        "file": "source.yaml",
+        "path": "source.port",
+        "value_json": "21"
+      },
+      {
+        "confidence": "high",
+        "evidence": "Our account is `az_sitemon`.",
+        "file": "source.yaml",
+        "path": "source.username",
+        "value_json": "\"az_sitemon\""
+      },
+      {
+        "confidence": "high",
+        "evidence": "Files are under `/exports/monitoring`",
+        "file": "source.yaml",
+        "path": "source.root",
+        "value_json": "\"/exports/monitoring\""
+      },
+      {
+        "confidence": "high",
+        "evidence": "named `SMV_YYYYMMDD_NN.csv`, where NN is a two-digit sequence number",
+        "file": "source.yaml",
+        "path": "source.package.match",
+        "value_json": "\"SMV_(?P<date>\\\\d{8})_(?P<seq>\\\\d{2})\\\\.csv\""
+      }
+    ],
+    "open_questions": [
+      "Password/credentials for account az_sitemon and the TLS server certificate/trust are not provided (secrets not proposed).",
+      "Retention: 'Data is needed for 7 years' is stated, but retention is not proposed here; owner must confirm retention policy.",
+      "CRA_EMAIL is personal data: classification, masking and access grants must be decided by the owner.",
+      "Destination details (S3 bucket, role ARN, processing region) are not stated.",
+      "Files are complete once 10 minutes old: no spec path is defined here, so the minimum file age needs to be configured.",
+      "Re-issues: same-day files with a higher NN \u2014 unclear whether a re-issue replaces or appends rows for the same VISIT_ID (upsert vs. append).",
+      "Whether files contain a header row, and the delimiter and encoding, are not stated.",
+      "Freshness: 'refresh every 6 hours' is a schedule; whether it is also the freshness SLA is unconfirmed, and the 'escalated within one business day' target is not mapped.",
+      "Is open_issues mandatory? Document says whole number, zero or more, but not whether it can be null.",
+      "Rule 'finalised within 10 days' for unfinalised reports (REPORT_DATE empty): should overdue open reports be flagged?",
+      "GxP tier of the data is not stated."
+    ]
+  },
+  "skill": "extracting-pipeline-requirements",
+  "task": "extract_requirements"
+}

@@ -1,0 +1,8 @@
+{
+  "name": "pipeline-factory",
+  "version": "0.1.0",
+  "description": "AI-SDLC pipeline factory: spec-driven Fivetran Connector SDK ingestion pipelines with governance (checks, access control, audit, versioning) outside Fivetran.",
+  "author": { "name": "Sandeep Jaguri" },
+  "license": "Proprietary",
+  "keywords": ["fivetran", "connector-sdk", "data-pipelines", "ai-sdlc", "data-quality", "lakehouse"]
+}

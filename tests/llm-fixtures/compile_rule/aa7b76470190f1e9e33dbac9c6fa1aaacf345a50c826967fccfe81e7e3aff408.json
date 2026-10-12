@@ -1,0 +1,114 @@
+{
+  "output": {
+    "ambiguities": [
+      "If visit_date or received_date is missing, should the row fail (assumed) or pass?"
+    ],
+    "cases": [
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-01-31\""
+          },
+          {
+            "name": "row.received_date",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "Equality boundary: same day is allowed (on or before)"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-01-30\""
+          },
+          {
+            "name": "row.received_date",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "Visit one day before receipt"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-02-01\""
+          },
+          {
+            "name": "row.received_date",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "Visit one day after receipt"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "null"
+          },
+          {
+            "name": "row.received_date",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "Null visit_date"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-01-31\""
+          },
+          {
+            "name": "row.received_date",
+            "value_json": "null"
+          }
+        ],
+        "why": "Null received_date"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2023-12-15\""
+          },
+          {
+            "name": "row.received_date",
+            "value_json": "\"2024-03-10\""
+          }
+        ],
+        "why": "Typical pass across months/years"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-06-20\""
+          },
+          {
+            "name": "row.received_date",
+            "value_json": "\"2024-03-10\""
+          }
+        ],
+        "why": "Typical fail, visit well after receipt"
+      }
+    ],
+    "expression": "row.visit_date != null && row.received_date != null && row.visit_date <= row.received_date",
+    "referenced": [
+      "row.visit_date",
+      "row.received_date"
+    ]
+  },
+  "skill": "compiling-english-rules",
+  "task": "compile_rule"
+}

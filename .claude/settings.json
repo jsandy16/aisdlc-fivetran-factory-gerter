@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(fivetran deploy:*)",
+      "Bash(pf rules accept:*)",
+      "Read(**/configuration.json)",
+      "Read(**/.env*)",
+      "Edit(pipelines/*/build/**)",
+      "Edit(pipelines/*/releases/**)",
+      "Edit(pipelines/*/rules.lock.yaml)"
+    ]
+  },
+  "enabledPlugins": {}
+}

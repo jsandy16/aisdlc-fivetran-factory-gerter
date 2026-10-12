@@ -1,0 +1,31 @@
+{
+  "connection": {
+    "name": "oncology_labs",
+    "python_version": "3.12",
+    "schedule": {
+      "daily_sync_time": "02:00",
+      "paused": true,
+      "sync_frequency": 1440
+    },
+    "service": "connector_sdk"
+  },
+  "destination": {
+    "create_destination_request": {
+      "config": {
+        "bucket": "az-rd-lake-dev",
+        "fivetran_role_arn": "arn:aws:iam::111111111111:role/fivetran-mdls-dev",
+        "prefix_path": "fivetran",
+        "region": "us-east-1",
+        "should_maintain_tables_in_glue": true,
+        "should_write_delta": false,
+        "snapshot_retention_period": "ONE_WEEK",
+        "storage_provider": "AWS"
+      },
+      "region": "AWS_US_EAST_1",
+      "run_setup_tests": true,
+      "service": "managed_data_lake",
+      "time_zone_offset": "0"
+    },
+    "group_name": "rd_lake_dev"
+  }
+}

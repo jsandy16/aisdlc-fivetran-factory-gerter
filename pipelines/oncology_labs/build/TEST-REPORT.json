@@ -1,0 +1,491 @@
+{
+  "cases": [
+    {
+      "case": "good",
+      "errors": [],
+      "fired": [],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "loaded",
+          ""
+        ],
+        [
+          "20240302/LB_ONC101_002.zip",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "bad_checksum",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_checksum",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_checksum"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "package_checksum"
+        ]
+      ]
+    },
+    {
+      "case": "bad_date_format",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "type__visit_date": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "type__visit_date"
+      ],
+      "quarantined": {
+        "type__visit_date": 1
+      },
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "bad_file_name",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_name",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_name"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/lb_onc101_1.zip",
+          "rejected",
+          "package_name"
+        ]
+      ]
+    },
+    {
+      "case": "bad_folder",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_folder",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_folder"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "2024-03-01/LB_ONC101_001.zip",
+          "rejected",
+          "package_folder"
+        ]
+      ]
+    },
+    {
+      "case": "control_count_mismatch",
+      "errors": [],
+      "expected": {
+        "rule_id": "lab_results_control_count",
+        "status": "rejected"
+      },
+      "fired": [
+        "lab_results_control_count"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "lab_results_control_count"
+        ]
+      ]
+    },
+    {
+      "case": "duplicate_content",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_not_duplicate",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_not_duplicate"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "loaded",
+          ""
+        ],
+        [
+          "20240302/LB_ONC101_002.zip",
+          "rejected",
+          "package_not_duplicate"
+        ]
+      ]
+    },
+    {
+      "case": "duplicate_key",
+      "errors": [],
+      "expected": {
+        "rule_id": "lab_results_unique",
+        "status": "rejected"
+      },
+      "fired": [
+        "lab_results_unique"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "lab_results_unique"
+        ]
+      ]
+    },
+    {
+      "case": "empty_package",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_not_empty",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_not_empty"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "package_not_empty"
+        ]
+      ]
+    },
+    {
+      "case": "executable_member",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_no_executables",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_no_executables"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "package_no_executables"
+        ]
+      ]
+    },
+    {
+      "case": "missing_checksum",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_checksum",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_checksum"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "package_checksum"
+        ]
+      ]
+    },
+    {
+      "case": "missing_control",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_members",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_members"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "package_members"
+        ]
+      ]
+    },
+    {
+      "case": "no_rows",
+      "errors": [],
+      "expected": {
+        "rule_id": "lab_results_has_rows",
+        "status": "rejected"
+      },
+      "fired": [
+        "lab_results_has_rows"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "lab_results_has_rows"
+        ]
+      ]
+    },
+    {
+      "case": "not_a_zip",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_is_zip",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_is_zip"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "package_is_zip"
+        ]
+      ]
+    },
+    {
+      "case": "received_before_visit",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "visit_before_receipt": 1
+        },
+        "rule_id": "visit_before_receipt",
+        "status": "loaded"
+      },
+      "fired": [
+        "visit_before_receipt"
+      ],
+      "quarantined": {
+        "visit_before_receipt": 1
+      },
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "result_without_unit",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "result_has_unit": 1
+        },
+        "rule_id": "result_has_unit",
+        "status": "loaded"
+      },
+      "fired": [
+        "result_has_unit"
+      ],
+      "quarantined": {
+        "result_has_unit": 1
+      },
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "site_id_too_long",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "site_id_format": 1
+        },
+        "rule_id": "site_id_format",
+        "status": "loaded"
+      },
+      "fired": [
+        "site_id_format"
+      ],
+      "quarantined": {
+        "site_id_format": 1
+      },
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "too_many_members",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_member_count",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_member_count"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "package_member_count"
+        ]
+      ]
+    },
+    {
+      "case": "too_small",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_size",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_size"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "package_size"
+        ]
+      ]
+    },
+    {
+      "case": "unexpected_column",
+      "errors": [],
+      "expected": {
+        "status": "rejected"
+      },
+      "fired": [],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "schema__lab_results"
+        ]
+      ]
+    },
+    {
+      "case": "units_missing_above_threshold",
+      "errors": [],
+      "expected": {
+        "rule_id": "result_has_unit",
+        "status": "rejected"
+      },
+      "fired": [
+        "result_has_unit"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "result_has_unit"
+        ]
+      ]
+    },
+    {
+      "case": "unknown_test_code",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "test_code_known": 1
+        },
+        "rule_id": "test_code_known",
+        "status": "loaded"
+      },
+      "fired": [
+        "test_code_known"
+      ],
+      "quarantined": {
+        "test_code_known": 1
+      },
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "visit_out_of_range",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "visit_range": 1
+        },
+        "rule_id": "visit_range",
+        "status": "loaded"
+      },
+      "fired": [
+        "visit_range"
+      ],
+      "quarantined": {
+        "visit_range": 1
+      },
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "zip_slip",
+      "errors": [],
+      "expected": {
+        "status": "rejected"
+      },
+      "fired": [],
+      "quarantined": {},
+      "statuses": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "rejected",
+          "unzip"
+        ]
+      ]
+    }
+  ],
+  "ok": true,
+  "pipeline": "oncology_labs",
+  "spec_sha256": "b956e99048976c16be5c13bcde9d499a703f4d154972e670de4adf63bfa22fb5",
+  "uncovered": []
+}
