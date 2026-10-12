@@ -5,7 +5,7 @@ Land central-lab results for oncology studies daily so safety and efficacy analy
 - Owners: product @rd-oncology-po · engineering @rd-data-eng · governance @rd-data-governance · quality @rd-data-quality
 - GxP tier: gxp_indirect · freshness SLA: 24 h · consumers: clinical-safety-analytics, biostatistics
 - Source: sftp → Fivetran Connector SDK (`oncology_labs`) → S3 lake (Iceberg), schema `oncology_labs`
-- Spec sha256: `b956e99048976c16be5c13bcde9d499a703f4d154972e670de4adf63bfa22fb5`
+- Spec sha256: `b212601b60543ef79b27aed84f9ce469cbc4c77d609186fc0e1318be955e9127`
 
 ## Lineage
 

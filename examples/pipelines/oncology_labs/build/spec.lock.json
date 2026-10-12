@@ -296,6 +296,7 @@
   ],
   "framework_version": "0.1.0",
   "gxp_tier": "gxp_indirect",
+  "late_data_policy": "wait",
   "lock_version": 1,
   "originals": {
     "dev": {
@@ -303,6 +304,7 @@
         "secret": "originals_access_key_id_dev"
       },
       "bucket": "az-rd-originals-dev",
+      "endpoint_url": null,
       "prefix": "originals",
       "region": "us-east-1",
       "secret_access_key": {
@@ -314,6 +316,7 @@
         "secret": "originals_access_key_id_prod"
       },
       "bucket": "az-rd-originals-prod",
+      "endpoint_url": null,
       "prefix": "originals",
       "region": "us-east-1",
       "secret_access_key": {
@@ -352,6 +355,7 @@
     "host": "sftp.centrallab.example",
     "host_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM+q46zWGkXM1yoev4CEou+F50Sc0fxiUJbCZpG6sHPp",
     "package": {
+      "change_detection": "content",
       "checks": [
         {
           "description": "A delivery with no bytes is a broken source",
@@ -484,7 +488,7 @@
     "type": "sftp",
     "username": "az_rd_ingest"
   },
-  "spec_sha256": "b956e99048976c16be5c13bcde9d499a703f4d154972e670de4adf63bfa22fb5",
+  "spec_sha256": "b212601b60543ef79b27aed84f9ce469cbc4c77d609186fc0e1318be955e9127",
   "title": "Oncology central-lab results (vendor SFTP)",
   "version": "1.0.0"
 }

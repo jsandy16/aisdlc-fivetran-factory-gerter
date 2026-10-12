@@ -7,12 +7,29 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints, field_validator
+from pydantic import Field, StringConstraints, field_validator, model_validator
 
 from .common import Environment, IamRoleArn, StrictModel
 
 BucketName = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")]
 AwsRegion = Annotated[str, StringConstraints(pattern=r"^[a-z]{2}(-gov)?-[a-z]+-\d$")]
+
+
+class Networking(StrictModel):
+    """How Fivetran reaches the source. Sent on every deploy: the SDK otherwise resets a redeployed connection to
+    direct networking, wiping a proxy set up by hand."""
+
+    proxy_agent_id: str | None = Field(default=None, description="Fivetran Proxy Agent id (private networks)")
+    proxy_host_config_key: str | None = Field(default=None, description="Configuration key that holds the host the proxy connects to")
+    hybrid_deployment_agent_id: str | None = Field(default=None, description="Run the connection on a Hybrid Deployment agent")
+
+    @model_validator(mode="after")
+    def _one_method(self) -> "Networking":
+        if self.proxy_agent_id and self.hybrid_deployment_agent_id:
+            raise ValueError("use either a proxy agent or a hybrid deployment agent, not both")
+        if self.proxy_host_config_key and not self.proxy_agent_id:
+            raise ValueError("proxy_host_config_key needs proxy_agent_id")
+        return self
 
 
 class S3Environment(StrictModel):
@@ -26,6 +43,7 @@ class S3Environment(StrictModel):
         "ONE_DAY", "ONE_WEEK", "TWO_WEEKS", "FOUR_WEEKS", "SIX_WEEKS", "RETAIN_ALL_SNAPSHOTS"
     ] = "ONE_WEEK"
     write_delta: bool = False
+    networking: Networking | None = Field(default=None, description="Proxy or hybrid deployment agent; omit for direct")
 
     @field_validator("prefix_path")
     @classmethod

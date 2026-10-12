@@ -5,7 +5,7 @@ Provide the current list of investigator sites for feasibility analytics.
 - Owners: product @feasibility-po · engineering @rd-data-eng · governance @rd-governance · quality @rd-data-quality
 - GxP tier: non_gxp · freshness SLA: 24 h · consumers: Feasibility analytics
 - Source: rds → Fivetran Connector SDK (`trial_sites`) → S3 lake (Iceberg), schema `trial_sites`
-- Spec sha256: `d4cafee52eb723d9949a28dedb44a73859abb183165221e79b46c4c3d240642a`
+- Spec sha256: `afd94d1f375aa7ec76198c6eedb5a0d4dffa8fd1636a4250097377239ecf59e4`
 
 ## Lineage
 
@@ -33,7 +33,7 @@ Source: `clinical.sites` · load: upsert · key: site_id
 | `status` | — | `status` | STRING | no | internal | status_values | ACTIVE, CLOSED or PLANNED |
 | `activated_on` | — | `activated_on` | NAIVE_DATE | yes | internal | — | required when status is ACTIVE |
 | `enrolment_target` | — | `enrolment_target` | INT | yes | internal | enrolment_target_range | between 1 and 500 |
-| `updated_at` | — | `updated_at` | NAIVE_DATETIME | yes | internal | — | Last change |
+| `updated_at` | — | `updated_at` | NAIVE_DATETIME | no | internal | — | Last change |
 
 ## Checks
 

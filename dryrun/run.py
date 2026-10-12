@@ -57,6 +57,8 @@ def base_env(state: Path, llm: str, human: bool = True) -> dict:
     env["PF_LLM_PROVIDER"] = llm
     env["PF_LLM_FIXTURES"] = str(FRAMEWORK / "tests" / "llm-fixtures")
     env["HOME"] = str(state / "home")
+    env["PATH"] = f"{BIN}{os.pathsep}{env.get('PATH', '')}"  # pipreqs and the fivetran CLI live next to this python
+    env["NO_PROXY"] = env["no_proxy"] = "127.0.0.1,localhost"  # local stand-ins never go through a proxy
     return env
 
 
@@ -150,7 +152,8 @@ def scenario_sftp(state: Path, E: dict, env: dict) -> None:
     shutil.copytree(FRAMEWORK / "examples" / "pipelines" / "oncology_labs", repo / "pipelines" / "oncology_labs",
                     ignore=shutil.ignore_patterns("build", "intake"), dirs_exist_ok=True)
     fill(repo, "oncology_labs", {("source.yaml", "source.host"): "127.0.0.1", ("source.yaml", "source.port"): E["ports"]["sftp"],
-                                 ("source.yaml", "source.host_key"): E["host_key"], ("source.yaml", "source.root"): "/outbound/oncology"}, env)
+                                 ("source.yaml", "source.host_key"): E["host_key"], ("source.yaml", "source.root"): "/outbound/oncology",
+                                 ("policy.yaml", "environments.dev.originals.endpoint_url"): E["s3_endpoint"]}, env)
     v = pf(repo, "validate", "oncology_labs", env=env)
     R.check(v["ok"], "repointed spec validates (English rule stays accepted: only connection values changed)")
     b = pf(repo, "build", "oncology_labs", env=env)
@@ -169,7 +172,7 @@ def scenario_sftp(state: Path, E: dict, env: dict) -> None:
     staged = stage(repo / "pipelines" / "oncology_labs" / "fixtures" / "good", root)
     conn = repo / "pipelines" / "oncology_labs" / "build" / "connector"
     cfg = {"pf_environment": "dev", "sftp_private_key": Path(E["client_key"]).read_text(), "subject_key_salt": "dry-run-salt-1234567890",
-           "originals_access_key_id_dev": "testing", "originals_secret_access_key_dev": "testing", "pf_originals_endpoint_url": E["s3_endpoint"]}
+           "originals_access_key_id_dev": "testing", "originals_secret_access_key_dev": "testing"}
 
     p = tester(conn, cfg, state, "sftp-sync1", env)
     R.check(p.returncode == 0, "sync 1: fivetran debug exits 0", p.stdout[-800:] + p.stderr[-800:])
@@ -283,6 +286,7 @@ def scenario_ftp(state: Path, E: dict, env: dict) -> None:
     fill(repo, "site_monitoring", {("source.yaml", "source.host"): "127.0.0.1", ("source.yaml", "source.port"): E["ports"]["ftp"],
                                    ("source.yaml", "source.username"): E["ftp_user"],
                                    ("source.yaml", "source.ca_cert"): {"secret": "ftp_ca_bundle"},
+                                   ("policy.yaml", "environments.dev.originals.endpoint_url"): E["s3_endpoint"],
                                    ("policy.yaml", "classification"): {"site_monitoring.cra_email": "confidential"}}, env)
     # the quality owner answers the questions intake raised by making the rule text explicit (the normal workflow)
     import yaml
@@ -372,7 +376,7 @@ def scenario_ftp(state: Path, E: dict, env: dict) -> None:
     pem = ca.read_text()
     cert = pem[pem.index("-----BEGIN CERTIFICATE-----"):]
     cfg = {"pf_environment": "dev", "ftp_password": E["ftp_password"], "ftp_ca_bundle": cert,
-           "originals_access_key_id_dev": "testing", "originals_secret_access_key_dev": "testing", "pf_originals_endpoint_url": E["s3_endpoint"]}
+           "originals_access_key_id_dev": "testing", "originals_secret_access_key_dev": "testing"}
     try:
         s3(E).create_bucket(Bucket="az-rd-originals-dev")
     except Exception:  # noqa: BLE001 - created by the sftp scenario
@@ -607,7 +611,7 @@ def scenario_drills(state: Path, E: dict, env: dict) -> None:
 
     lock = json.loads((conn / "spec.lock.json").read_text())
     base = {"pf_environment": "dev", "sftp_private_key": Path(E["client_key"]).read_text(), "subject_key_salt": "dry-run-salt-1234567890",
-            "originals_access_key_id_dev": "testing", "originals_secret_access_key_dev": "testing", "pf_originals_endpoint_url": E["s3_endpoint"]}
+            "originals_access_key_id_dev": "testing", "originals_secret_access_key_dev": "testing"}
 
     def go(lk, cfg, state_in=None):
         op = RecorderOp()
@@ -626,7 +630,9 @@ def scenario_drills(state: Path, E: dict, env: dict) -> None:
     t0 = time.time()
     op = go(lk, base)
     R.check(bool(op.errors) and "connect" in op.errors[0].lower(), "SFTP down: retried, then the sync fails loudly", op.errors[:1])
-    op = go(lock, dict(base, pf_originals_endpoint_url="http://127.0.0.1:1"))
+    down = json.loads(json.dumps(lock))
+    down["originals"]["dev"]["endpoint_url"] = "http://127.0.0.1:1"
+    op = go(down, base)
     R.check(bool(op.errors) and not op.rows.get("lab_results"), "originals store down: nothing is loaded without its archived original", op.errors[:1])
     op = go(lock, {k: v for k, v in base.items() if k != "subject_key_salt"})
     R.check(bool(op.errors) and "subject_key_salt" in op.errors[0], "missing pseudonymisation key: sync refuses to start", op.errors[:1])

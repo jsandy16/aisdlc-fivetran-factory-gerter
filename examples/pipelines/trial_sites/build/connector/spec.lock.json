@@ -142,7 +142,7 @@
           "description": "Last change",
           "input_format": null,
           "name": "updated_at",
-          "nullable": true,
+          "nullable": false,
           "on_type_error": "quarantine_row",
           "precision": null,
           "scale": null,
@@ -221,6 +221,7 @@
   ],
   "framework_version": "0.1.0",
   "gxp_tier": "non_gxp",
+  "late_data_policy": "wait",
   "lock_version": 1,
   "originals": {},
   "pipeline": "trial_sites",
@@ -263,7 +264,7 @@
     "type": "rds",
     "username": "pf_reader"
   },
-  "spec_sha256": "d4cafee52eb723d9949a28dedb44a73859abb183165221e79b46c4c3d240642a",
+  "spec_sha256": "afd94d1f375aa7ec76198c6eedb5a0d4dffa8fd1636a4250097377239ecf59e4",
   "title": "Investigator sites from CTMS",
   "version": "0.1.0"
 }

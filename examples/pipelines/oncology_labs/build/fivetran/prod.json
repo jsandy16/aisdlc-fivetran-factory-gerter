@@ -18,7 +18,7 @@
         "region": "us-east-1",
         "should_maintain_tables_in_glue": true,
         "should_write_delta": false,
-        "snapshot_retention_period": "FOUR_WEEKS",
+        "snapshot_retention_period": "RETAIN_ALL_SNAPSHOTS",
         "storage_provider": "AWS"
       },
       "region": "AWS_US_EAST_1",

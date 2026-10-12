@@ -37,14 +37,18 @@ def render_workflow(b: Bundle, lock: dict, header: str) -> str:
     envs = list(b.pipeline.environments)
     req = framework_requirement(b.path.parent.parent)
     py = b.pipeline.runtime.python_version
-    install = f"      - name: Install pipeline-factory\n        run: pip install '{req}'\n"
+    # constraints = the connector's own pins: the SDK compares requirements.txt with what is installed here
+    install = (f"      - name: Install pipeline-factory (dependencies held to the connector's pins)\n"
+               f"        run: pip install '{req}' -c pipelines/{name}/build/connector/requirements.txt\n")
     setup = (f"      - uses: {CHECKOUT}\n        with:\n          persist-credentials: false\n"
              f"      - uses: {SETUP_PYTHON}\n        with:\n          python-version: '{py}'\n")
     paths = f"      - 'pipelines/{name}/**'\n      - 'pf.toml'\n"
     out = [header, f"name: pf {name}\n\n",
            "on:\n  pull_request:\n    paths:\n", paths,
            "  push:\n    branches: [main]\n    paths:\n", paths,
-           "  workflow_dispatch: {}\n\n",
+           "  workflow_dispatch:\n    inputs:\n      acknowledge_resync:\n"
+           "        description: 'This release changes a primary key or load mode and the table was dropped for a full re-sync'\n"
+           "        type: boolean\n        default: false\n\n",
            "permissions:\n  contents: read\n\n",
            f"concurrency:\n  group: pf-{slug}-${{{{ github.ref }}}}\n  cancel-in-progress: false  # never cancel a deploy half-way\n\n",
            "jobs:\n",
@@ -59,7 +63,7 @@ def render_workflow(b: Bundle, lock: dict, header: str) -> str:
         out.append(
             f"\n  deploy-{env}:\n"
             f"    needs: {prev}\n"
-            "    if: github.event_name == 'push' && github.ref == 'refs/heads/main'\n"
+            "    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'\n"
             "    runs-on: ubuntu-latest\n"
             "    permissions:\n      contents: read\n      id-token: write  # OIDC to AWS, deploy jobs only\n"
             f"    environment: {env}  # configure required reviewers for production environments\n"
@@ -68,7 +72,8 @@ def render_workflow(b: Bundle, lock: dict, header: str) -> str:
             f"      - name: AWS credentials (OIDC)\n        uses: {AWS_CREDENTIALS}\n"
             "        with:\n          role-to-assume: ${{ vars.PF_AWS_ROLE_ARN }}\n          aws-region: ${{ vars.PF_AWS_REGION }}\n"
             f"      - name: Store the versioned release artefact (write-once)\n        run: pf release {name} --upload s3://${{{{ vars.PF_ARTEFACT_BUCKET }}}}\n"
-            f"      - name: Deploy to Fivetran and apply the schedule\n        run: pf deploy {name} --env {env}\n"
+            f"      - name: Deploy to Fivetran and apply the schedule\n"
+            f"        run: pf deploy {name} --env {env} ${{{{ inputs.acknowledge_resync && '--acknowledge-resync' || '' }}}}\n"
             "        env:\n"
             "          FIVETRAN_API_KEY: ${{ secrets.FIVETRAN_API_KEY }}\n"
             + _secret_env(keys))

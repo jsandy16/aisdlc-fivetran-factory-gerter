@@ -187,7 +187,8 @@ def cmd_deploy(a) -> Result:
 
     if agent_session() and not a.dry_run:
         raise PfError("deploying is done by CI after review; agents may only use --dry-run", "forbidden")
-    return Result(command="deploy", ok=True, data=deploy(_root(), _bundle(a.name), a.env, dry_run=a.dry_run))
+    return Result(command="deploy", ok=True, data=deploy(_root(), _bundle(a.name), a.env, dry_run=a.dry_run,
+                                                        acknowledge_resync=a.acknowledge_resync))
 
 
 def cmd_fivetran(a) -> Result:
@@ -242,8 +243,20 @@ def cmd_hook(a) -> Result:
 
 
 # ---------------------------------------------------------------------------- parser
+class _Parser(argparse.ArgumentParser):
+    """With --json, usage errors are reported as one Result envelope too (the agent contract has no exceptions)."""
+
+    def error(self, message: str):  # type: ignore[override]
+        if "--json" in sys.argv[1:] or getattr(_Parser, "json_mode", False):
+            r = Result(command=self.prog.replace("pf ", "", 1) or "pf", ok=False,
+                       issues=[Issue(msg=message, code="usage")], data={"error": message, "code": "usage"})
+            print(json.dumps(r.model_dump(mode="json"), indent=2))
+            raise SystemExit(2)
+        super().error(message)
+
+
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="pf", description="pipeline-factory: spec-driven Fivetran pipelines (AI-SDLC)")
+    p = _Parser(prog="pf", description="pipeline-factory: spec-driven Fivetran pipelines (AI-SDLC)")
     p.add_argument("--json", action="store_true", help="print one JSON Result envelope")
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -326,6 +339,8 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("name")
     s.add_argument("--env", required=True)
     s.add_argument("--dry-run", action="store_true")
+    s.add_argument("--acknowledge-resync", action="store_true",
+                   help="this release changes a primary key or load mode; the table was dropped for a full re-sync")
     s.set_defaults(fn=cmd_deploy)
 
     s = sub.add_parser("fivetran", help="destination setup and drift checks")
@@ -369,6 +384,7 @@ def _print_human(r: Result) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     p = parser()
+    _Parser.json_mode = "--json" in (argv if argv is not None else sys.argv[1:])
     a = p.parse_args(argv)
     fn: Callable[[Any], Result] = a.fn
     try:

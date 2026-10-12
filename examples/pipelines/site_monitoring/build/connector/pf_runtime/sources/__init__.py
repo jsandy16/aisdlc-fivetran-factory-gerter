@@ -17,12 +17,12 @@ def join(root: str, rel: str) -> str:
 
 
 def open_file_source(source: dict, configuration: dict):
-    if source["type"] == "sftp":
-        from .sftp import SftpSession
+    """Adapters are imported by name: a connector vendors only its own adapter, and the Connector SDK's pipreqs
+    scan must not see the others as top-level imports (it would look `sftp`/`ftp` up on PyPI)."""
+    import importlib
 
-        return SftpSession(source, configuration)
-    if source["type"] == "ftp":
-        from .ftp import FtpSession
-
-        return FtpSession(source, configuration)
-    raise ValueError(f"not a file source: {source['type']}")
+    classes = {"sftp": "SftpSession", "ftp": "FtpSession"}
+    if source["type"] not in classes:
+        raise ValueError(f"not a file source: {source['type']}")
+    module = importlib.import_module(f"{__name__}.{source['type']}")
+    return getattr(module, classes[source["type"]])(source, configuration)

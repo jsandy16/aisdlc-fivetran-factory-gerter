@@ -1,10 +1,17 @@
 """Type conversion to Fivetran column types, and the value forms used by checks and by emission."""
 from __future__ import annotations
 
+import base64
 import datetime as dt
 import decimal
 import json
+import re
 from typing import Any
+
+# Strict ASCII grammars: no '_' separators, no non-ASCII digits, no exponents in integers, bounded exponents.
+_INT = re.compile(r"[+-]?[0-9]+")
+_DEC = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)")
+_FLOAT = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]{1,3})?")
 
 TRUE = {"true", "t", "yes", "y", "1"}
 FALSE = {"false", "f", "no", "n", "0"}
@@ -24,7 +31,21 @@ def convert(value: Any, attr: dict) -> Any:
     t = attr["type"]
     try:
         if t == "STRING":
-            return value if isinstance(value, str) else (value.isoformat() if hasattr(value, "isoformat") else str(value))
+            if isinstance(value, str):
+                return value
+            if isinstance(value, (bytes, bytearray, memoryview)):  # driver binary: text if UTF-8, else base64
+                b = bytes(value)
+                try:
+                    return b.decode("utf-8")
+                except UnicodeDecodeError:
+                    return "base64:" + base64.b64encode(b).decode("ascii")
+            if isinstance(value, (dict, list)):
+                return json.dumps(value, sort_keys=True, default=str)
+            if isinstance(value, (dt.date, dt.datetime, dt.time)):
+                return value.isoformat()
+            if isinstance(value, (bool, int, float, decimal.Decimal)):
+                return str(value)
+            raise TypeConversionError(f"unsupported value for STRING ({type(value).__name__})")
         if t in ("INT", "LONG"):
             if isinstance(value, bool):
                 raise TypeConversionError("boolean is not an integer")
@@ -34,11 +55,15 @@ def convert(value: Any, attr: dict) -> Any:
                 if not value.is_integer():
                     raise TypeConversionError("fractional value")
                 return int(value)
-            s = str(value).strip()
-            d = decimal.Decimal(s)
-            if d != d.to_integral_value():
-                raise TypeConversionError("fractional value")
-            n = int(d)
+            if isinstance(value, decimal.Decimal):
+                if value != value.to_integral_value():
+                    raise TypeConversionError("fractional value")
+                n = int(value)
+            else:
+                s = str(value).strip()
+                if not _INT.fullmatch(s):
+                    raise TypeConversionError("not an integer")
+                n = int(s)
             if t == "INT" and not (-(2**31) <= n < 2**31):
                 raise TypeConversionError("out of INT range")
             if not (-(2**63) <= n < 2**63):
@@ -47,19 +72,35 @@ def convert(value: Any, attr: dict) -> Any:
         if t == "DOUBLE":
             if isinstance(value, bool):
                 raise TypeConversionError("boolean is not a number")
-            f = float(value) if not isinstance(value, str) else float(value.strip())
+            if isinstance(value, str):
+                if not _FLOAT.fullmatch(value.strip()):
+                    raise TypeConversionError("not a number")
+                value = value.strip()
+            f = float(value)
             if f != f or f in (float("inf"), float("-inf")):
                 raise TypeConversionError("not a finite number")
             return f
         if t == "DECIMAL":
-            d = value if isinstance(value, decimal.Decimal) else decimal.Decimal(str(value).strip())
-            if not d.is_finite():
-                raise TypeConversionError("not a finite decimal")
-            q = decimal.Decimal(1).scaleb(-attr["scale"])
-            d = d.quantize(q, rounding=decimal.ROUND_HALF_UP)
-            if len(d.as_tuple().digits) > attr["precision"]:
-                raise TypeConversionError("exceeds declared precision")
-            return d
+            with decimal.localcontext() as ctx:
+                ctx.prec = attr["precision"] + 2  # the default context (28 digits) is too small for DECIMAL(38,x)
+                if isinstance(value, decimal.Decimal):
+                    d = value
+                elif isinstance(value, (int, float)) and not isinstance(value, bool):
+                    d = decimal.Decimal(str(value))
+                else:
+                    s = str(value).strip()
+                    if not _DEC.fullmatch(s):
+                        raise TypeConversionError("not a decimal")
+                    d = decimal.Decimal(s)
+                if not d.is_finite():
+                    raise TypeConversionError("not a finite decimal")
+                q = decimal.Decimal(1).scaleb(-attr["scale"])
+                exact = d.quantize(q, rounding=decimal.ROUND_HALF_UP)
+                if exact != d:  # never round source data silently
+                    raise TypeConversionError("more decimal places than the declared scale")
+                if len(exact.as_tuple().digits) > attr["precision"]:
+                    raise TypeConversionError("exceeds declared precision")
+                return exact
         if t == "BOOLEAN":
             if isinstance(value, bool):
                 return value
@@ -92,6 +133,8 @@ def convert(value: Any, attr: dict) -> Any:
         if t == "JSON":
             if isinstance(value, (dict, list)):
                 return value
+            if isinstance(value, (bytes, bytearray, memoryview)):
+                value = bytes(value).decode("utf-8")
             return json.loads(value)
     except TypeConversionError:
         raise

@@ -61,6 +61,15 @@ def _order_part(v: str | None) -> tuple:
     return (0, int(v)) if v.isdigit() else (1, v)
 
 
+def _sidecar_digest(text: str | None) -> str | None:
+    """GNU format 'digest  name' or BSD format 'SHA256 (name) = digest'."""
+    if not text or not text.strip():
+        return None
+    first = text.strip().splitlines()[0].strip()
+    m = re.fullmatch(r"[A-Za-z0-9-]+ \(.+\) = ([0-9a-fA-F]+)", first)
+    return (m.group(1) if m else first.split()[0]).lower()
+
+
 def sidecar_names(spec: dict, name: str) -> set[str]:
     out = set()
     for c in spec.get("checks", []):
@@ -72,8 +81,8 @@ def sidecar_names(spec: dict, name: str) -> set[str]:
     return out
 
 
-def discover(files: list[RemoteFile], spec: dict, now: float | None = None) -> tuple[list[Package], int, list[str]]:
-    """Return (ready packages in order, not-ready count, ignored paths). Sidecars/markers are never packages."""
+def discover(files: list[RemoteFile], spec: dict, now: float | None = None) -> tuple[list[Package], list[Package], list[str]]:
+    """Return (ready packages in order, waiting (not ready) packages, ignored paths). Sidecars/markers are never packages."""
     now = now or time.time()
     rx = re.compile(spec["match"])
     names = {f.path for f in files}
@@ -88,27 +97,29 @@ def discover(files: list[RemoteFile], spec: dict, now: float | None = None) -> t
         for h in sidecar_names(spec, posixpath.basename(f.path)):
             helpers.add(posixpath.join(d, h) if d else h)
     ready: list[Package] = []
-    not_ready = 0
+    waiting: list[Package] = []
     readiness = spec.get("readiness") or {}
     for f, m in candidates:
         if f.path in helpers:
             continue
+        groups = {k: v for k, v in m.groupdict().items() if v is not None}
+        key = tuple(_order_part(groups.get(g)) for g in spec.get("order_by", [])) + ((1, f.path),)
+        pkg = Package(f, groups, key)
         if now - f.mtime < readiness.get("min_age_seconds", 300):
-            not_ready += 1
+            waiting.append(pkg)
             continue
         marker = readiness.get("marker")
         if marker:
             d = posixpath.dirname(f.path)
             mk = marker.format(name=posixpath.basename(f.path))
             if (posixpath.join(d, mk) if d else mk) not in names:
-                not_ready += 1
+                waiting.append(pkg)
                 continue
-        groups = {k: v for k, v in m.groupdict().items() if v is not None}
-        key = tuple(_order_part(groups.get(g)) for g in spec.get("order_by", [])) + ((1, f.path),)
-        ready.append(Package(f, groups, key))
+        ready.append(pkg)
     ready.sort(key=lambda p: p.order_key)
-    ignored = sorted(n for n in names if n not in {p.path for p in ready} and n not in helpers and not rx.fullmatch(n))
-    return ready, not_ready, ignored
+    waiting.sort(key=lambda p: p.order_key)
+    ignored = sorted(n for n in names if n not in {p.path for p in ready + waiting} and n not in helpers and not rx.fullmatch(n))
+    return ready, waiting, ignored
 
 
 def hash_file(path: str) -> tuple[str, str]:
@@ -140,22 +151,82 @@ def sniff(path: str) -> str:
 
 
 # ---------------------------------------------------------------------------- archive originals (write-once)
-def archive_original(lp: LocalPackage, originals: dict, configuration: dict, pipeline: str) -> str:
-    """Put the exact bytes into the originals bucket with If-None-Match: * (never overwrites).
-    Returns the S3 key. A 412 means the same content is already archived — success."""
+def _s3(originals: dict, configuration: dict):
+    """S3 client for the originals bucket. The endpoint comes only from the reviewed policy (never from connection
+    configuration), so whoever can edit a Fivetran connection cannot redirect GxP originals."""
     import boto3
     from botocore.config import Config
-    from botocore.exceptions import ClientError
 
     key_id = configuration.get(originals["access_key_id"]["secret"])
     secret = configuration.get(originals["secret_access_key"]["secret"])
     if not key_id or not secret:
         raise ConfigError("originals bucket credentials are missing from the configuration")
-    s3 = boto3.client(
-        "s3", region_name=originals["region"], aws_access_key_id=key_id, aws_secret_access_key=secret,
-        endpoint_url=configuration.get("pf_originals_endpoint_url") or None,
-        config=Config(retries={"max_attempts": 5, "mode": "standard"}),
-    )
+    return boto3.client("s3", region_name=originals["region"], aws_access_key_id=key_id, aws_secret_access_key=secret,
+                        endpoint_url=originals.get("endpoint_url") or None,
+                        config=Config(retries={"max_attempts": 5, "mode": "standard"}))
+
+
+_S3_CONFIG_CODES = {"NoSuchBucket", "AccessDenied", "InvalidAccessKeyId", "SignatureDoesNotMatch", "AllAccessDisabled",
+                    "AccountProblem", "InvalidBucketName", "PermanentRedirect", "AuthorizationHeaderMalformed"}
+
+
+def _s3_errors(fn):
+    """Bucket missing / credentials wrong / access denied are configuration errors (clean op.error, no retry)."""
+    from functools import wraps
+
+    @wraps(fn)
+    def wrapper(*a, **kw):
+        from botocore.exceptions import ClientError
+
+        try:
+            return fn(*a, **kw)
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code", "")
+            if code in _S3_CONFIG_CODES:
+                raise ConfigError(f"originals bucket: {code} (check bucket name, region, credentials and permissions)") from None
+            raise
+    return wrapper
+
+
+def _registry_prefix(originals: dict, pipeline: str) -> str:
+    return f"{originals.get('prefix', 'originals').strip('/')}/{pipeline}/_loaded/"
+
+
+@_s3_errors
+def mark_loaded(originals: dict, configuration: dict, pipeline: str, sha: str, path: str, order: list) -> None:
+    """Write-once marker 'this content was loaded at this path': rebuilds the registry after a historical re-sync."""
+    import json as _json
+
+    from botocore.exceptions import ClientError
+
+    s3 = _s3(originals, configuration)
+    body = _json.dumps({"sha256": sha, "path": path, "order": order}, sort_keys=True).encode()
+    try:
+        s3.put_object(Bucket=originals["bucket"], Key=_registry_prefix(originals, pipeline) + sha, Body=body, IfNoneMatch="*")
+    except ClientError as exc:
+        if exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode") != 412 and exc.response.get("Error", {}).get("Code") != "PreconditionFailed":
+            raise
+
+
+@_s3_errors
+def list_loaded(originals: dict, configuration: dict, pipeline: str) -> list[dict]:
+    import json as _json
+
+    s3 = _s3(originals, configuration)
+    out = []
+    for page in s3.get_paginator("list_objects_v2").paginate(Bucket=originals["bucket"], Prefix=_registry_prefix(originals, pipeline)):
+        for o in page.get("Contents", []):
+            out.append(_json.loads(s3.get_object(Bucket=originals["bucket"], Key=o["Key"])["Body"].read()))
+    return out
+
+
+@_s3_errors
+def archive_original(lp: LocalPackage, originals: dict, configuration: dict, pipeline: str) -> str:
+    """Put the exact bytes into the originals bucket with If-None-Match: * (never overwrites).
+    Returns the S3 key. A 412 means the same content is already archived — success."""
+    from botocore.exceptions import ClientError
+
+    s3 = _s3(originals, configuration)
     key = f"{originals.get('prefix', 'originals').strip('/')}/{pipeline}/{lp.pkg.path}/{lp.sha256}"
     try:
         with open(lp.local_path, "rb") as fh:
@@ -204,7 +275,7 @@ def unpack(lp: LocalPackage, transforms: list[dict]) -> None:
 def _unzip(lp: LocalPackage, t: dict) -> dict[str, str]:
     try:
         return _unzip_all(lp, t)
-    except (zipfile.BadZipFile, EOFError, zlib.error, NotImplementedError) as exc:  # corrupt, encrypted or unsupported
+    except (zipfile.BadZipFile, EOFError, zlib.error, NotImplementedError, RuntimeError) as exc:  # corrupt, encrypted (RuntimeError) or unsupported
         raise PackageRejected("unzip", f"unreadable archive ({type(exc).__name__})") from None
 
 
@@ -271,7 +342,7 @@ def _gunzip(lp: LocalPackage, t: dict) -> dict[str, str]:
                     if total > t["max_total_bytes"]:
                         raise PackageRejected("gunzip", "uncompressed size exceeds max_total_bytes")
                     dst.write(chunk)
-        except (OSError, EOFError):
+        except (OSError, EOFError, zlib.error):  # gzip.BadGzipFile is an OSError
             raise PackageRejected("gunzip", "corrupt gzip stream") from None
         out[new] = dest
     return out
@@ -307,7 +378,7 @@ def run_receive_checks(lp: LocalPackage, checks: list[dict], stats: R.Stats, ses
             sidecar = c["sidecar"].format(name=name, algorithm=c["algorithm"])
             d = posixpath.dirname(lp.pkg.path)
             text = session.read_text(posixpath.join(d, sidecar) if d else sidecar)
-            expected = (text or "").strip().split()[0].lower() if text and text.strip() else None
+            expected = _sidecar_digest(text)
             actual = lp.sha256 if c["algorithm"] == "sha256" else lp.md5
             ok = expected == actual
             reason = "checksum sidecar missing" if expected is None else "checksum does not match the sidecar"

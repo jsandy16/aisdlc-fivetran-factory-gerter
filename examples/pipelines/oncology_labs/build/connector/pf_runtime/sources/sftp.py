@@ -85,6 +85,14 @@ class SftpSession:
                     stack.append(rel)
                 elif statmod.S_ISREG(e.st_mode or 0):
                     out.append(RemoteFile(rel, int(e.st_size or 0), float(e.st_mtime or 0)))
+                elif statmod.S_ISLNK(e.st_mode or 0):  # a link to a file is a delivery like any other (directory links are not followed)
+                    try:
+                        t = self._sftp.stat(posixpath.join(abs_dir, e.filename))
+                    except OSError:
+                        out.append(RemoteFile(rel, 0, float(e.st_mtime or 0)))  # dangling: surfaces as a failed download, not silence
+                        continue
+                    if statmod.S_ISREG(t.st_mode or 0):
+                        out.append(RemoteFile(rel, int(t.st_size or 0), float(t.st_mtime or 0)))
         return sorted(out, key=lambda f: f.path)
 
     def download(self, rel: str, dest: str) -> None:

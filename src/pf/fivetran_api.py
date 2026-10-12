@@ -130,8 +130,13 @@ def drift(api: FivetranApi, group_name: str, connection: str, schedule: dict) ->
     conn = api.find_connection(group["id"], connection)
     if conn is None:
         return {"status": "missing_connection"}
-    want = {"paused": bool(schedule.get("paused", False)), "sync_frequency": int(schedule.get("sync_frequency", 360))}
-    have = {"paused": conn.get("paused"), "sync_frequency": int(conn.get("sync_frequency", 0) or 0)}
+    want = {"paused": bool(schedule.get("paused", False)), "sync_frequency": int(schedule.get("sync_frequency", 360)),
+            "schedule_type": "auto"}
+    have = {"paused": conn.get("paused"), "sync_frequency": int(conn.get("sync_frequency", 0) or 0),
+            "schedule_type": conn.get("schedule_type", "auto")}
+    if want["sync_frequency"] == 1440 and schedule.get("daily_sync_time"):
+        want["daily_sync_time"] = schedule["daily_sync_time"]
+        have["daily_sync_time"] = conn.get("daily_sync_time")
     diff = {k: {"spec": want[k], "fivetran": have[k]} for k in want if want[k] != have[k]}
     return {"status": "drift" if diff else "in_sync", "connection_id": conn.get("id"), "diff": diff,
             "sync_state": (conn.get("status") or {}).get("sync_state"), "setup_state": (conn.get("status") or {}).get("setup_state")}

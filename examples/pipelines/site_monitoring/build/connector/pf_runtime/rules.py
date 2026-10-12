@@ -70,6 +70,38 @@ def _secret_bytes(configuration: dict, key: str) -> bytes:
 
 
 # ---------------------------------------------------------------------------- generic check evaluation
+def _as_type(x: Any, like: Any) -> Any:
+    """Convert x (a value or a range bound) to a type comparable with `like`, the typed attribute value:
+    numbers as Decimal; dates and datetimes parsed from ISO text ('T' or space); strings stay strings, but a
+    numeric bound never compares with text lexicographically."""
+    import datetime as _dt
+    import decimal as _dec
+
+    if isinstance(like, bool):
+        raise TypeError("booleans have no range")
+    if isinstance(like, (int, float, _dec.Decimal)):
+        if isinstance(x, bool):
+            raise TypeError("boolean bound")
+        return _dec.Decimal(str(x))
+    if isinstance(like, _dt.datetime):
+        if isinstance(x, _dt.datetime):
+            d = x
+        else:
+            d = _dt.datetime.fromisoformat(str(x).strip().replace("Z", "+00:00"))
+        if like.tzinfo is not None and d.tzinfo is None:
+            d = d.replace(tzinfo=_dt.timezone.utc)
+        if like.tzinfo is None and d.tzinfo is not None:
+            d = d.astimezone(_dt.timezone.utc).replace(tzinfo=None)
+        return d
+    if isinstance(like, _dt.date):
+        return x if isinstance(x, _dt.date) and not isinstance(x, _dt.datetime) else _dt.date.fromisoformat(str(x).strip()[:10])
+    if isinstance(like, str):
+        if isinstance(x, (int, float)) and not isinstance(x, bool):
+            raise TypeError("numeric bound on text")
+        return str(x)
+    raise TypeError(f"no range for {type(like).__name__}")
+
+
 def check_passes(rule: dict, value: Any, row: dict | None, package: dict | None = None) -> bool:
     """Evaluate one check. `value` is the attribute value (typed) or None for row/package checks."""
     k = rule["kind"]
@@ -80,18 +112,22 @@ def check_passes(rule: dict, value: Any, row: dict | None, package: dict | None 
     if k == "regex":
         return re.fullmatch(rule["pattern"], str(value)) is not None
     if k == "allowed_values":
-        allowed = rule["values"]
         cv = to_check(value)
-        return cv in allowed or str(cv) in [str(a) for a in allowed]
+        for a in rule["values"]:
+            if isinstance(a, bool) or isinstance(cv, bool):  # True is not 1
+                if isinstance(a, bool) and isinstance(cv, bool) and a == cv:
+                    return True
+                continue
+            if a == cv or str(a) == str(cv):
+                return True
+        return False
     if k == "range":
-        cv = to_check(value)
         lo, hi = rule.get("min"), rule.get("max")
         try:
-            if isinstance(cv, str):
-                return (lo is None or cv >= str(lo)) and (hi is None or cv <= str(hi))
-            return (lo is None or cv >= float(lo)) and (hi is None or cv <= float(hi))
-        except (TypeError, ValueError):
-            return False
+            v = _as_type(value, value)
+            return (lo is None or v >= _as_type(lo, value)) and (hi is None or v <= _as_type(hi, value))
+        except (TypeError, ValueError, ArithmeticError):
+            return False  # value or bound not comparable as the attribute's type: fail closed
     if k == "length":
         n = len(str(value))
         return (rule.get("min") is None or n >= rule["min"]) and (rule.get("max") is None or n <= rule["max"])

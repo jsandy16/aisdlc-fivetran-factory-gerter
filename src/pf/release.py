@@ -47,6 +47,17 @@ def _semver(v: str) -> tuple[int, int, int]:
     return int(a), int(b), int(c)
 
 
+def _pseudonymised(attr: dict) -> bool:
+    return any(t.get("kind") == "pseudonymise" for t in attr.get("transforms") or [])
+
+
+def requires_resync(old: dict, new: dict) -> bool:
+    """Primary key or load mode changed: Fivetran needs the table dropped and a full historical re-sync."""
+    oe = {e["name"]: e for e in old["entities"]}
+    return any(e["name"] in oe and (oe[e["name"]]["primary_key"] != e["primary_key"] or oe[e["name"]]["load"] != e["load"])
+               for e in new["entities"])
+
+
 def classify(old: dict, new: dict) -> tuple[str, list[str]]:
     """Return (required bump, reasons) comparing two locks."""
     reasons_major, reasons_minor = [], []
@@ -68,6 +79,10 @@ def classify(old: dict, new: dict) -> tuple[str, list[str]]:
                 reasons_major.append(f"{n}.{an} removed")
             elif (oa[an]["type"], oa[an].get("precision"), oa[an].get("scale")) != (na[an]["type"], na[an].get("precision"), na[an].get("scale")):
                 reasons_major.append(f"{n}.{an} type changed")
+            elif an in b["primary_key"] and (oa[an].get("transforms"), oa[an].get("source")) != (na[an].get("transforms"), na[an].get("source")):
+                reasons_major.append(f"{n}.{an}: key values change (transform or source of a primary-key column)")
+            elif _pseudonymised(oa[an]) != _pseudonymised(na[an]):
+                reasons_major.append(f"{n}.{an}: pseudonymisation added or removed")
         for an in na:
             if an not in oa:
                 reasons_minor.append(f"{n}.{an} added")
@@ -91,19 +106,23 @@ def _records(b: Bundle) -> list[tuple[tuple[int, int, int], str, dict]]:
     recs = []
     for f in sorted(d.glob("*.json")) if d.is_dir() else []:
         try:
-            recs.append((_semver(f.stem), f.stem, json.loads(f.read_text(encoding="utf-8"))["lock"]))
-        except (ValueError, KeyError):
-            continue
+            rec = json.loads(f.read_text(encoding="utf-8"))
+            recs.append((_semver(f.stem), f.stem, rec["lock"], rec.get("release", {})))
+        except (ValueError, KeyError, TypeError):
+            # a release record is evidence: an unreadable one is an error, never skipped
+            raise PfError(f"release record {f.relative_to(b.path)} is unreadable; restore it from Git history", "corrupt_release") from None
     return sorted(recs, key=lambda r: r[0])
 
 
-def check_version(b: Bundle, lock: dict, require_record: bool = False) -> dict:
+def check_version(b: Bundle, lock: dict, require_record: bool = False, connector_sha: str | None = None) -> dict:
     """Semantic-version gate. With require_record (CI), the release record for this version must be committed."""
     cur = _semver(lock["version"])
     recs = _records(b)
     same = next((r for r in recs if r[0] == cur), None)
     if same is not None:
-        if same[2]["spec_sha256"] != lock["spec_sha256"] or same[2].get("rules_lock_sha256") != lock.get("rules_lock_sha256"):
+        if same[2]["spec_sha256"] != lock["spec_sha256"] or same[2].get("rules_lock_sha256") != lock.get("rules_lock_sha256") \
+                or same[2].get("framework_version") != lock.get("framework_version") or same[2].get("runtime_version") != lock.get("runtime_version") \
+                or (connector_sha and same[3].get("connector_zip_sha256") not in (None, connector_sha)):
             older = [r for r in recs if r[0] < cur]
             need = classify(older[-1][2], lock)[0] if older else "minor"
             return {"ok": False, "msg": f"version {lock['version']} is already released with different content; bump the version ({need} or higher)"}
@@ -130,17 +149,20 @@ def release(root: Path, b: Bundle, upload: str | None = None, check_only: bool =
     if not (build / "spec.lock.json").exists():
         raise PfError("no build found; run `pf build` first", "not_built")
     lock = json.loads((build / "spec.lock.json").read_text(encoding="utf-8"))
-    ver = check_version(b, lock, require_record=check_only)
+    data = _zip(build / "connector")
+    ver = check_version(b, lock, require_record=check_only, connector_sha=hashlib.sha256(data).hexdigest())
     if not ver["ok"]:
         raise PfError(ver["msg"], "version")
     if check_only:
         return ver
-    data = _zip(build / "connector")
+    older = [r for r in _records(b) if r[0] < _semver(lock["version"])]
+    older_lock = older[-1][2] if older else None
     manifest = json.loads((build / "BUILD-MANIFEST.json").read_text(encoding="utf-8"))
     rec = {
         "pipeline": b.name, "version": lock["version"], "framework_version": lock["framework_version"],
         "runtime_version": lock["runtime_version"], "spec_sha256": lock["spec_sha256"], "rules_lock_sha256": lock["rules_lock_sha256"],
         "connector_zip_sha256": hashlib.sha256(data).hexdigest(), "build_files": manifest["files"], "git_commit": _git_commit(root),
+        "requires_resync": bool(older_lock and requires_resync(older_lock, lock)),
     }
     out = root / "artifacts" / b.name / lock["version"]
     out.mkdir(parents=True, exist_ok=True)

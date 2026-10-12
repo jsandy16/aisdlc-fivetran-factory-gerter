@@ -5,7 +5,7 @@ Give clinical operations a daily view of monitoring visits and open issues per i
 - Owners: product @clinops-po · engineering @rd-data-eng · governance @rd-governance · quality @rd-data-quality
 - GxP tier: non_gxp · freshness SLA: 24 h · consumers: Clinical Operations — Site Performance
 - Source: ftp → Fivetran Connector SDK (`site_monitoring`) → S3 lake (Iceberg), schema `site_monitoring`
-- Spec sha256: `1004b23181f78f73e71900d2afacb9d42cc368a4db4d9ddd74f37a5f01a1bc53`
+- Spec sha256: `835aa1d4e5d5a7932745dd30b70824773c85615741bca3e3df961bd41f9ba397`
 
 ## Lineage
 
