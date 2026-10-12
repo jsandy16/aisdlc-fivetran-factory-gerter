@@ -1,6 +1,6 @@
 {
   "files": {
-    ".github/workflows/pf-site-monitoring.yml": "01397dca24ca723e8ff63cbd26d1302df8b34ea594caae05f48dbb83c68f74fc",
+    ".github/workflows/pf-site-monitoring.yml": "c80669586400626ec4dcecb9d1ed7f3ecd0e771bad968454c8907fcf20a91ee6",
     "pipelines/site_monitoring/build/README.md": "2f8252f92315c5154104a6a1756021004d8587893319ef5b2222ce2c45b96f88",
     "pipelines/site_monitoring/build/connector/configuration.example.json": "967d13df8ba9ebb4d628021b4f430283b5bfe52aeb303cd20ad0a6fa52715229",
     "pipelines/site_monitoring/build/connector/connector.py": "23a18cd314d31f17355ec973c5fe3096911494632e1a33833b11e47612d60f1d",

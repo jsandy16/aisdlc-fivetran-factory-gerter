@@ -1,6 +1,6 @@
 {
   "files": {
-    ".github/workflows/pf-trial-sites.yml": "bc2aab9762f379f504c6c183ec077adc9bc39e446229d6709e463be9c1cccdc3",
+    ".github/workflows/pf-trial-sites.yml": "8ebfc89e37869de2531936b7fb8d4cb453760f335c42464fe71a7f16de4c1927",
     "pipelines/trial_sites/build/README.md": "1d65c761347234bab93b2ec6772a4e9071f8b0718d9f13f261cb669a2e2a117b",
     "pipelines/trial_sites/build/connector/configuration.example.json": "7e5b1bf4003f184ef7393928a7a613912b9dd5af3dad439b2d8773fbfae06eb0",
     "pipelines/trial_sites/build/connector/connector.py": "747eca0c4554b7f1b2751d5ae1e5691afe24a4c8c63d299daf55beacb24e3130",

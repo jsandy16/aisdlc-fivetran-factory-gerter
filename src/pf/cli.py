@@ -30,7 +30,12 @@ def _bundle(name: str):
 def cmd_init_repo(a) -> Result:
     root = Path(a.path).resolve()
     root.mkdir(parents=True, exist_ok=True)
-    (root / "pf.toml").write_text('# pipeline-factory repository marker\nspec_api_version = "pf/v1"\n', encoding="utf-8") if not (root / "pf.toml").exists() else None
+    if not (root / "pf.toml").exists():
+        (root / "pf.toml").write_text(
+            '# pipeline-factory repository marker\nspec_api_version = "pf/v1"\n'
+            '# pip requirement CI installs; pin the framework release this repository is built with, e.g.\n'
+            '# framework_requirement = "pipeline-factory[runtime,fivetran] @ git+https://github.com/<org>/pipeline-factory@v0.1.0"\n',
+            encoding="utf-8")
     (root / "pipelines").mkdir(exist_ok=True)
     gi = root / ".gitignore"
     lines = ["artifacts/", "**/build/connector/files/", "**/build/connector/configuration.json", "configuration.json", ".venv/", "__pycache__/", "*.pyc"]

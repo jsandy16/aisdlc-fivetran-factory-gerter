@@ -6,19 +6,16 @@ on:
   pull_request:
     paths:
       - 'pipelines/oncology_labs/**'
-      - 'src/**'
-      - 'pyproject.toml'
+      - 'pf.toml'
   push:
     branches: [main]
     paths:
       - 'pipelines/oncology_labs/**'
-      - 'src/**'
-      - 'pyproject.toml'
+      - 'pf.toml'
   workflow_dispatch: {}
 
 permissions:
   contents: read
-  id-token: write  # OIDC to AWS for artefact upload
 
 concurrency:
   group: pf-oncology-labs-${{ github.ref }}
@@ -28,12 +25,14 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12'
       - name: Install pipeline-factory
-        run: pip install -e '.[runtime,fivetran,dev]'
+        run: pip install 'pipeline-factory[runtime,fivetran]==0.1.0'
       - name: Validate specs
         run: pf validate oncology_labs
       - name: Generated files match the specs (no hand edits, nothing stale)
@@ -47,16 +46,21 @@ jobs:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # OIDC to AWS, deploy jobs only
     environment: dev  # configure required reviewers for production environments
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12'
       - name: Install pipeline-factory
-        run: pip install -e '.[runtime,fivetran]'
+        run: pip install 'pipeline-factory[runtime,fivetran]==0.1.0'
       - name: AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
         with:
           role-to-assume: ${{ vars.PF_AWS_ROLE_ARN }}
           aws-region: ${{ vars.PF_AWS_REGION }}
@@ -75,16 +79,21 @@ jobs:
     needs: deploy-dev
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # OIDC to AWS, deploy jobs only
     environment: prod  # configure required reviewers for production environments
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12'
       - name: Install pipeline-factory
-        run: pip install -e '.[runtime,fivetran]'
+        run: pip install 'pipeline-factory[runtime,fivetran]==0.1.0'
       - name: AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
         with:
           role-to-assume: ${{ vars.PF_AWS_ROLE_ARN }}
           aws-region: ${{ vars.PF_AWS_REGION }}
