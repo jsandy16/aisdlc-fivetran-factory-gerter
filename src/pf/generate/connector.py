@@ -13,25 +13,28 @@ from ..bundle import Bundle
 from ..envelope import PfError
 
 # Pinned to the versions the framework is tested with. fivetran_connector_sdk and requests are pre-installed
-# by Fivetran and must not be listed.
+# by Fivetran and must not be listed. Names are written in the normalised form (lowercase, "_") that the SDK's
+# requirements check compares literally: "psycopg2-binary==x" would read as a mismatch and be rewritten.
 PINS = {
-    "cel": ["cel-python==0.5.0", "google-re2==1.1.20251105", "pendulum==3.2.0", "lark==1.3.1", "jmespath==1.1.0", "PyYAML==6.0.3"],
+    "cel": ["cel_python==0.5.0", "google_re2==1.1.20251105", "pendulum==3.2.0", "lark==1.3.1", "jmespath==1.1.0", "pyyaml==6.0.3"],
     "sftp": ["paramiko==5.0.0"],
-    "postgres": ["psycopg2-binary==2.9.13"],
-    "mysql": ["PyMySQL==1.2.3"],
-    "boto3": ["boto3==1.43.111"],
+    "postgres": ["psycopg2_binary==2.9.13"],
+    "mysql": ["pymysql==1.2.3"],
+    "aws": ["boto3==1.43.111", "botocore==1.43.111"],
 }
+# Source adapters vendored per source type: a pipeline ships only the code (and imports) it can run.
+SOURCE_MODULES = {"sftp": {"sftp.py"}, "ftp": {"ftp.py", "tlsx.py"}, "rds": {"rds.py", "tlsx.py"}}
 
 # Every third-party import the vendored code may make, and the pinned distribution that provides it. `fivetran deploy`
 # runs with --force, which skips the SDK's pipreqs-based (network) dependency rewrite; this offline check replaces it.
-IMPORT_TO_DIST = {"celpy": "cel-python", "paramiko": "paramiko", "psycopg2": "psycopg2-binary", "pymysql": "PyMySQL",
-                  "boto3": "boto3", "botocore": "boto3", "fivetran_connector_sdk": None}
+IMPORT_TO_DIST = {"celpy": "cel_python", "paramiko": "paramiko", "psycopg2": "psycopg2_binary", "pymysql": "pymysql",
+                  "boto3": "boto3", "botocore": "botocore", "fivetran_connector_sdk": None}
 LOCAL = {"pf_runtime", "pf_rules"}
 
 
 def check_imports(files: dict[str, str | bytes], reqs: list[str]) -> None:
-    """Fail the build if generated or custom code imports anything that is neither stdlib, local, pre-installed by
-    Fivetran, nor a pinned requirement. Custom rules (pf_rules) may only use stdlib and the pinned set."""
+    """Fail the build if generated, vendored or custom code imports anything that is neither stdlib, local,
+    pre-installed by Fivetran, nor pinned in this pipeline's requirements.txt."""
     pinned = {r.split("==")[0].lower() for r in reqs}
     problems = []
     for path, content in files.items():
@@ -41,13 +44,22 @@ def check_imports(files: dict[str, str | bytes], reqs: list[str]) -> None:
         for node in ast.walk(tree):
             names = [a.name for a in node.names] if isinstance(node, ast.Import) else \
                 [node.module] if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module else []
+            if isinstance(node, ast.Call) and getattr(node.func, "attr", getattr(node.func, "id", "")) in ("import_module", "__import__"):
+                arg = node.args[0] if node.args else None  # dynamic imports count too, and must be literal
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    names = [arg.value]
+                elif isinstance(arg, ast.JoinedStr) and arg.values and isinstance(arg.values[0], ast.Constant) \
+                        and str(arg.values[0].value).startswith("pf_rules."):
+                    names = ["pf_rules"]  # custom rule modules, resolved from the reviewed rules/ folder
+                else:
+                    problems.append(f"{path}: dynamic import with a non-literal module name")
             for n in names:
                 top = n.split(".")[0]
                 if top in sys.stdlib_module_names or top in LOCAL or top == "__future__":
                     continue
                 if top not in IMPORT_TO_DIST:
                     problems.append(f"{path}: import '{top}' is not an allowed dependency")
-                elif path.startswith("pf_rules/") and IMPORT_TO_DIST[top] and IMPORT_TO_DIST[top].lower() not in pinned:
+                elif IMPORT_TO_DIST[top] and IMPORT_TO_DIST[top] not in pinned:
                     problems.append(f"{path}: import '{top}' needs {IMPORT_TO_DIST[top]}, which this pipeline does not install")
     if problems:
         raise PfError("connector dependency check failed:\n" + "\n".join(problems), "dependencies")
@@ -96,10 +108,9 @@ def requirements(lock: dict) -> list[str]:
     if src["type"] == "sftp":
         req += PINS["sftp"]
     if src["type"] == "rds":
-        req += PINS["postgres"] if src["engine"] == "postgres" else PINS["mysql"]
-    if lock["archive_originals"]:
-        req += PINS["boto3"]
-    return sorted(set(req), key=str.lower)
+        req += PINS["postgres"] + PINS["mysql"]  # rds.py imports both drivers (lazily); pipreqs sees both
+    req += PINS["aws"]  # the vendored package module imports boto3 for the originals archive
+    return sorted(set(req))
 
 
 def render(b: Bundle, lock: dict, header: str) -> dict[str, str | bytes]:
@@ -112,8 +123,12 @@ def render(b: Bundle, lock: dict, header: str) -> dict[str, str | bytes]:
     example.update({k: "" for k in keys})
     out["configuration.example.json"] = json.dumps(example, indent=2, sort_keys=True) + "\n"
     rt = Path(pf_runtime.__file__).parent
+    keep = SOURCE_MODULES[lock["source"]["type"]] | {"__init__.py"}
     for f in sorted(rt.rglob("*.py")):
-        out[f"pf_runtime/{f.relative_to(rt).as_posix()}"] = f.read_bytes()
+        rel = f.relative_to(rt).as_posix()
+        if rel.startswith("sources/") and f.name not in keep:
+            continue
+        out[f"pf_runtime/{rel}"] = f.read_bytes()
     rules_dir = b.path / "rules"
     has_rules = False
     if rules_dir.is_dir():

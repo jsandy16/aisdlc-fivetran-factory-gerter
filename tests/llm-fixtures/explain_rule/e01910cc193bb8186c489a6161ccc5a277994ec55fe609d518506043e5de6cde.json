@@ -1,0 +1,17 @@
+{
+  "output": {
+    "explanation": "A site row is only held to account when its status is ACTIVE: in that case it must have an activated_on date. Rows with any other status, or no status, pass automatically.",
+    "fails_when": [
+      "status is exactly \"ACTIVE\" and activated_on is null (missing)",
+      "Comparison is case-sensitive, so \"active\" or \"Active\" is not treated as ACTIVE and passes without needing activated_on",
+      "Other columns (site_id, site_name, country, enrolment_target, updated_at) are not checked; the activated_on date is not checked for being in the past or any range, only for being present"
+    ],
+    "passes_when": [
+      "status is null (missing), whatever activated_on holds",
+      "status is anything other than exactly \"ACTIVE\" (e.g. \"PENDING\", \"CLOSED\", or lowercase \"active\"), whatever activated_on holds",
+      "status is exactly \"ACTIVE\" and activated_on has a date value"
+    ]
+  },
+  "skill": "explaining-compiled-rules",
+  "task": "explain_rule"
+}

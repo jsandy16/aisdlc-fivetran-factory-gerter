@@ -67,8 +67,14 @@ class FivetranApi:
     def find_connection(self, group_id: str, schema: str) -> dict | None:
         return next((c for c in self._paged(f"/groups/{group_id}/connections", {"schema": schema}) if c.get("schema") == schema), None)
 
-    def get_destination(self, destination_id: str) -> dict:
-        return self.request("GET", f"/destinations/{destination_id}").get("data", {})
+    def get_destination(self, destination_id: str) -> dict | None:
+        """The destination of a group (same id), or None if the group has no destination yet."""
+        try:
+            return self.request("GET", f"/destinations/{destination_id}").get("data", {})
+        except PfError as exc:
+            if "HTTP 404" in str(exc):
+                return None
+            raise
 
 
 def ensure_destination(api: FivetranApi, settings: dict, dry_run: bool = False) -> dict:
@@ -85,6 +91,12 @@ def ensure_destination(api: FivetranApi, settings: dict, dry_run: bool = False) 
         return {"action": "created", "group_id": group["id"], "destination": dest.get("id", group["id"]),
                 "setup_tests": dest.get("setup_tests", [])}
     current = api.get_destination(group["id"])
+    if current is None:  # group pre-created by the platform team, destination not set up yet
+        if dry_run:
+            return {"action": "create_destination", "group_id": group["id"], "request": req}
+        dest = api.request("POST", "/destinations", {**req, "group_id": group["id"]})["data"]
+        return {"action": "created", "group_id": group["id"], "destination": dest.get("id", group["id"]),
+                "setup_tests": dest.get("setup_tests", [])}
     cfg = current.get("config", {})
     drift = {k: {"spec": v, "fivetran": cfg[k]} for k, v in req["config"].items() if k in cfg and cfg[k] != v}
     if current.get("service") not in (None, "managed_data_lake"):

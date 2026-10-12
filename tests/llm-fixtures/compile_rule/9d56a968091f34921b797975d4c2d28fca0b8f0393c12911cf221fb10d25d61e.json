@@ -1,0 +1,130 @@
+{
+  "output": {
+    "ambiguities": [
+      "Is the status comparison case-sensitive (does 'active' count as ACTIVE)? Assumed exact, case-sensitive 'ACTIVE'.",
+      "When status is null, is the rule not applicable (pass)? Assumed it passes.",
+      "Should activated_on be required (must be null) when status is not ACTIVE? Assumed no constraint."
+    ],
+    "cases": [
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"ACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "Typical pass: ACTIVE with activated_on present"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"ACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "ACTIVE with null activated_on violates requirement"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"ACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "\"\""
+          }
+        ],
+        "why": "Empty string counts as missing"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"INACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "Non-ACTIVE status: activated_on not required"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"INACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "Non-ACTIVE with a date is still fine"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "null"
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "Null status: rule not triggered"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "null"
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "Null status with date present"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"active\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "Case-sensitivity boundary: lowercase is not ACTIVE under the assumed reading"
+      }
+    ],
+    "expression": "row.status == \"ACTIVE\" ? (row.activated_on != null && row.activated_on != \"\") : true",
+    "referenced": [
+      "row.status",
+      "row.activated_on"
+    ]
+  },
+  "skill": "compiling-english-rules",
+  "task": "compile_rule"
+}

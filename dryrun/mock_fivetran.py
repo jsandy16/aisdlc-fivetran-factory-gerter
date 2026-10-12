@@ -90,7 +90,9 @@ def make_handler(st: State):
                     cid = f"con_{uuid.uuid4().hex[:10]}"
                     c = {"id": cid, "service": req.get("service", "connector_sdk"), "group_id": req["group_id"],
                          "schema": req.get("config", {}).get("schema") or req.get("schema") or req.get("connection_name") or req.get("name"),
-                         "paused": True, "sync_frequency": 360, "schedule_type": "auto", "config": req.get("config", {})}
+                         "paused": True, "sync_frequency": 360, "schedule_type": "auto", "config": req.get("config", {}),
+                         "destination_schema_names": req.get("destination_schema_names"), "setup_tests": [],
+                         "status": {"setup_state": "connected", "sync_state": "scheduled"}}
                     st.connections[cid] = c
                     return self._send(201, c)
                 m = re.fullmatch(r"/v1/(connectors|connections)/([^/]+)", p)

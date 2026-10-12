@@ -9,12 +9,17 @@ cel-python 0.5.0 raises "no such overload" for int/double compared with null, wh
 """
 from __future__ import annotations
 
+import importlib
 import threading
 from typing import Any
 
-import celpy
+# cel-python is imported by name through importlib on purpose: its wheel ships no top_level.txt, so the
+# Connector SDK's pipreqs check cannot map the `celpy` import to `cel-python` and would resolve it against PyPI,
+# where an unrelated package named `CelPy` exists — `fivetran deploy --yes` would then add it to requirements.txt.
+# cel-python stays pinned in requirements.txt and `pf build` verifies the import offline (generate/connector.py).
+celpy = importlib.import_module("celpy")
 
-from celpy import celtypes as _T
+_T = importlib.import_module("celpy.celtypes")
 
 _ENV = celpy.Environment()
 

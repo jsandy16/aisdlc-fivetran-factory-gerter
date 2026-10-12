@@ -25,7 +25,7 @@ from typing import Any, Callable
 from . import VERSION
 from . import package as P
 from . import rules as R
-from .errors import ConfigError, EntityRejected, PackageRejected, SyncFailed
+from .errors import ConfigError, EntityRejected, PackageRejected, SyncFailed, TransientError
 from .logx import Log
 from .parse import Reader
 from .retry import retry
@@ -223,6 +223,10 @@ class Sync:
         except SyncFailed as exc:
             self.log.error("sync_failed", rule_id=exc.rule_id, reason=exc.reason)
             self.op.error(f"Sync stopped by rule {exc.rule_id}: {exc.reason}")
+            return
+        except TransientError as exc:  # retries exhausted: fail this sync cleanly; the next scheduled sync resumes from state
+            self.log.error("source_unavailable", error=str(exc))
+            self.op.error(f"Source unavailable after retries: {exc}. Progress is checkpointed; the next sync resumes.")
             return
         finally:
             for s in self._sessions:

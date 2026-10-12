@@ -1,0 +1,17 @@
+{
+  "output": {
+    "explanation": "If a site's status is exactly \"ACTIVE\", it must have an activated_on value that is present and not an empty string. Sites with any other status always pass, whatever activated_on holds.",
+    "fails_when": [
+      "status is \"ACTIVE\" and activated_on is null",
+      "The status comparison is case-sensitive, so \"active\" is not treated as ACTIVE and passes without any check on activated_on",
+      "Surprising: activated_on is a date (NAIVE_DATE) but is compared to the empty string \"\". That second check can never be false for a real date, so it adds nothing. Depending on the engine, comparing a date to a string could raise a type error instead of simply returning true."
+    ],
+    "passes_when": [
+      "status is \"ACTIVE\" and activated_on is not null (and not equal to the empty string \"\")",
+      "status is anything other than \"ACTIVE\" (e.g. \"INACTIVE\", \"PENDING\", other text), regardless of activated_on, including when activated_on is null",
+      "status is null: the comparison to \"ACTIVE\" is false, so the rule passes (this assumes null compares as not equal rather than raising an error)"
+    ]
+  },
+  "skill": "explaining-compiled-rules",
+  "task": "explain_rule"
+}

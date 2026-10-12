@@ -450,7 +450,7 @@ def scenario_rds(state: Path, E: dict, env: dict) -> None:
               ("pipeline.yaml", "owners.quality"): "@rd-data-quality", ("destination.yaml", "destination.processing_region"): "AWS_US_EAST_1",
               ("quality.yaml", "ticket_route"): "jira:FEAS", ("policy.yaml", "default_classification"): "internal",
               ("policy.yaml", "retention.days"): 3650, ("policy.yaml", "retention.rationale"): "Reference data, 10 years",
-              ("policy.yaml", "retention.object_lock_days"): 0,
+              ("policy.yaml", "retention.object_lock_days"): 365,
               ("source.yaml", "source.host"): "127.0.0.1", ("source.yaml", "source.port"): pg["port"],
               ("source.yaml", "source.engine"): "postgres", ("source.yaml", "source.database"): "ctms",
               ("source.yaml", "source.username"): "pf_reader", ("source.yaml", "source.ssl_mode"): "disable",
@@ -461,22 +461,41 @@ def scenario_rds(state: Path, E: dict, env: dict) -> None:
                        ("destination.yaml", f"destination.environments.{envn}.region"): "us-east-1",
                        ("destination.yaml", f"destination.environments.{envn}.fivetran_role_arn"): f"arn:aws:iam::{acct}:role/fivetran-mdls",
                        ("policy.yaml", f"environments.{envn}.audit.bucket"): f"az-rd-pf-audit-{envn}"})
+    owners[("pipeline.yaml", "requirement.consumers")] = ["Feasibility analytics"]
     v0 = pf(repo, "validate", "trial_sites", env=env, ok=None)
-    fill(repo, "trial_sites", {k: val for k, val in owners.items()
-                               if any(i.get("loc") == k[1] and i.get("file") == k[0] for i in v0["issues"]) or k[0] == "source.yaml"}, env)
+    unfilled = {(i["file"], i["loc"].rsplit(".", 1)[0] if i["loc"].rsplit(".", 1)[-1].isdigit() else i["loc"])
+                for i in v0["issues"] if i.get("code") == "required"}
+    fill(repo, "trial_sites", {k: val for k, val in owners.items() if k in unfilled or k[0] == "source.yaml"}, env)
     v = pf(repo, "validate", "trial_sites", env=env, ok=None)
     R.check(any(i.get("loc") == "source.ssl_mode" for i in v["issues"]), "ssl_mode disable is flagged (dry run only)")
     left = [(i["file"], i["loc"], i["msg"][:100]) for i in v["issues"] if i.get("severity") == "error"]
     R.check(not left, "RDS spec complete after owner edits", left)
     if left:
         return
+    import yaml
+
+    ent = yaml.safe_load((repo / "pipelines/trial_sites/sttm.yaml").read_text())["entities"][0]
+    eng = [(f"row_checks[{c['id']}]", c) for c in ent.get("row_checks", []) if c["kind"] == "english"] + \
+          [(f"attributes[{a['name']}].checks[{c['id']}]", c) for a in ent["attributes"] for c in a.get("checks", []) if c["kind"] == "english"]
+    for path, rule in eng:
+        if "ACTIVE" in rule["text"]:
+            text = ("When STATUS is exactly ACTIVE (upper case), ACTIVATED_ON must be present. "
+                    "For any other STATUS, or a missing STATUS, ACTIVATED_ON is not checked.")
+            ex = [{"input": {"status": "ACTIVE", "activated_on": "2023-01-15"}, "expected": "pass"},
+                  {"input": {"status": "ACTIVE", "activated_on": None}, "expected": "fail"},
+                  {"input": {"status": "PLANNED", "activated_on": None}, "expected": "pass"}]
+            pf(repo, "set", "trial_sites", "sttm.yaml", f"entities[sites].{path}.text", json.dumps(text), env=env, ok=None)
+            r = pf(repo, "set", "trial_sites", "sttm.yaml", f"entities[sites].{path}.examples", json.dumps(ex), env=env, ok=None)
+            R.check(r["ok"], f"owner answered and labelled {rule['id']}", r["issues"][:2])
+        else:
+            R.check(False, f"unexpected English rule from intake (should be a deterministic check?): {rule['id']}: {rule['text']}")
     c = pf(repo, "rules", "compile", "trial_sites", env=env, ok=None)
     for rid, info in (c.get("data") or {}).items():
+        R.check(not info.get("ambiguities"), f"{rid}: no open questions left", info.get("ambiguities"))
         a = pf(repo, "rules", "accept", "trial_sites", rid, "--by", "@rd-data-quality", env=env, ok=None)
         R.check(a["ok"], f"owner accepted {rid}: {info.get('expression','')[:90]}", a["issues"][:2])
     fxd = repo / "pipelines" / "trial_sites" / "fixtures" / "good"
     fxd.mkdir(parents=True, exist_ok=True)
-    cur.execute("COPY (SELECT site_id, site_name, country, status, activated_on, enrolment_target, updated_at FROM clinical.sites ORDER BY site_id LIMIT 20) TO STDOUT WITH CSV HEADER")
     import io as _io
     buf = _io.StringIO()
     cur.copy_expert("COPY (SELECT site_id, site_name, country, status, activated_on, enrolment_target, updated_at FROM clinical.sites ORDER BY site_id LIMIT 20) TO STDOUT WITH CSV HEADER", buf)
@@ -491,13 +510,13 @@ def scenario_rds(state: Path, E: dict, env: dict) -> None:
     R.check(p.returncode == 0, "RDS sync 1: exits 0 (read-only session, server-side cursor)", p.stdout[-600:] + p.stderr[-600:])
     n = wh(conn, "select count(*) from tester.sites")[0][0]
     q = wh(conn, "select count(*) from tester.pf_quarantine")[0][0]
-    R.check(n + q >= 250 and n > 0, "RDS sync 1: all 250 rows read (loaded or quarantined by rules)", (n, q))
+    R.check(n == 250 and q == 0, "RDS sync 1: all 250 rows loaded (seed data satisfies every rule)", (n, q))
     cur.execute("UPDATE clinical.sites SET status='CLOSED', updated_at = timestamp '2024-04-01' WHERE site_id IN ('0001','0002')")
     cur.execute("INSERT INTO clinical.sites VALUES ('0999','New site','GB','PLANNED',NULL,20, timestamp '2024-04-02')")
     p = tester(conn, cfg, state, "rds-sync2", env)
     st = dict(wh(conn, "select site_id, status from tester.sites where site_id in ('0001','0002','0999')"))
     R.check(p.returncode == 0 and st.get("0001") == "CLOSED" and "0999" in st, "RDS sync 2: changed and new rows picked up by the cursor", st)
-    a = wh(conn, "select rows_read from tester.pf_entity_audit order by finished_at desc limit 1")
+    a = wh(conn, "select rows_read from tester.pf_entity_audit order by _fivetran_synced desc limit 1")
     R.check(a and a[0][0] <= 5, "RDS sync 2: incremental read (only rows at/after the cursor)", a)
     try:
         cur.execute("SET ROLE pf_reader")
@@ -560,9 +579,11 @@ def scenario_deploy(state: Path, E: dict, env: dict) -> None:
     reqs = [json.loads(line) for line in (state / "fivetran-requests.jsonl").read_text().splitlines()]
     R.check(any(r["path"].startswith("/v1/connector-sdk/packages") and r["method"] == "POST" for r in reqs), "package upload seen by the API")
     conn_req = [r for r in reqs if r["method"] == "POST" and r["path"] in ("/v1/connectors", "/v1/connections")]
-    R.check(conn_req and conn_req[-1].get("json", {}).get("config", {}).get("pf_environment") == "dev", "connection config carries pf_environment=dev")
-    R.check(conn_req and "originals_access_key_id_prod" not in conn_req[-1].get("json", {}).get("config", {}),
-            "dev connection receives only dev secrets")
+    sl = conn_req[-1].get("json", {}).get("config", {}).get("secrets_list", []) if conn_req else []
+    keys = {i.get("key"): i.get("value") for i in sl} if isinstance(sl, list) else {}
+    R.check(keys.get("pf_environment") == "dev", "connection configuration (secrets_list) carries pf_environment=dev", sorted(keys))
+    R.check(keys and not any(k.endswith("_prod") for k in keys), "dev connection receives only dev secrets", sorted(keys))
+    R.check(conn_req and conn_req[-1]["json"].get("paused") is True, "new connection is created paused (SDK default)")
     sched = [r for r in reqs if r["method"] == "PATCH" and "/connections/" in r["path"]]
     R.check(sched and sched[-1]["json"].get("daily_sync_time") == "02:00" and sched[-1]["json"].get("paused") is True,
             "schedule from pipeline.yaml applied (dev: daily 02:00, paused)", sched[-1:] if sched else reqs[-3:])

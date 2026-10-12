@@ -1,0 +1,126 @@
+{
+  "output": {
+    "ambiguities": [],
+    "cases": [
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"ACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "ACTIVE with activated_on present"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"ACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "ACTIVE with activated_on missing"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"active\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "lower case is not exactly ACTIVE, so not checked"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"INACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "other status, not checked"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "null"
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "missing status, not checked"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "null"
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "missing status with date present"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"CLOSED\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "other status with date present"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"ACTIVE \""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "trailing space is not exactly ACTIVE"
+      }
+    ],
+    "expression": "row.status == null || row.status != \"ACTIVE\" || row.activated_on != null",
+    "referenced": [
+      "row.status",
+      "row.activated_on"
+    ]
+  },
+  "skill": "compiling-english-rules",
+  "task": "compile_rule"
+}
