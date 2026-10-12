@@ -1,0 +1,163 @@
+{
+  "output": {
+    "ambiguities": [],
+    "cases": [
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"COV\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "0"
+          }
+        ],
+        "why": "COV with zero open issues; == 0 boundary"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"COV\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "1"
+          }
+        ],
+        "why": "COV with one open issue, just above 0"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"COV\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "-1"
+          }
+        ],
+        "why": "COV with negative count, just below 0, not equal to 0"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"COV\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "null"
+          }
+        ],
+        "why": "COV with missing open_issues must fail"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "null"
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "5"
+          }
+        ],
+        "why": "missing visit_type passes"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "null"
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "null"
+          }
+        ],
+        "why": "both missing passes"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"COV \""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "3"
+          }
+        ],
+        "why": "trailing whitespace makes a different type, not COV"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"cov\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "3"
+          }
+        ],
+        "why": "case-sensitive: lowercase is not COV"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"MON\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "7"
+          }
+        ],
+        "why": "other visit type with open issues passes"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "2"
+          }
+        ],
+        "why": "empty string is not COV"
+      }
+    ],
+    "expression": "row.visit_type == null || row.visit_type != \"COV\" || (row.open_issues != null && row.open_issues == 0)",
+    "referenced": [
+      "row.visit_type",
+      "row.open_issues"
+    ]
+  },
+  "output_sha256": "13608f9ee00030f55a92595e4c1bc2c74408acf8040727418d0dd3a1dbab710d",
+  "provenance": {
+    "cost_usd": 0.0122182,
+    "model": "claude-sonnet-5-5",
+    "prompt_version": "1",
+    "recorded_at": "2026-10-12T22:33:52Z",
+    "skill_sha256": "f2aa107ba76ea6b626c53137d8464138036ce4f7c441149a9fd9b058225f04cd",
+    "turns": 4
+  },
+  "skill": "compiling-english-rules",
+  "task": "compile_rule"
+}

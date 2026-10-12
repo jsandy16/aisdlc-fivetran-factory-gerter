@@ -307,6 +307,16 @@ def cross_validate(b: Bundle) -> list[Issue]:
             out.append(Issue(severity="error" if gxp_ftp else "warning", file="source.yaml", loc="source.tls",
                              msg="plain FTP sends credentials and data unencrypted" + (" — not allowed for GxP pipelines" if gxp_ftp
                                                                                        else "; needs a documented governance exception")))
+        import re as _re
+
+        for j, path in enumerate(s.source.package.admit_late):
+            if not _re.fullmatch(s.source.package.match, path):
+                out.append(Issue(file="source.yaml", loc=f"source.package.admit_late.{j}", code="cross_ref",
+                                 msg=f"'{path}' does not match source.package.match, so it can never be admitted"))
+        if s.source.package.admit_late:
+            out.append(Issue(severity="warning", file="source.yaml", loc="source.package.admit_late",
+                             msg="late deliveries are admitted: an older delivery can overwrite newer upserted rows; "
+                                 "remove the entries once they are loaded"))
         if p.gxp_tier != "non_gxp" and s.source.package.change_detection == "metadata":
             out.append(Issue(severity="warning", file="source.yaml", loc="source.package.change_detection",
                              msg="GxP: a re-upload that keeps size and modification time is not noticed with change_detection: metadata; "

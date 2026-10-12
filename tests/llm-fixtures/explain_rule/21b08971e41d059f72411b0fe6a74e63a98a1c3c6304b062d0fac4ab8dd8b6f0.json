@@ -1,0 +1,26 @@
+{
+  "output": {
+    "explanation": "Checks that any visit of type \"COV\" has no open issues. Visits of other types, or with no visit_type, are not checked. A COV visit passes only if open_issues is present and equal to 0.",
+    "fails_when": [
+      "visit_type is \"COV\" and open_issues is missing (null). A missing count is treated as a failure, not as zero.",
+      "visit_type is \"COV\" and open_issues is greater than 0",
+      "visit_type is \"COV\" and open_issues is negative, because only 0 passes"
+    ],
+    "passes_when": [
+      "visit_type is missing (null)",
+      "visit_type is anything other than \"COV\" (the comparison is case-sensitive, so \"cov\" counts as not COV), whatever open_issues is, including missing",
+      "visit_type is \"COV\" and open_issues is exactly 0"
+    ]
+  },
+  "output_sha256": "bc2264c8b76130b79ccae9611bcceeb8dc5366d0cf8df530f6ff078740a5cea2",
+  "provenance": {
+    "cost_usd": 0.0064307,
+    "model": "claude-sonnet-5-5",
+    "prompt_version": "1",
+    "recorded_at": "2026-10-12T22:33:59Z",
+    "skill_sha256": "c6582cdbd90fbc10711061afb7183a92693c888e3878a0de56e9761a0ea3ab19",
+    "turns": 4
+  },
+  "skill": "explaining-compiled-rules",
+  "task": "explain_rule"
+}

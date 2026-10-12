@@ -114,7 +114,7 @@ def cmd_edit(a) -> Result:
     else:
         op = {"set": "set", "add": "add", "remove": "remove"}[a.cmd]
         new = apply_edit(path, a.file, a.path, op, getattr(a, "value", None), keep_invalid=a.keep_invalid)
-    return Result(command=a.cmd, ok=not new, issues=new)
+    return Result(command=a.cmd, ok=not any(i.severity == "error" for i in new), issues=new)
 
 
 def cmd_catalog(a) -> Result:

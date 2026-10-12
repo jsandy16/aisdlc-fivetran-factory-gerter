@@ -69,8 +69,13 @@ def _resolve_selectors(doc: Any, path: str) -> list[str]:
     return parts
 
 
-def _errors(path: Path) -> list[Issue]:
-    return [i for i in load_bundle(path).issues if i.severity == "error" and i.code != "required"]
+def _errors(path: Path) -> tuple[list[Issue], bool]:
+    """Errors (placeholders excluded) and whether cross-file validation ran (it needs every file to parse)."""
+    from .bundle import SPEC_FILES as _F
+
+    b = load_bundle(path)
+    crossed = all(getattr(b, n.removesuffix(".yaml")) is not None for n in _F)
+    return [i for i in b.issues if i.severity == "error" and i.code != "required"], crossed
 
 
 def apply_edit(pipeline_path: Path, file: str, path: str, op: str, value_text: str | None = None, keep_invalid: bool = False) -> list[Issue]:
@@ -78,7 +83,8 @@ def apply_edit(pipeline_path: Path, file: str, path: str, op: str, value_text: s
         raise PfError(f"unknown spec file '{file}' (one of {sorted(SPEC_FILES)})", "invalid")
     f = pipeline_path / file
     before_text = f.read_text(encoding="utf-8")
-    before = {(i.file, i.loc, i.msg) for i in _errors(pipeline_path)}
+    before_errs, crossed_before = _errors(pipeline_path)
+    before = {(i.file, i.loc, i.msg) for i in before_errs}
     doc = yamlio.load(f)
     parts = _resolve_selectors(doc, path)
     parent, last = _walk(doc, parts, create=(op == "set"))
@@ -106,11 +112,21 @@ def apply_edit(pipeline_path: Path, file: str, path: str, op: str, value_text: s
     else:
         raise PfError(f"unknown edit op {op}", "invalid")
     yamlio.dump(doc, f)
-    after = _errors(pipeline_path)
+    after, crossed_after = _errors(pipeline_path)
     new = [i for i in after if (i.file, i.loc, i.msg) not in before]
-    if new and not keep_invalid:
+    blame = new
+    if crossed_after and not crossed_before:
+        # this edit completed the last file, so cross-file checks ran for the first time: errors they find elsewhere
+        # already existed and are reported, not blamed on this edit; only errors at the edited value roll it back
+        dotted = ".".join(parts)
+        blame = [i for i in new if i.file == file and (i.code == "invalid" or i.loc == dotted or i.loc.startswith(dotted + ".")
+                                                         or dotted.startswith(i.loc + "."))]
+    if blame and not keep_invalid:
         f.write_text(before_text, encoding="utf-8")
-        raise PfError("edit rolled back: it introduced validation errors", "invalid", new)
+        raise PfError("edit rolled back: it introduced validation errors", "invalid", blame)
+    if blame is not new:  # errors elsewhere that this edit only made visible: report them, the edit itself is fine
+        return [i if i in blame else i.model_copy(update={"severity": "warning", "msg": "already present, now visible "
+                "(cross-file checks run once every file is filled in): " + i.msg}) for i in new]
     return new
 
 

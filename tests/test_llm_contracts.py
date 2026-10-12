@@ -136,10 +136,10 @@ def test_fixture_tampering_is_detected(onc, monkeypatch, tmp_path):
     from tests.conftest import FRAMEWORK
 
     shutil.copytree(FRAMEWORK / "tests" / "llm-fixtures", tmp_path / "fx")
-    f = next((tmp_path / "fx" / "explain_rule").glob("*.json"))
-    rec = _j.loads(f.read_text())
-    rec["output"]["explanation"] = "forged"
-    f.write_text(_j.dumps(rec))
+    for f in (tmp_path / "fx" / "explain_rule").glob("*.json"):  # forge every recording, whichever the replay picks
+        rec = _j.loads(f.read_text())
+        rec["output"]["explanation"] = "forged"
+        f.write_text(_j.dumps(rec))
     monkeypatch.setenv("PF_LLM_FIXTURES", str(tmp_path / "fx"))
     (onc / "rules.lock.yaml").unlink()
     with pytest.raises(PfError) as e:

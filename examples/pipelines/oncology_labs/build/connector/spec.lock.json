@@ -362,6 +362,7 @@
     "host": "sftp.centrallab.example",
     "host_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM+q46zWGkXM1yoev4CEou+F50Sc0fxiUJbCZpG6sHPp",
     "package": {
+      "admit_late": [],
       "change_detection": "content",
       "checks": [
         {

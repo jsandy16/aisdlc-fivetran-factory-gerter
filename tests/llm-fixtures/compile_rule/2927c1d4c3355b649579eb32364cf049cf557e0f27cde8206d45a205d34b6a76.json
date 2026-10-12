@@ -1,0 +1,135 @@
+{
+  "output": {
+    "ambiguities": [],
+    "cases": [
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"ACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "ACTIVE with activated_on present"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"ACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "ACTIVE with null activated_on"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"INACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "other status not checked"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\" ACTIVE\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "whitespace-padded status is a different status"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"active\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "lower case is not exactly ACTIVE"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "null"
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "null"
+          }
+        ],
+        "why": "missing status is not checked"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "null"
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "null status with date present"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.status",
+            "value_json": "\"PENDING\""
+          },
+          {
+            "name": "row.activated_on",
+            "value_json": "\"2024-01-31\""
+          }
+        ],
+        "why": "other status with date present"
+      }
+    ],
+    "expression": "row.status != \"ACTIVE\" || row.activated_on != null",
+    "referenced": [
+      "row.status",
+      "row.activated_on"
+    ]
+  },
+  "output_sha256": "4781e86f54916825ea468ba56403604fc6a5350446cf45aef3e84f91b0f685fa",
+  "provenance": {
+    "cost_usd": 0.0107397,
+    "model": "claude-sonnet-5-5",
+    "prompt_version": "1",
+    "recorded_at": "2026-10-12T22:34:51Z",
+    "skill_sha256": "f2aa107ba76ea6b626c53137d8464138036ce4f7c441149a9fd9b058225f04cd",
+    "turns": 4
+  },
+  "skill": "compiling-english-rules",
+  "task": "compile_rule"
+}

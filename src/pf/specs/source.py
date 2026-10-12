@@ -32,6 +32,10 @@ class PackageSpec(StrictModel):
     on_redelivery: Literal["skip", "reprocess", "reject"] = Field(
         default="reject", description="Same package path seen again with different content"
     )
+    admit_late: list[str] = Field(
+        default_factory=list, description="delivery paths (relative, as in pf_package_audit.package) that the owner "
+        "deliberately admits although newer deliveries were already loaded; each is loaded once and audited as late. "
+        "Reviewed through the pull request like any spec change; remove the entry afterwards")
     max_package_bytes: int = Field(default=2 * 1024**3, ge=1)
     transforms: list[PackageTransform] = Field(default_factory=list)
     checks: list[PackageCheck] = Field(default_factory=list)

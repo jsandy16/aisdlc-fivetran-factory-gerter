@@ -119,3 +119,27 @@ def test_yaml_aliases_rejected(onc):
     (onc / "quality.yaml").write_text("x: &a [1, 2]\ny: *a\n" + text)
     b = load_bundle(onc)
     assert any("aliases" in i.msg for i in b.issues), [i.msg for i in b.issues][:3]
+
+
+def test_completing_a_file_does_not_blame_the_edit_for_older_errors(onc):
+    """Filling the last placeholder lets cross-file checks run for the first time: errors they reveal in other files
+    are reported, but the (valid) edit is kept."""
+    from pf.edit import apply_edit
+
+    pol = onc / "policy.yaml"
+    pol.write_text(pol.read_text().replace("  days: 9125", "  days: <REQUIRED>", 1))
+    src = onc / "source.yaml"
+    src.write_text(src.read_text().replace("    match: '", "    admit_late: [not-a-delivery]\n    match: '", 1))
+    new = apply_edit(onc, "policy.yaml", "retention.days", "set", "9125")
+    assert "days: 9125" in pol.read_text()
+    assert [i.severity for i in new if i.loc.startswith("source.package.admit_late")] == ["warning"]
+
+
+def test_admit_late_entries_must_match_the_delivery_pattern(onc):
+    from pf.bundle import load_bundle
+
+    src = onc / "source.yaml"
+    src.write_text(src.read_text().replace("    match: '", "    admit_late: [20240303/LB_ONC101_003.zip, nope.txt]\n    match: '", 1))
+    issues = load_bundle(onc).issues
+    assert [i.loc for i in issues if i.severity == "error"] == ["source.package.admit_late.1"]
+    assert any(i.severity == "warning" and i.loc == "source.package.admit_late" for i in issues)

@@ -328,6 +328,7 @@
     "ca_cert": null,
     "host": "ftps.cro-partner.example",
     "package": {
+      "admit_late": [],
       "change_detection": "metadata",
       "checks": [
         {

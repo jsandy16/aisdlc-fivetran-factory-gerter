@@ -28,7 +28,7 @@ from . import rules as R
 from .errors import ConfigError, EntityRejected, PackageRejected, SyncFailed, TransientError
 from .logx import Log
 from .parse import Reader
-from .retry import retry
+from .retry import is_transient, retry
 from .sources import open_file_source
 from .values import to_emit
 
@@ -289,10 +289,12 @@ class Sync:
             self.log.error("sync_failed", rule_id=exc.rule_id, reason=exc.reason)
             self.op.error(f"Sync stopped by rule {exc.rule_id}: {exc.reason}")
             return
-        except TransientError as exc:  # retries exhausted: fail this sync cleanly; the next scheduled sync resumes from state
-            self.log.error("source_unavailable", error=str(exc))
-            self.op.error(f"Source unavailable after retries: {exc}. Completed deliveries and incremental tables resume "
-                          "from the last checkpoint; a full-reload table is re-read next sync.")
+        except Exception as exc:  # retries exhausted (TransientError, or a network error re-raised by retry())
+            if not isinstance(exc, TransientError) and not is_transient(exc):
+                raise
+            self.log.error("source_unavailable", error=f"{type(exc).__name__}: {exc}")
+            self.op.error(f"Source or originals store unavailable after retries ({type(exc).__name__}: {exc}). Completed deliveries "
+                          "and incremental tables resume from the last checkpoint; a full-reload table is re-read next sync.")
             return
         finally:
             for s in self._sessions:
@@ -354,12 +356,16 @@ class Sync:
                 self._audit_skip(w.path, w.file.size, "waiting", "readiness", "modification time is in the future (clock skew?)")
         policy = self.lock.get("late_data_policy", "wait")
         hold = min((w.order_key for w in waiting), default=None) if policy == "wait" else None
+        admit = set(spec.get("admit_late") or [])
         todo: list[P.Package] = []
         for pkg in ready:
+            known = self.state.packages.get(pkg.path)
+            if pkg.path in admit and not (known and known.get("loaded_sha256")):
+                todo.append(pkg)  # owner-admitted late delivery: process it once, whatever happened to it before
+                continue
             if hold is not None and pkg.order_key > hold:
                 self.log.info("held_back", package=pkg.path, reason="an older delivery is not ready yet (late_data_policy: wait)")
                 continue
-            known = self.state.packages.get(pkg.path)
             if known and spec.get("change_detection", "metadata") == "metadata" and known.get("size") == pkg.file.size \
                     and known.get("mtime") == pkg.file.mtime \
                     and (known["status"] != "rejected" or known.get("side") == self._side_meta(pkg)):
@@ -399,7 +405,7 @@ class Sync:
                 if prepared.status == "loaded" and self.state.max_loaded is not None and pkg.order_key < self.state.max_loaded \
                         and self.state.packages.get(pkg.path, {}).get("loaded_sha256") is None:
                     prepared.late = True  # older than something already loaded
-                    if policy in ("wait", "reject_late"):
+                    if policy in ("wait", "reject_late") and pkg.path not in admit:
                         prepared.status, prepared.rule_id = "rejected", "late_data"
                         prepared.reason = f"arrived after newer deliveries were loaded (late_data_policy: {policy})"
                 try:
@@ -491,7 +497,8 @@ class Sync:
             if loaded and loaded == sha[:len(loaded)]:
                 out.status, out.reason = "skip", "unchanged content (already loaded)"
                 return out
-            if known.get("status") in ("rejected", "late") and known.get("fingerprint") == out.fingerprint:
+            if known.get("status") in ("rejected", "late") and known.get("fingerprint") == out.fingerprint \
+                    and pkg.path not in (spec.get("admit_late") or []):
                 out.status, out.reason = "skip", "unchanged since it was rejected"
                 return out
             if loaded:  # this path was loaded before with different content
@@ -722,7 +729,9 @@ class Sync:
         if p.status == "rejected":
             self._warn(f"Delivery {p.pkg.path} rejected by {p.rule_id}: {p.reason}")
         elif p.late:
-            self._warn(f"Late delivery {p.pkg.path} loaded after newer ones (late_data_policy: load_late)")
+            why = "admitted by the owner (admit_late)" if p.pkg.path in (self.lock["source"]["package"].get("admit_late") or []) \
+                else "late_data_policy: load_late"
+            self._warn(f"Late delivery {p.pkg.path} loaded after newer ones ({why})")
         self.log.info("package_done", package=p.pkg.path, status=p.status, rule_id=p.rule_id, emitted=rows_emitted, quarantined=rows_q)
 
     # ------------------------------------------------------------------ rds

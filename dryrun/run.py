@@ -80,6 +80,8 @@ def pf_set(repo: Path, name: str, file: str, path: str, value, env: dict) -> Non
 def fill(repo: Path, name: str, values: dict[tuple[str, str], object], env: dict) -> None:
     for (f, path), v in values.items():
         out = pf(repo, "set", name, f, path, json.dumps(v), env=env, ok=None)
+        if os.environ.get("PF_DRYRUN_DEBUG"):
+            print("   set", f, path, out.get("ok"), [i.get("msg", "")[:100] for i in out.get("issues", [])][:2], flush=True)
         if not out.get("ok"):
             errs = [i for i in out.get("issues", []) if i.get("severity") == "error" and i.get("code") != "required"]
             if errs:
@@ -184,8 +186,12 @@ def scenario_sftp(state: Path, E: dict, env: dict) -> None:
     R.check([a[1] for a in aud] == ["loaded", "loaded"], "sync 1: both deliveries audited as loaded", aud)
     lin = wh(conn, "select count(*) from tester.lab_results where pf_package is null or pf_package_hash is null or pf_run_id is null")[0][0]
     R.check(lin == 0, "every row carries lineage (package, sha256, run id)", lin)
-    objs = s.list_objects_v2(Bucket="az-rd-originals-dev").get("Contents", [])
+    allobjs = s.list_objects_v2(Bucket="az-rd-originals-dev").get("Contents", [])
+    objs = [o for o in allobjs if "/_evidence/" not in o["Key"] and "/_loaded/" not in o["Key"]]
     R.check(len(objs) == 2, "originals: 2 deliveries archived byte-for-byte (write-once, object lock)", [o["Key"] for o in objs])
+    side = [o["Key"] for o in allobjs if "/_evidence/" in o["Key"] or "/_loaded/" in o["Key"]]
+    R.check(sum("/_loaded/" in k for k in side) == 2 and sum("/_evidence/" in k for k in side) == 2,
+            "originals: a write-once loaded marker and delivery evidence per delivery (survive Fivetran re-syncs)", side)
     if objs:
         head = s.head_object(Bucket="az-rd-originals-dev", Key=objs[0]["Key"])
         R.check(head.get("ObjectLockMode") == "COMPLIANCE", "originals: archived object is under COMPLIANCE retention", head.get("ObjectLockMode"))
@@ -213,8 +219,19 @@ def scenario_sftp(state: Path, E: dict, env: dict) -> None:
     (root / "20240303" / "LB_ONC101_003.zip.sha256").write_text(f"{__import__('hashlib').sha256(d3).hexdigest()}  LB_ONC101_003.zip\n")
     os.utime(root / "20240303" / "LB_ONC101_003.zip.sha256", (OLD + 60, OLD + 60))  # re-uploaded later
     p = tester(conn, cfg, state, "sftp-sync4", env)
-    st = wh(conn, "select status from tester.pf_package_audit where package = '20240303/LB_ONC101_003.zip'")
-    R.check(("loaded",) in st, "sync 4: vendor fixed only the sidecar -> the rejected delivery is retried and loads", st)
+    st = wh(conn, "select status, rule_id from tester.pf_package_audit where package = '20240303/LB_ONC101_003.zip' order by finished_at")
+    R.check(st and st[-1] == ("rejected", "late_data"),
+            "sync 4: sidecar fixed after a newer delivery loaded -> retried, then refused as late (cannot overwrite newer rows)", st)
+    pf_set(repo, "oncology_labs", "source.yaml", "source.package.admit_late", ["20240303/LB_ONC101_003.zip"], env)
+    v = pf(repo, "validate", "oncology_labs", env=env, ok=None)
+    R.check(v["ok"] and any(i["loc"] == "source.package.admit_late" and i["severity"] == "warning" for i in v["issues"]),
+            "owner admits the late delivery in source.yaml (reviewed spec change, flagged with a warning)", v["issues"][:3])
+    pf(repo, "build", "oncology_labs", env=env)
+    p = tester(conn, cfg, state, "sftp-sync4b", env)
+    st = wh(conn, "select status from tester.pf_package_audit where package = '20240303/LB_ONC101_003.zip' order by finished_at")
+    R.check(st and st[-1] == ("loaded",), "sync 4b: the admitted late delivery loads once", st)
+    pf_set(repo, "oncology_labs", "source.yaml", "source.package.admit_late", [], env)
+    pf(repo, "build", "oncology_labs", env=env)
 
     fx.put(root, "20240301/LB_ONC101_001.zip", fx.delivery(fx.rows(3, 1)))
     os.utime(root / "20240301" / "LB_ONC101_001.zip", (OLD, OLD))
@@ -302,8 +319,9 @@ def scenario_ftp(state: Path, E: dict, env: dict) -> None:
             "(exactly 10 days passes). When REPORT_DATE is missing the report is not finalised yet and the row passes. "
             "When REPORT_DATE is present but VISIT_DATE is missing, the row fails.",
         rid_cov:
-            "When VISIT_TYPE is exactly COV (case-sensitive), OPEN_ISSUES must be present and equal to 0. "
-            "Rows with any other VISIT_TYPE, or with VISIT_TYPE missing, pass this rule.",
+            "When VISIT_TYPE is exactly COV (case-sensitive, compared as delivered without trimming whitespace, so 'COV ' "
+            "is a different type), OPEN_ISSUES must be present and equal to 0. Rows with any other VISIT_TYPE, or with "
+            "VISIT_TYPE missing, pass this rule.",
     }
     for rid, text in answers.items():
         r = pf(repo, "set", "site_monitoring", "sttm.yaml", f"entities[site_monitoring].row_checks[{rid}].text", json.dumps(text), env=env, ok=None)
@@ -454,12 +472,13 @@ def scenario_rds(state: Path, E: dict, env: dict) -> None:
     R.check(len(out["data"]["intake"]["applied"]) >= 5, "intake from a .docx requirement (tables included)", len(out["data"]["intake"]["applied"]))
     sttm = (repo / "pipelines" / "trial_sites" / "sttm.yaml").read_text()
     R.check("cursor_column: updated_at" in sttm, "intake found the incremental cursor column")
-    owners = {("pipeline.yaml", "gxp_tier"): "non_gxp", ("pipeline.yaml", "owners.product_owner"): "@feasibility-po",
+    owners = {("sttm.yaml", "entities[sites].attributes[updated_at].nullable"): False,  # owner confirms the cursor is NOT NULL
+              ("pipeline.yaml", "gxp_tier"): "non_gxp", ("pipeline.yaml", "owners.product_owner"): "@feasibility-po",
               ("pipeline.yaml", "owners.data_engineer"): "@rd-data-eng", ("pipeline.yaml", "owners.governance"): "@rd-governance",
               ("pipeline.yaml", "owners.quality"): "@rd-data-quality", ("destination.yaml", "destination.processing_region"): "AWS_US_EAST_1",
               ("quality.yaml", "ticket_route"): "jira:FEAS", ("policy.yaml", "default_classification"): "internal",
               ("policy.yaml", "retention.days"): 3650, ("policy.yaml", "retention.rationale"): "Reference data, 10 years",
-              ("policy.yaml", "retention.object_lock_days"): 365,
+              ("policy.yaml", "retention.object_lock_days"): 3650,
               ("source.yaml", "source.host"): "127.0.0.1", ("source.yaml", "source.port"): pg["port"],
               ("source.yaml", "source.engine"): "postgres", ("source.yaml", "source.database"): "ctms",
               ("source.yaml", "source.username"): "pf_reader", ("source.yaml", "source.ssl_mode"): "disable",
@@ -474,13 +493,9 @@ def scenario_rds(state: Path, E: dict, env: dict) -> None:
     v0 = pf(repo, "validate", "trial_sites", env=env, ok=None)
     unfilled = {(i["file"], i["loc"].rsplit(".", 1)[0] if i["loc"].rsplit(".", 1)[-1].isdigit() else i["loc"])
                 for i in v0["issues"] if i.get("code") == "required"}
-    fill(repo, "trial_sites", {k: val for k, val in owners.items() if k in unfilled or k[0] == "source.yaml"}, env)
+    fill(repo, "trial_sites", {k: val for k, val in owners.items() if k in unfilled or k[0] in ("source.yaml", "sttm.yaml")}, env)
     v = pf(repo, "validate", "trial_sites", env=env, ok=None)
     R.check(any(i.get("loc") == "source.ssl_mode" for i in v["issues"]), "ssl_mode disable is flagged (dry run only)")
-    left = [(i["file"], i["loc"], i["msg"][:100]) for i in v["issues"] if i.get("severity") == "error"]
-    R.check(not left, "RDS spec complete after owner edits", left)
-    if left:
-        return
     import yaml
 
     ent = yaml.safe_load((repo / "pipelines/trial_sites/sttm.yaml").read_text())["entities"][0]
@@ -488,8 +503,9 @@ def scenario_rds(state: Path, E: dict, env: dict) -> None:
           [(f"attributes[{a['name']}].checks[{c['id']}]", c) for a in ent["attributes"] for c in a.get("checks", []) if c["kind"] == "english"]
     for path, rule in eng:
         if "ACTIVE" in rule["text"]:
-            text = ("When STATUS is exactly ACTIVE (upper case), ACTIVATED_ON must be present. "
-                    "For any other STATUS, or a missing STATUS, ACTIVATED_ON is not checked.")
+            text = ("When STATUS is exactly ACTIVE (upper case, compared as stored without trimming whitespace, so ' ACTIVE' "
+                    "is another status), ACTIVATED_ON must be non-null (it is a DATE column, so null is the only way it can "
+                    "be missing). For any other STATUS, or a missing STATUS, ACTIVATED_ON is not checked.")
             ex = [{"input": {"status": "ACTIVE", "activated_on": "2023-01-15"}, "expected": "pass"},
                   {"input": {"status": "ACTIVE", "activated_on": None}, "expected": "fail"},
                   {"input": {"status": "PLANNED", "activated_on": None}, "expected": "pass"}]
@@ -498,6 +514,11 @@ def scenario_rds(state: Path, E: dict, env: dict) -> None:
             R.check(r["ok"], f"owner answered and labelled {rule['id']}", r["issues"][:2])
         else:
             R.check(False, f"unexpected English rule from intake (should be a deterministic check?): {rule['id']}: {rule['text']}")
+    v = pf(repo, "validate", "trial_sites", env=env, ok=None)
+    left = [(i["file"], i["loc"], i["msg"][:100]) for i in v["issues"] if i.get("severity") == "error"]
+    R.check(not left, "RDS spec complete after owner edits", left)
+    if left:
+        return
     c = pf(repo, "rules", "compile", "trial_sites", env=env, ok=None)
     for rid, info in (c.get("data") or {}).items():
         R.check(not info.get("ambiguities"), f"{rid}: no open questions left", info.get("ambiguities"))
@@ -601,7 +622,9 @@ def scenario_deploy(state: Path, E: dict, env: dict) -> None:
     wf = (repo / ".github" / "workflows" / "pf-oncology-labs.yml").read_text()
     R.check("environment: prod" in wf and "pf deploy oncology_labs --env prod" in wf, "generated GitHub workflow deploys per environment gate")
     co = (repo / ".github" / "CODEOWNERS").read_text()
-    R.check("@rd-governance" in co and "policy.yaml" in co, "CODEOWNERS routes policy changes to governance")
+    gov = __import__("yaml").safe_load((repo / "pipelines" / name / "pipeline.yaml").read_text())["owners"]["governance"]
+    pol = [ln.split() for ln in co.splitlines() if ln.startswith(f"/pipelines/{name}/policy.yaml")]
+    R.check(pol == [[f"/pipelines/{name}/policy.yaml", gov]], "CODEOWNERS routes policy changes to governance only (one owner)", pol)
 
 
 # ------------------------------------------------------------------------------------------------ failure drills
