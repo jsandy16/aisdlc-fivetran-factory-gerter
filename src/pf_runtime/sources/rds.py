@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Iterator
 
 from ..errors import ConfigError, TransientError
+from .tlsx import ca_file, verifying_context
 
 
 def _quote(engine: str, ident: str) -> str:
@@ -19,13 +20,17 @@ class RdsSession:
             raise ConfigError(f"configuration key '{source['password']['secret']}' is missing or empty")
         timeout = int(source.get("timeout_seconds", 60))
         try:
+            mode = source.get("ssl_mode", "require")
             if self.engine == "postgres":
                 import psycopg2
 
+                kw: dict[str, Any] = {"sslmode": mode}
+                if mode == "verify-full":
+                    # RDS certificates chain to the AWS RDS CA, which is not in public trust stores
+                    kw["sslrootcert"] = ca_file(source, configuration) or "system"
                 self.conn = psycopg2.connect(
                     host=source["host"], port=source.get("port") or 5432, dbname=source["database"],
-                    user=source["username"], password=pw, sslmode=source.get("ssl_mode", "require"),
-                    connect_timeout=timeout, application_name="pf_runtime",
+                    user=source["username"], password=pw, connect_timeout=timeout, application_name="pf_runtime", **kw,
                 )
                 self.conn.set_session(readonly=True, autocommit=False)
             else:
@@ -33,26 +38,26 @@ class RdsSession:
 
                 import pymysql
 
-                mode = source.get("ssl_mode", "require")
                 ssl_arg: Any = None
                 if mode == "verify-full":
-                    ssl_arg = {"ca": None, "check_hostname": True}
-                    ctx = ssl.create_default_context()
-                    ssl_arg = ctx
-                elif mode == "require":
-                    ctx = ssl.create_default_context()
-                    ctx.check_hostname = False
-                    ctx.verify_mode = ssl.CERT_NONE
-                    ssl_arg = ctx
+                    ssl_arg = verifying_context(source, configuration)
+                elif mode == "require":  # encrypted, server identity not verified (allowed outside GxP only)
+                    ssl_arg = ssl.create_default_context()
+                    ssl_arg.check_hostname = False
+                    ssl_arg.verify_mode = ssl.CERT_NONE
                 self.conn = pymysql.connect(
                     host=source["host"], port=source.get("port") or 3306, database=source["database"],
                     user=source["username"], password=pw, connect_timeout=timeout, read_timeout=timeout * 10,
                     ssl=ssl_arg, cursorclass=pymysql.cursors.SSCursor, autocommit=False,
                 )
+                with self.conn.cursor() as cur:  # read-only like the postgres session
+                    cur.execute("SET SESSION TRANSACTION READ ONLY")
         except Exception as exc:  # noqa: BLE001
             name = type(exc).__name__
             msg = str(exc).lower()
-            if "password" in msg or "authentication" in msg or "access denied" in msg:
+            if isinstance(exc, ConfigError):
+                raise
+            if "password" in msg or "authentication" in msg or "access denied" in msg or "certificate" in msg or "ssl" in msg:
                 raise ConfigError(f"database authentication failed ({name})") from None
             raise TransientError(f"database connect failed ({name})") from None
 

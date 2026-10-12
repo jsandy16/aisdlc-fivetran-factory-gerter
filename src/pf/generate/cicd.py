@@ -1,6 +1,6 @@
 """GitHub Actions workflow per pipeline: verify on every pull request; on merge to main, release the versioned
 artefact and deploy to each environment in order through GitHub Environments (protect prod with required
-reviewers). Deployment follows Fivetran's documented CI/CD pattern: `fivetran deploy ... --yes` with a
+reviewers). Deployment follows Fivetran's documented CI/CD pattern: `fivetran deploy ... --force` with a
 configuration assembled from secrets at run time, then the REST API sets the schedule and unpauses."""
 from __future__ import annotations
 

@@ -3,7 +3,10 @@
 1. Assemble the FULL configuration from secrets (a non-empty configuration replaces the stored one, so a
    partial one would delete keys). Each key comes from env var PF_SECRET_<KEY>; any missing key fails the deploy.
 2. `fivetran deploy <build/connector> --destination <group> --connection <name> --configuration <tmp>
-   --python-version <v> --yes` (--yes, not --non-interactive: the latter cancels redeploys).
+   --python-version <v> --force`. --force confirms the redeploy and configuration-replace prompts and skips the
+   SDK's pipreqs dependency rewrite, which would query PyPI by import name and could add an unrelated package
+   (e.g. `celpy`); requirements.txt is generated, pinned and checked offline by `pf build` instead.
+   (--non-interactive would cancel redeploys.) The API key is passed as FIVETRAN_API_KEY, never on the command line.
 3. Apply the schedule and paused flag from pipeline.yaml through the REST API.
 The temporary configuration file is written with 0600 permissions outside the repository and deleted.
 """
@@ -46,7 +49,7 @@ def deploy(root: Path, b: Bundle, env: str, dry_run: bool = False) -> dict:
     py = b.pipeline.runtime.python_version
     schedule = b.pipeline.schedule[env].model_dump() if env in b.pipeline.schedule else {"sync_frequency": 360, "paused": False}
     cmd = ["fivetran", "deploy", str(connector_dir), "--destination", group, "--connection", b.name,
-           "--configuration", "<temporary file>", "--python-version", py, "--yes"]
+           "--configuration", "<temporary file>", "--python-version", py, "--force"]
     if dry_run:
         cfg_keys = ["pf_environment", *lock["secrets"].get(env, [])]
         return {"dry_run": True, "command": cmd, "configuration_keys": cfg_keys,

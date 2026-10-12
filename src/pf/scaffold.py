@@ -71,6 +71,7 @@ source:
   password: {secret: ftp_password}
   tls: explicit                             # explicit = FTPS; none needs a governance exception
   passive: true
+  ca_cert: null                             # {secret: key} holding a PEM CA bundle if the server uses a private CA
 {%- endif %}
   root: "{{ R }}"                           # folder scanned recursively, e.g. /outbound
   timeout_seconds: 60
@@ -103,7 +104,8 @@ source:
   database: "{{ R }}"
   username: "{{ R }}"                       # read-only user with SELECT on the mapped tables only
   password: {secret: rds_password}
-  ssl_mode: require                         # verify-full | require | disable
+  ssl_mode: verify-full                     # verify-full (verifies the server) | require (encrypted only) | disable
+  ca_cert: {secret: rds_ca_bundle}          # PEM: AWS RDS global bundle (https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem)
   batch_size: 5000
   timeout_seconds: 60
 """

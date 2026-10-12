@@ -5,7 +5,9 @@
 Everything this connector does is declared in spec.lock.json and executed by the vendored pf_runtime
 library (version 0.1.0). Read the specs in pipelines/oncology_labs/ to understand it; nothing here is hand-written.
 """
+import ast
 import json
+import sys
 from pathlib import Path
 
 from fivetran_connector_sdk import Connector

@@ -10,6 +10,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import posixpath
 import re
 import shutil
 import tempfile
@@ -32,25 +33,25 @@ from .sources import open_file_source
 from .values import to_emit
 
 LINEAGE = {
-    "pf_package": "STRING", "pf_package_sha256": "STRING", "pf_member": "STRING", "pf_row": "LONG",
+    "pf_package": "STRING", "pf_package_hash": "STRING", "pf_member": "STRING", "pf_row": "LONG",
     "pf_run_id": "STRING", "pf_pipeline_version": "STRING",
 }
 EVIDENCE_TABLES = [
-    {"table": "pf_package_audit", "primary_key": ["pf_run_id", "package_sha256", "package"],
-     "columns": {"pf_run_id": "STRING", "package_sha256": "STRING", "package": "STRING", "pipeline": "STRING",
-                 "pipeline_version": "STRING", "runtime_version": "STRING", "spec_sha256": "STRING", "environment": "STRING",
+    {"table": "pf_package_audit", "primary_key": ["pf_run_id", "package_hash", "package"],
+     "columns": {"pf_run_id": "STRING", "package_hash": "STRING", "package": "STRING", "pipeline": "STRING",
+                 "pipeline_version": "STRING", "runtime_version": "STRING", "spec_hash": "STRING", "environment": "STRING",
                  "package_size": "LONG", "status": "STRING", "rule_id": "STRING", "reason": "STRING", "entities": "JSON",
                  "rows_read": "LONG", "rows_emitted": "LONG", "rows_quarantined": "LONG", "original_key": "STRING",
                  "started_at": "UTC_DATETIME", "finished_at": "UTC_DATETIME"}},
-    {"table": "pf_entity_audit", "primary_key": ["pf_run_id", "package_sha256", "entity"],
-     "columns": {"pf_run_id": "STRING", "package_sha256": "STRING", "entity": "STRING", "package": "STRING", "status": "STRING",
+    {"table": "pf_entity_audit", "primary_key": ["pf_run_id", "package_hash", "entity"],
+     "columns": {"pf_run_id": "STRING", "package_hash": "STRING", "entity": "STRING", "package": "STRING", "status": "STRING",
                  "reason": "STRING", "rows_read": "LONG", "rows_emitted": "LONG", "rows_quarantined": "LONG"}},
-    {"table": "pf_rule_results", "primary_key": ["pf_run_id", "package_sha256", "rule_id", "entity", "attribute"],
-     "columns": {"pf_run_id": "STRING", "package_sha256": "STRING", "rule_id": "STRING", "entity": "STRING",
+    {"table": "pf_rule_results", "primary_key": ["pf_run_id", "package_hash", "rule_id", "entity", "attribute"],
+     "columns": {"pf_run_id": "STRING", "package_hash": "STRING", "rule_id": "STRING", "entity": "STRING",
                  "attribute": "STRING", "package": "STRING", "scope": "STRING", "kind": "STRING", "mode": "STRING",
                  "action": "STRING", "evaluated": "LONG", "failed": "LONG", "outcome": "STRING"}},
-    {"table": "pf_quarantine", "primary_key": ["package_sha256", "entity", "member", "row_number", "rule_id"],
-     "columns": {"package_sha256": "STRING", "entity": "STRING", "member": "STRING", "row_number": "LONG",
+    {"table": "pf_quarantine", "primary_key": ["package_hash", "entity", "member", "row_number", "rule_id"],
+     "columns": {"package_hash": "STRING", "entity": "STRING", "member": "STRING", "row_number": "LONG",
                  "rule_id": "STRING", "reason": "STRING", "package": "STRING", "pf_run_id": "STRING"}},
 ]
 
@@ -66,7 +67,7 @@ def schema(lock: dict) -> list[dict]:
         for a in e["attributes"]:
             cols[a["name"]] = {"type": "DECIMAL", "precision": a["precision"], "scale": a["scale"]} if a["type"] == "DECIMAL" else a["type"]
         cols.update(LINEAGE)
-        pk = list(e["primary_key"]) if e["load"] == "upsert" else ["pf_package_sha256", "pf_member", "pf_row"]
+        pk = list(e["primary_key"]) if e["load"] == "upsert" else ["pf_package_hash", "pf_member", "pf_row"]
         out.append({"table": e["name"], "primary_key": pk, "columns": cols})
     return out + [dict(t) for t in EVIDENCE_TABLES]
 
@@ -118,6 +119,7 @@ class Prepared:
     pkg: P.Package
     status: str  # loaded | rejected | failed | skip | config_error
     sha256: str = ""
+    fingerprint: str = ""  # sha256 of the delivery + its checksum sidecars: a fixed sidecar makes a rejection retryable
     size: int = 0
     rule_id: str = ""
     reason: str = ""
@@ -128,6 +130,9 @@ class Prepared:
     finished_at: str = ""
     workdir: str = ""
     error: BaseException | None = None
+
+
+_EVIDENCE_PK = {t["table"]: t["primary_key"] for t in EVIDENCE_TABLES}
 
 
 class Sync:
@@ -193,6 +198,13 @@ class Sync:
         return retry(attempt, what=what, **self.retry_kw)
 
     # ------------------------------------------------------------------ entry
+    def _evidence(self, table: str, data: dict) -> None:
+        """Evidence rows: primary-key columns are never null or empty (Fivetran rejects both); '-' marks 'not applicable'."""
+        for k in _EVIDENCE_PK[table]:
+            if data.get(k) is None or data.get(k) == "":
+                data[k] = "-"
+        self.op.upsert(table=table, data=data)
+
     def run(self) -> None:
         self.log.info("sync_start", pipeline=self.lock["pipeline"], version=self.lock["version"], run_id=self.run_id,
                       environment=self.env, runtime=VERSION)
@@ -225,13 +237,15 @@ class Sync:
         src = self.lock["source"]
         spec = src["package"]
         files = self._with_session(lambda s: s.list_files(), "list")
+        self._listing = {f.path: f for f in files}
         ready, not_ready, ignored = P.discover(files, spec, now=self.now())
         self.log.info("discovered", files=len(files), ready=len(ready), not_ready=not_ready, unmatched=len(ignored))
         todo: list[P.Package] = []
         for pkg in ready:
             known = self.state.packages.get(pkg.path)
-            if known and known["size"] == pkg.file.size and known["mtime"] == pkg.file.mtime:
-                continue  # unchanged since it was processed
+            if known and known["size"] == pkg.file.size and known["mtime"] == pkg.file.mtime \
+                    and (known["status"] != "rejected" or known.get("side") == self._side_meta(pkg)):
+                continue  # unchanged since it was processed (a rejected one also needs unchanged sidecars)
             if known is None and self.state.floor is not None and pkg.order_key <= self.state.floor:
                 self.log.warning("late_package_skipped", package=pkg.path)
                 continue
@@ -273,6 +287,25 @@ class Sync:
                 if prepared.status == "config_error":
                     raise ConfigError(prepared.reason)
 
+    def _side_meta(self, pkg: P.Package) -> list:
+        """Listing metadata of the delivery's sidecars (cheap: no download) — a re-sent sidecar changes it."""
+        d = posixpath.dirname(pkg.path)
+        out = []
+        for side in sorted(P.sidecar_names(self.lock["source"]["package"], posixpath.basename(pkg.path))):
+            f = getattr(self, "_listing", {}).get(posixpath.join(d, side) if d else side)
+            out.append([side, f.size, f.mtime] if f else [side, None, None])
+        return out
+
+    def _fingerprint(self, pkg: P.Package, sha: str) -> str:
+        spec = self.lock["source"]["package"]
+        name = posixpath.basename(pkg.path)
+        d = posixpath.dirname(pkg.path)
+        h = hashlib.sha256(sha.encode())
+        for side in sorted(P.sidecar_names(spec, name)):
+            text = self._with_session(lambda s, r=(posixpath.join(d, side) if d else side): s.read_text(r), "sidecar")
+            h.update(b"\0" + side.encode() + b"\0" + (text or "").encode())
+        return h.hexdigest()
+
     def _prepare(self, pkg: P.Package, seen_hashes: set[str]) -> Prepared:
         spec = self.lock["source"]["package"]
         out = Prepared(pkg, "loaded", size=pkg.file.size, started_at=_now())
@@ -286,8 +319,12 @@ class Sync:
             sha, md5 = P.hash_file(local)
             out.sha256 = sha
             lp = P.LocalPackage(pkg, workdir, local, sha, md5)
+            out.fingerprint = self._fingerprint(pkg, sha)
             known = self.state.packages.get(pkg.path)
-            if known and known.get("sha256") == sha:
+            if known and known.get("status") == "rejected" and known.get("fingerprint", known.get("sha256")) == out.fingerprint:
+                out.status, out.reason = "skip", "unchanged since it was rejected"
+                return out
+            if known and known.get("status") == "loaded" and known.get("sha256") == sha:
                 out.status = "skip"
                 out.reason = "unchanged content"
                 return out
@@ -367,7 +404,7 @@ class Sync:
                             eo.quarantined.append((m, row_no, rule_id))
                         continue
                     rec = {k: to_emit(v) for k, v in res.row.items()}
-                    rec.update({"pf_package": lp.pkg.path, "pf_package_sha256": lp.sha256, "pf_member": m, "pf_row": row_no,
+                    rec.update({"pf_package": lp.pkg.path, "pf_package_hash": lp.sha256, "pf_member": m, "pf_row": row_no,
                                 "pf_run_id": self.run_id, "pf_pipeline_version": self.lock["version"]})
                     sp.write(json.dumps(rec, separators=(",", ":")) + "\n")
                     eo.emitted += 1
@@ -438,32 +475,34 @@ class Sync:
                             self.op.checkpoint(state=self.state.dump())  # package not marked done: a crash re-emits it (idempotent keys)
                             since_cp = 0
                 for member, row_no, rule_id in eo.quarantined:
-                    self.op.upsert(table="pf_quarantine", data={
-                        "package_sha256": p.sha256, "entity": eo.name, "member": member, "row_number": row_no,
+                    self._evidence("pf_quarantine", {
+                        "package_hash": p.sha256, "entity": eo.name, "member": member, "row_number": row_no,
                         "rule_id": rule_id, "reason": "check_failed", "package": p.pkg.path, "pf_run_id": self.run_id})
                     rows_q += 1
         entities = {n: {"read": eo.read, "emitted": eo.emitted if (p.status == "loaded" and eo.status == "loaded") else 0,
                         "quarantined": len(eo.quarantined), "status": eo.status if p.status == "loaded" else p.status, "reason": eo.reason}
                     for n, eo in p.entities.items()}
         for n, ed in entities.items():
-            self.op.upsert(table="pf_entity_audit", data={
-                "pf_run_id": self.run_id, "package_sha256": p.sha256 or "-", "entity": n, "package": p.pkg.path,
+            self._evidence("pf_entity_audit", {
+                "pf_run_id": self.run_id, "package_hash": p.sha256 or "-", "entity": n, "package": p.pkg.path,
                 "status": ed["status"], "reason": ed["reason"] or p.reason, "rows_read": ed["read"], "rows_emitted": ed["emitted"],
                 "rows_quarantined": ed["quarantined"]})
         for (rule_id, ent, attr), st in sorted(p.stats.rules.items()):
-            self.op.upsert(table="pf_rule_results", data={
-                "pf_run_id": self.run_id, "package_sha256": p.sha256 or "-", "rule_id": rule_id, "entity": ent, "attribute": attr,
+            self._evidence("pf_rule_results", {
+                "pf_run_id": self.run_id, "package_hash": p.sha256 or "-", "rule_id": rule_id, "entity": ent, "attribute": attr,
                 "package": p.pkg.path, "scope": st.scope, "kind": st.kind, "mode": st.mode, "action": st.action,
                 "evaluated": st.evaluated, "failed": st.failed, "outcome": st.outcome})
-        self.op.upsert(table="pf_package_audit", data={
-            "pf_run_id": self.run_id, "package_sha256": p.sha256 or "-", "package": p.pkg.path, "pipeline": self.lock["pipeline"],
-            "pipeline_version": self.lock["version"], "runtime_version": VERSION, "spec_sha256": self.lock["spec_sha256"],
+        self._evidence("pf_package_audit", {
+            "pf_run_id": self.run_id, "package_hash": p.sha256 or "-", "package": p.pkg.path, "pipeline": self.lock["pipeline"],
+            "pipeline_version": self.lock["version"], "runtime_version": VERSION, "spec_hash": self.lock["spec_sha256"],
             "environment": self.env, "package_size": p.size, "status": p.status, "rule_id": p.rule_id, "reason": p.reason,
             "entities": entities, "rows_read": rows_read, "rows_emitted": rows_emitted, "rows_quarantined": rows_q,
             "original_key": p.original_key, "started_at": p.started_at, "finished_at": p.finished_at})
         if p.status in ("loaded", "rejected"):
-            self.state.packages[p.pkg.path] = {"sha256": p.sha256, "size": p.pkg.file.size, "mtime": p.pkg.file.mtime,
-                                               "status": p.status, "order": list(p.pkg.order_key)}
+            self.state.packages[p.pkg.path] = {"sha256": p.sha256, "fingerprint": p.fingerprint, "size": p.pkg.file.size,
+                                               "mtime": p.pkg.file.mtime, "status": p.status, "order": list(p.pkg.order_key)}
+            if p.status == "rejected":
+                self.state.packages[p.pkg.path]["side"] = self._side_meta(p.pkg)
             lookback = max([c.get("lookback_packages", 500) for c in self.lock["source"]["package"].get("checks", []) if c["kind"] == "duplicate_package"] or [2000])
             self.state.prune(max(lookback, 50))
         self.op.checkpoint(state=self.state.dump())
@@ -514,13 +553,13 @@ class Sync:
                         last_cursor = raw[cursor_col]
                     if res.row is None:
                         for rule_id, _ in res.failures:
-                            self.op.upsert(table="pf_quarantine", data={
-                                "package_sha256": batch_id, "entity": e["name"], "member": tb["table"], "row_number": read,
+                            self._evidence("pf_quarantine", {
+                                "package_hash": batch_id, "entity": e["name"], "member": tb["table"], "row_number": read,
                                 "rule_id": rule_id, "reason": "check_failed", "package": f"rds:{tb['table']}", "pf_run_id": self.run_id})
                         quarantined += 1
                         continue
                     rec = {k: to_emit(v) for k, v in res.row.items()}
-                    rec.update({"pf_package": f"rds:{tb['table']}", "pf_package_sha256": batch_id, "pf_member": tb["table"],
+                    rec.update({"pf_package": f"rds:{tb['table']}", "pf_package_hash": batch_id, "pf_member": tb["table"],
                                 "pf_row": read, "pf_run_id": self.run_id, "pf_pipeline_version": self.lock["version"]})
                     self.op.upsert(table=e["name"], data=rec)
                     emitted += 1
@@ -546,18 +585,18 @@ class Sync:
             raise SyncFailed(rule_id, reason)
 
     def _rds_audit(self, e, batch_id, started, status, rule_id, reason, read, emitted, quarantined, stats: R.Stats) -> None:
-        self.op.upsert(table="pf_entity_audit", data={
-            "pf_run_id": self.run_id, "package_sha256": batch_id, "entity": e["name"], "package": f"rds:{e['table']['table']}",
+        self._evidence("pf_entity_audit", {
+            "pf_run_id": self.run_id, "package_hash": batch_id, "entity": e["name"], "package": f"rds:{e['table']['table']}",
             "status": status, "reason": reason, "rows_read": read, "rows_emitted": emitted, "rows_quarantined": quarantined})
         for (rid, ent, attr), st in sorted(stats.rules.items()):
-            self.op.upsert(table="pf_rule_results", data={
-                "pf_run_id": self.run_id, "package_sha256": batch_id, "rule_id": rid, "entity": ent, "attribute": attr,
+            self._evidence("pf_rule_results", {
+                "pf_run_id": self.run_id, "package_hash": batch_id, "rule_id": rid, "entity": ent, "attribute": attr,
                 "package": f"rds:{e['table']['table']}", "scope": st.scope, "kind": st.kind, "mode": st.mode, "action": st.action,
                 "evaluated": st.evaluated, "failed": st.failed, "outcome": st.outcome})
-        self.op.upsert(table="pf_package_audit", data={
-            "pf_run_id": self.run_id, "package_sha256": batch_id, "package": f"rds:{e['table']['table']}",
+        self._evidence("pf_package_audit", {
+            "pf_run_id": self.run_id, "package_hash": batch_id, "package": f"rds:{e['table']['table']}",
             "pipeline": self.lock["pipeline"], "pipeline_version": self.lock["version"], "runtime_version": VERSION,
-            "spec_sha256": self.lock["spec_sha256"], "environment": self.env, "package_size": 0, "status": status,
+            "spec_hash": self.lock["spec_sha256"], "environment": self.env, "package_size": 0, "status": status,
             "rule_id": rule_id, "reason": reason, "entities": {e["name"]: {"read": read, "emitted": emitted, "quarantined": quarantined, "status": status}},
             "rows_read": read, "rows_emitted": emitted, "rows_quarantined": quarantined, "original_key": "",
             "started_at": started, "finished_at": _now()})

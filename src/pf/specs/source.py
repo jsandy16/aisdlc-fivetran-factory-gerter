@@ -73,6 +73,7 @@ class FtpSource(_FileSource):
         default="explicit", description="explicit = FTPS (AUTH TLS) with an encrypted data channel; none needs an exception"
     )
     passive: bool = True
+    ca_cert: SecretRef | None = Field(default=None, description="PEM CA bundle to trust instead of the system store (private CA)")
 
 
 class RdsSource(StrictModel):
@@ -83,7 +84,8 @@ class RdsSource(StrictModel):
     database: str = Field(min_length=1)
     username: str = Field(min_length=1)
     password: SecretRef
-    ssl_mode: Literal["verify-full", "require", "disable"] = "require"
+    ssl_mode: Literal["verify-full", "require", "disable"] = "verify-full"
+    ca_cert: SecretRef | None = Field(default=None, description="PEM CA bundle, e.g. the AWS RDS global bundle (needed for verify-full)")
     batch_size: int = Field(default=5000, ge=100, le=100000)
     timeout_seconds: int = Field(default=60, ge=5, le=600)
 

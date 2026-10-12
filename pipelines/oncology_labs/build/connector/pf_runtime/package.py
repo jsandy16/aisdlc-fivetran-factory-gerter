@@ -60,7 +60,7 @@ def _order_part(v: str | None) -> tuple:
     return (0, int(v)) if v.isdigit() else (1, v)
 
 
-def _sidecar_names(spec: dict, name: str) -> set[str]:
+def sidecar_names(spec: dict, name: str) -> set[str]:
     out = set()
     for c in spec.get("checks", []):
         if c["kind"] == "checksum":
@@ -84,7 +84,7 @@ def discover(files: list[RemoteFile], spec: dict, now: float | None = None) -> t
             candidates.append((f, m))
     for f, _ in candidates:
         d = posixpath.dirname(f.path)
-        for h in _sidecar_names(spec, posixpath.basename(f.path)):
+        for h in sidecar_names(spec, posixpath.basename(f.path)):
             helpers.add(posixpath.join(d, h) if d else h)
     ready: list[Package] = []
     not_ready = 0

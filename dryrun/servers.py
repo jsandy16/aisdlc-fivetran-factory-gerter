@@ -62,7 +62,7 @@ def ftps_server(state: Path, port: int, ready: threading.Event) -> None:
     from pyftpdlib.servers import FTPServer
 
     cert = state / "ftps.pem"
-    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=127.0.0.1",
+    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=127.0.0.1", "-addext", "subjectAltName=IP:127.0.0.1",
                     "-keyout", str(cert), "-out", str(cert)], check=True, capture_output=True)
     root = state / "ftp"
     root.mkdir(exist_ok=True)
@@ -137,6 +137,8 @@ def main(state: Path) -> None:
     def stop(*_):
         subprocess.run(pg["run_as"] + [str(PG_BIN / "pg_ctl"), "-D", pg["data"], "-m", "fast", "stop"], capture_output=True)
         s3.terminate()
+        if pg["run_as"]:
+            shutil.rmtree(Path(pg["data"]).parent, ignore_errors=True)
         os._exit(0)
 
     signal.signal(signal.SIGTERM, stop)

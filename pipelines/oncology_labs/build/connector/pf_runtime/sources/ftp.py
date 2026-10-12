@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import calendar
 import ftplib
+import ssl
 import posixpath
 import time
 
 from ..errors import ConfigError, TransientError
 from . import RemoteFile
+from .tlsx import verifying_context
 
 
 def _parse_mdtm(value: str) -> float:
@@ -22,7 +24,9 @@ class FtpSession:
         if not pw:
             raise ConfigError(f"configuration key '{source['password']['secret']}' is missing or empty")
         tls = source.get("tls", "explicit") == "explicit"
-        self._ftp = ftplib.FTP_TLS(timeout=source.get("timeout_seconds", 60)) if tls else ftplib.FTP(timeout=source.get("timeout_seconds", 60))
+        timeout = source.get("timeout_seconds", 60)
+        # FTP_TLS() without a context does NOT verify the server certificate: always pass a verifying one
+        self._ftp = ftplib.FTP_TLS(timeout=timeout, context=verifying_context(source, configuration)) if tls else ftplib.FTP(timeout=timeout)
         try:
             self._ftp.connect(source["host"], int(source.get("port", 21)))
             self._ftp.login(source["username"], pw)
@@ -31,6 +35,8 @@ class FtpSession:
             self._ftp.set_pasv(bool(source.get("passive", True)))
         except ftplib.error_perm as exc:
             raise ConfigError(f"FTP login refused ({str(exc)[:3]})") from None
+        except ssl.SSLCertVerificationError as exc:
+            raise ConfigError(f"FTPS server certificate is not trusted ({exc.verify_message})") from None
         except (OSError, EOFError, ftplib.error_temp) as exc:
             raise TransientError(f"FTP connect failed ({type(exc).__name__})") from None
 

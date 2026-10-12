@@ -24,7 +24,11 @@ from .envelope import Issue, PfError
 
 
 class RecorderOp:
-    def __init__(self) -> None:
+    """Records operations like the Fivetran tester and enforces the same contract: declared tables only, JSON-able
+    values, no null or empty primary-key values (the tester fails the sync on those)."""
+
+    def __init__(self, schema: list[dict] | None = None) -> None:
+        self.pks = {t["table"]: t["primary_key"] for t in schema} if schema else None
         self.rows: dict[str, list[dict]] = {}
         self.checkpoints: list[dict] = []
         self.warnings: list[str] = []
@@ -33,6 +37,12 @@ class RecorderOp:
 
     def upsert(self, table: str, data: dict) -> None:
         json.dumps(data)  # emitted values must be JSON-serialisable, like the real SDK
+        if self.pks is not None:
+            if table not in self.pks:
+                raise AssertionError(f"upsert into undeclared table {table}")
+            nulls = [k for k in self.pks[table] if data.get(k) is None or data.get(k) == ""]
+            if nulls:
+                raise AssertionError(f"null primary key {nulls} in {table}")
         self.rows.setdefault(table, []).append(data)
 
     def update(self, table: str, modified: dict) -> None:
@@ -135,7 +145,7 @@ def run_case(lock: dict, case_dir: Path, state: dict | None = None) -> tuple[Rec
 
     lk = copy.deepcopy(lock)
     lk["archive_originals"] = False  # fixtures never leave the machine
-    op, log = RecorderOp(), NullLog()
+    op, log = RecorderOp(engine.schema(lk)), NullLog()
     if lk["source"]["type"] in ("sftp", "ftp"):
         factory = lambda src, cfg: LocalDirSession(case_dir)  # noqa: E731
     else:

@@ -41,9 +41,9 @@ def check_sql(c, schema: str, entity_load: dict[str, str]) -> str:
     if c.kind == "reconciliation":
         audit = f"{q(schema)}.{q('pf_entity_audit')}"
         orphans = (f"SELECT COUNT(*) FROM {live(t, schema, 'x')} AND NOT EXISTS (SELECT 1 FROM {audit} a "
-                   f"WHERE a.package_sha256 = x.pf_package_sha256 AND a.entity = '{t}' AND a.status = 'loaded')")
+                   f"WHERE a.package_hash = x.pf_package_hash AND a.entity = '{t}' AND a.status = 'loaded')")
         if entity_load.get(t) == "append":
-            emitted = (f"SELECT COALESCE(SUM(rows_emitted), 0) FROM (SELECT DISTINCT package_sha256, rows_emitted FROM {audit} "
+            emitted = (f"SELECT COALESCE(SUM(rows_emitted), 0) FROM (SELECT DISTINCT package_hash, rows_emitted FROM {audit} "
                        f"WHERE entity = '{t}' AND status = 'loaded') e")
             count = f"SELECT COUNT(*) FROM {live(t, schema)}"
             return (f"SELECT ({orphans}) + ABS(({emitted}) - ({count})) AS failed, ({count}) AS observed")

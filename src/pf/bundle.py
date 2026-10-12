@@ -266,6 +266,27 @@ def cross_validate(b: Bundle) -> list[Issue]:
             out.append(Issue(severity="warning", file="source.yaml", loc="source.tls",
                              msg="plain FTP sends credentials and data unencrypted; needs a documented governance exception"))
 
+    if b.source and b.pipeline and b.source.source.type == "rds":
+        mode = b.source.source.ssl_mode
+        gxp = b.pipeline.gxp_tier != "non_gxp"
+        if mode != "verify-full":
+            out.append(Issue(severity="error" if gxp and mode == "disable" else "warning", file="source.yaml", loc="source.ssl_mode",
+                             msg=f"ssl_mode {mode} does not verify the database server's identity; use verify-full with ca_cert "
+                                 f"(the AWS RDS CA bundle)" + (" — GxP pipelines must not disable TLS" if gxp and mode == "disable" else "")))
+        elif b.source.source.ca_cert is None:
+            out.append(Issue(severity="warning", file="source.yaml", loc="source.ca_cert",
+                             msg="verify-full without ca_cert uses the system trust store, which does not contain the AWS RDS CA"))
+
+    # Fivetran's destination naming inserts "_" at letter/digit boundaries (sha256 -> sha_256): a name that would be
+    # renamed breaks every downstream reference (quality SQL, Lake Formation column tags, consumers)
+    if t:
+        for i, e in enumerate(t.entities):
+            for loc, nm in [(f"entities.{i}.name", e.name)] + [(f"entities.{i}.attributes.{j}.name", a.name) for j, a in enumerate(e.attributes)]:
+                if re.search(r"[a-z][0-9]|[0-9][a-z]", nm):
+                    fixed = re.sub(r"(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])", "_", nm)
+                    out.append(Issue(file="sttm.yaml", loc=loc, code="invalid",
+                                     msg=f"'{nm}' would be renamed '{fixed}' in the destination (Fivetran naming); use '{fixed}'"))
+
     # every check id unique across the pipeline (evidence and rules.lock are keyed by id)
     ids: dict[str, str] = {}
     for loc, rid in _all_rule_ids(b):
