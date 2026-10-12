@@ -82,14 +82,16 @@ class State:
     packages: dict[str, dict] = field(default_factory=dict)
     floor: tuple | None = None
     cursors: dict[str, Any] = field(default_factory=dict)
+    unmatched: dict[str, list] = field(default_factory=dict)  # path -> [size, mtime] already reported
 
     @classmethod
     def load(cls, raw: dict | None) -> "State":
         raw = raw or {}
-        return cls(dict(raw.get("packages", {})), _tup(raw["floor"]) if raw.get("floor") is not None else None, dict(raw.get("cursors", {})))
+        return cls(dict(raw.get("packages", {})), _tup(raw["floor"]) if raw.get("floor") is not None else None,
+                   dict(raw.get("cursors", {})), dict(raw.get("unmatched", {})))
 
     def dump(self) -> dict:
-        return {"v": 1, "packages": self.packages, "floor": self.floor, "cursors": self.cursors}
+        return {"v": 1, "packages": self.packages, "floor": self.floor, "cursors": self.cursors, "unmatched": self.unmatched}
 
     def prune(self, keep: int) -> None:
         if len(self.packages) <= keep:
@@ -240,6 +242,7 @@ class Sync:
         self._listing = {f.path: f for f in files}
         ready, not_ready, ignored = P.discover(files, spec, now=self.now())
         self.log.info("discovered", files=len(files), ready=len(ready), not_ready=not_ready, unmatched=len(ignored))
+        self._report_unmatched(ignored, spec.get("on_unmatched", "warn"))
         todo: list[P.Package] = []
         for pkg in ready:
             known = self.state.packages.get(pkg.path)
@@ -286,6 +289,31 @@ class Sync:
                     raise SyncFailed(prepared.rule_id, prepared.reason)
                 if prepared.status == "config_error":
                     raise ConfigError(prepared.reason)
+
+    def _report_unmatched(self, ignored: list[str], policy: str) -> None:
+        """Files in the drop that match no delivery pattern (misnamed, misplaced): audited once, not silently ignored."""
+        if policy == "ignore":
+            return
+        new = []
+        for path in ignored:
+            f = self._listing.get(path)
+            meta = [f.size, f.mtime] if f else [None, None]
+            if self.state.unmatched.get(path) != meta:
+                new.append((path, meta))
+        for path, meta in new:
+            self._evidence("pf_package_audit", {
+                "pf_run_id": self.run_id, "package_hash": "-", "package": path, "pipeline": self.lock["pipeline"],
+                "pipeline_version": self.lock["version"], "runtime_version": VERSION, "spec_hash": self.lock["spec_sha256"],
+                "environment": self.env, "package_size": meta[0] or 0, "status": "unmatched", "rule_id": "package_match",
+                "reason": "file matches no delivery pattern (source.package.match)", "entities": {}, "rows_read": 0,
+                "rows_emitted": 0, "rows_quarantined": 0, "original_key": "", "started_at": _now(), "finished_at": _now()})
+            self.state.unmatched[path] = meta
+            self._warn(f"unmatched file in the source: {path}")
+        if new:
+            if len(self.state.unmatched) > 2000:  # bounded state
+                for k in sorted(self.state.unmatched)[: len(self.state.unmatched) - 2000]:
+                    del self.state.unmatched[k]
+            self.op.checkpoint(state=self.state.dump())
 
     def _side_meta(self, pkg: P.Package) -> list:
         """Listing metadata of the delivery's sidecars (cheap: no download) — a re-sent sidecar changes it."""

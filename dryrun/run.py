@@ -281,12 +281,40 @@ def scenario_ftp(state: Path, E: dict, env: dict) -> None:
                        ("policy.yaml", f"environments.{envn}.originals.region"): "us-east-1"})
     fill(repo, "site_monitoring", owners, env)
     fill(repo, "site_monitoring", {("source.yaml", "source.host"): "127.0.0.1", ("source.yaml", "source.port"): E["ports"]["ftp"],
+                                   ("source.yaml", "source.username"): E["ftp_user"],
                                    ("source.yaml", "source.ca_cert"): {"secret": "ftp_ca_bundle"},
                                    ("policy.yaml", "classification"): {"site_monitoring.cra_email": "confidential"}}, env)
-    # the owner answers the open question on unfinalised reports in the rule text, and labels examples
-    pf(repo, "set", "site_monitoring", "sttm.yaml", "entities[site_monitoring].row_checks.0.text",
-       json.dumps("A finalised report (REPORT_DATE present) must be dated no more than 10 calendar days after VISIT_DATE; "
-                  "a report that is not finalised yet passes."), env=env, ok=None)
+    # the quality owner answers the questions intake raised by making the rule text explicit (the normal workflow)
+    import yaml
+
+    sm = yaml.safe_load((repo / "pipelines/site_monitoring/sttm.yaml").read_text())["entities"][0]
+    eng = [c for c in sm.get("row_checks", []) if c["kind"] == "english"]
+    rid_report = next(c["id"] for c in eng if "10" in c["text"])
+    rid_cov = next(c["id"] for c in eng if "COV" in c["text"])
+    attr_check = {a["name"]: (a.get("checks") or [{}])[0].get("id") for a in sm["attributes"]}
+    answers = {
+        rid_report:
+            "When REPORT_DATE is present, it must be on or after VISIT_DATE and at most 10 calendar days after it "
+            "(exactly 10 days passes). When REPORT_DATE is missing the report is not finalised yet and the row passes. "
+            "When REPORT_DATE is present but VISIT_DATE is missing, the row fails.",
+        rid_cov:
+            "When VISIT_TYPE is exactly COV (case-sensitive), OPEN_ISSUES must be present and equal to 0. "
+            "Rows with any other VISIT_TYPE, or with VISIT_TYPE missing, pass this rule.",
+    }
+    for rid, text in answers.items():
+        r = pf(repo, "set", "site_monitoring", "sttm.yaml", f"entities[site_monitoring].row_checks[{rid}].text", json.dumps(text), env=env, ok=None)
+        R.check(r["ok"], f"owner reworded {rid} to answer the open questions", r["issues"][:2])
+    examples = {
+        rid_report: [{"input": {"visit_date": "2024-03-01", "report_date": "2024-03-11"}, "expected": "pass"},
+                     {"input": {"visit_date": "2024-03-01", "report_date": "2024-03-12"}, "expected": "fail"},
+                     {"input": {"visit_date": "2024-03-01", "report_date": None}, "expected": "pass"}],
+        rid_cov: [{"input": {"visit_type": "COV", "open_issues": 0}, "expected": "pass"},
+                  {"input": {"visit_type": "COV", "open_issues": 2}, "expected": "fail"},
+                  {"input": {"visit_type": "IMV", "open_issues": 5}, "expected": "pass"}],
+    }
+    for rid, ex in examples.items():
+        r = pf(repo, "set", "site_monitoring", "sttm.yaml", f"entities[site_monitoring].row_checks[{rid}].examples", json.dumps(ex), env=env, ok=None)
+        R.check(r["ok"], f"owner labelled 3 examples for {rid}", r["issues"][:2])
     v = pf(repo, "validate", "site_monitoring", env=env, ok=None)
     left = [(i["file"], i["loc"], i["msg"][:80]) for i in v["issues"] if i.get("severity") == "error"]
     R.check(not left, "spec complete after owner edits (pf set keeps comments, rolls back invalid edits)", left)
@@ -297,12 +325,12 @@ def scenario_ftp(state: Path, E: dict, env: dict) -> None:
     c = pf(repo, "rules", "compile", "site_monitoring", env=env, ok=None)
     R.check(c["ok"], "English rules compiled to CEL with generated boundary cases", c["issues"][:3])
     agent_env = dict(env, PF_AGENT_SESSION="1")
-    denied = pf(repo, "rules", "accept", "site_monitoring", "report_finalised_within_10_days", "--by", "@x", env=agent_env, ok=None)
+    denied = pf(repo, "rules", "accept", "site_monitoring", rid_report, "--by", "@x", env=agent_env, ok=None)
     R.check(not denied["ok"] and denied["issues"][0]["code"] == "forbidden", "an agent session cannot accept a rule")
     data = c["data"]
     for rid, info in data.items():
-        if info.get("ambiguities"):
-            print(f"  owner must answer for {rid}: {info['ambiguities']}", flush=True)
+        R.check(not info.get("ambiguities"), f"{rid}: no open questions left after the owner's rewording", info.get("ambiguities"))
+        R.check(info.get("verification") == "passed", f"{rid}: every generated and owner case verified", info.get("verification"))
         a = pf(repo, "rules", "accept", "site_monitoring", rid, "--by", "@rd-data-quality", env=env, ok=None)
         R.check(a["ok"], f"owner accepted {rid}: {info.get('expression','')[:90]}", a["issues"][:2])
 
@@ -317,19 +345,17 @@ def scenario_ftp(state: Path, E: dict, env: dict) -> None:
         (bad / name / "expect.yaml").write_text(expect)
 
     base = ftp_rows(1, 30)
-    case("bad_site", [base[0].replace(",1001,", ",10X1,")] + base[1:], "status: loaded\nquarantined: {site_no_format: 1}\n")
+    case("bad_site", [base[0].replace(",1001,", ",10X1,")] + base[1:], f"status: loaded\nquarantined: {{{attr_check['site_no']}: 1}}\n")
     case("bad_visit_type", [base[1].replace(",COV,", ",XYZ,").replace(",IMV,", ",XYZ,").replace(",SIV,", ",XYZ,")] + base[2:],
-         "status: loaded\nquarantined: {visit_type_allowed_values: 1}\n")
+         f"status: loaded\nquarantined: {{{attr_check['visit_type']}: 1}}\n")
     neg = base[0].split(","); neg[6] = "-1"
-    case("negative_issues", [",".join(neg)] + base[1:], "status: loaded\nquarantined: {open_issues_non_negative: 1}\n")
+    case("negative_issues", [",".join(neg)] + base[1:], f"status: loaded\nquarantined: {{{attr_check['open_issues']}: 1}}\n")
     late = base[0].split(","); late[4] = "2024-03-01"; late[5] = "2024-03-20"
-    case("late_report", [",".join(late)] + base[1:], "status: loaded\nquarantined: {report_finalised_within_10_days: 1}\n")
-    cov = base[2].split(","); cov[6] = "3"
-    case("cov_with_issues", [",".join(cov)] + base[3:], "status: loaded\nquarantined: {cov_zero_open_issues: 1}\n")
+    case("late_report", [",".join(late)] + base[1:], f"status: loaded\nquarantined: {{{rid_report}: 1}}\n")
+    cov = base[1].split(","); cov[6] = "3"  # MV00002 is a COV visit
+    case("cov_with_issues", [base[0], ",".join(cov)] + base[2:], f"status: loaded\nquarantined: {{{rid_cov}: 1}}\n")
     case("empty", [], "status: rejected\nrule_id: site_monitoring_has_rows\n")
-    case("bad_name", base, "status: rejected\n", fname="SMV_2024031_1.csv")
-    ids = {r["rule"] for r in []}
-    del ids
+    case("misnamed_file", base, "status: unmatched\nrule_id: package_match\n", fname="SMV_2024031_1.csv")
     b = pf(repo, "build", "site_monitoring", env=env, ok=None)
     R.check(b["ok"], "pf build", b["issues"][:3])
     t = pf(repo, "test", "site_monitoring", env=env, ok=None)
@@ -354,15 +380,16 @@ def scenario_ftp(state: Path, E: dict, env: dict) -> None:
     p = tester(conn, cfg, state, "ftp-sync1", env)
     R.check(p.returncode == 0, "FTPS sync: exits 0 over verified TLS (pinned CA)", p.stdout[-600:] + p.stderr[-600:])
     n = wh(conn, "select count(*) from tester.site_monitoring")[0]
-    R.check(n[0] == 44, "FTPS sync: 44 visits (re-issue _02 updated 6 visits by primary key)", n)
+    R.check(n[0] == 39, "FTPS sync: 39 distinct visits (re-issue _02 overlapped 6 visits and updated them by primary key)", n)
     aud = wh(conn, "select package, status from tester.pf_package_audit order by package")
     R.check([a[0] for a in aud] == ["SMV_20240301_01.csv", "SMV_20240301_02.csv", "SMV_20240302_01.csv"],
             "FTPS sync: loaded in date, sequence order; the 2-minute-old file waits for readiness", aud)
 
-    cfg_bad = dict(cfg)
-    cfg_bad.pop("ftp_ca_bundle")
-    (repo / "pipelines/site_monitoring/build/connector/files").exists()
-    p = tester(conn, cfg_bad, state, "ftp-untrusted", env)
+    other = state / "other-ca.pem"
+    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", "/CN=127.0.0.1",
+                    "-addext", "subjectAltName=IP:127.0.0.1", "-keyout", str(state / "other-ca.key"), "-out", str(other)],
+                   check=True, capture_output=True)
+    p = tester(conn, dict(cfg, ftp_ca_bundle=other.read_text()), state, "ftp-untrusted", env)
     log = p.stdout + p.stderr
     R.check("not trusted" in log or "certificate" in log.lower(), "FTPS without the CA: the self-signed server is refused (no silent MITM)", log[-500:])
 

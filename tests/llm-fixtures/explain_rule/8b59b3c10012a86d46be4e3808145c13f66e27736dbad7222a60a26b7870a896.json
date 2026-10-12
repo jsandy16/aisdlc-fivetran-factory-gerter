@@ -1,0 +1,18 @@
+{
+  "output": {
+    "explanation": "A visit row is valid unless it is a close-out visit (visit_type \"COV\") that still has open issues. Visits of any other type, or with no visit_type, are not checked. A \"COV\" visit passes only if open_issues is present and exactly 0.",
+    "fails_when": [
+      "visit_type is \"COV\" and open_issues is greater than 0.",
+      "visit_type is \"COV\" and open_issues is negative, because only exactly 0 passes.",
+      "visit_type is \"COV\" and open_issues is null. A missing count fails rather than being treated as zero, which may be surprising.",
+      "visit_type is a different case such as \"cov\". It counts as not \"COV\", so it passes without any open_issues check."
+    ],
+    "passes_when": [
+      "visit_type is null (the other checks are skipped).",
+      "visit_type is anything other than \"COV\" (compared case-sensitively), whatever open_issues is, including null.",
+      "visit_type is \"COV\" and open_issues is 0."
+    ]
+  },
+  "skill": "explaining-compiled-rules",
+  "task": "explain_rule"
+}

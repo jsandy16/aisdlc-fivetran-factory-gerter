@@ -22,6 +22,9 @@ class PackageSpec(StrictModel):
     match: Regex = Field(description="Regex on the path relative to root; named groups become package attributes")
     order_by: list[str] = Field(default_factory=list, description="Named groups that order packages (default: path)")
     readiness: Readiness = Field(default_factory=Readiness)
+    on_unmatched: Literal["warn", "ignore"] = Field(
+        default="warn", description="files matching no delivery pattern: warn = audited once in pf_package_audit + Fivetran warning"
+    )
     on_redelivery: Literal["skip", "reprocess", "reject"] = Field(
         default="reject", description="Same package path seen again with different content"
     )

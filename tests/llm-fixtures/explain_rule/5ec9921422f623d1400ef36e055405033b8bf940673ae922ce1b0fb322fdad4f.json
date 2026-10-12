@@ -1,0 +1,18 @@
+{
+  "output": {
+    "explanation": "A row passes if it has no report_date. If it has one, visit_date must be present, must not be after report_date, and must be no more than 10 days (240 hours) before it.",
+    "fails_when": [
+      "report_date is present but visit_date is null.",
+      "visit_date is after report_date.",
+      "report_date is more than 10 days (240 hours) after visit_date.",
+      "Surprising: the expression adds the text \"T00:00:00Z\" to report_date and visit_date, which are declared as dates (NAIVE_DATE), not strings. If the engine doesn't convert dates to text for this, the check may raise an error or fail on every row that has a report_date, instead of giving a real answer."
+    ],
+    "passes_when": [
+      "report_date is null, whatever visit_date is.",
+      "report_date is present, visit_date is present, and visit_date is on or before report_date.",
+      "The gap between visit_date and report_date is 10 days or less. Exactly 10 days passes, and the same day passes."
+    ]
+  },
+  "skill": "explaining-compiled-rules",
+  "task": "explain_rule"
+}

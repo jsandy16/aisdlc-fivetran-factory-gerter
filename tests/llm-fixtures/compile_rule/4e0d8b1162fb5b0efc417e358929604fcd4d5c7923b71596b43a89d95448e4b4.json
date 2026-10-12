@@ -1,0 +1,140 @@
+{
+  "output": {
+    "ambiguities": [],
+    "cases": [
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-01-01\""
+          },
+          {
+            "name": "row.report_date",
+            "value_json": "\"2024-01-11\""
+          }
+        ],
+        "why": "Exactly 10 days after passes"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-01-01\""
+          },
+          {
+            "name": "row.report_date",
+            "value_json": "\"2024-01-12\""
+          }
+        ],
+        "why": "11 days after exceeds limit"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-01-01\""
+          },
+          {
+            "name": "row.report_date",
+            "value_json": "\"2024-01-01\""
+          }
+        ],
+        "why": "Same day (lower boundary) passes"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-01-02\""
+          },
+          {
+            "name": "row.report_date",
+            "value_json": "\"2024-01-01\""
+          }
+        ],
+        "why": "Report before visit fails"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-01-01\""
+          },
+          {
+            "name": "row.report_date",
+            "value_json": "null"
+          }
+        ],
+        "why": "Missing report date passes"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "null"
+          },
+          {
+            "name": "row.report_date",
+            "value_json": "\"2024-01-05\""
+          }
+        ],
+        "why": "Report present but visit date missing fails"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "null"
+          },
+          {
+            "name": "row.report_date",
+            "value_json": "null"
+          }
+        ],
+        "why": "Both missing: report missing passes"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-02-25\""
+          },
+          {
+            "name": "row.report_date",
+            "value_json": "\"2024-03-06\""
+          }
+        ],
+        "why": "Leap-year month crossing, exactly 10 days (Feb 29 exists)"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-01-01\""
+          },
+          {
+            "name": "row.report_date",
+            "value_json": "\"2024-01-05\""
+          }
+        ],
+        "why": "Typical pass"
+      }
+    ],
+    "expression": "row.report_date == null || (row.visit_date != null && row.visit_date <= row.report_date && timestamp(row.report_date + \"T00:00:00Z\") - timestamp(row.visit_date + \"T00:00:00Z\") <= duration(\"240h\"))",
+    "referenced": [
+      "row.report_date",
+      "row.visit_date"
+    ]
+  },
+  "skill": "compiling-english-rules",
+  "task": "compile_rule"
+}

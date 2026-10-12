@@ -456,6 +456,7 @@
       "match": "^(?P<date>[^/]+)/(?P<name>[^/]+)\\.zip$",
       "max_package_bytes": 2147483648,
       "on_redelivery": "reject",
+      "on_unmatched": "warn",
       "order_by": [
         "date",
         "name"

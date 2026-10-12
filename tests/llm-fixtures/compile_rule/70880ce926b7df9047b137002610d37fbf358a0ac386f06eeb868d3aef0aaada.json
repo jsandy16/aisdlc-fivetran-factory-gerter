@@ -1,0 +1,146 @@
+{
+  "output": {
+    "ambiguities": [
+      "What exact value in visit_type denotes a close-out visit: \"COV\", or also spellings like \"Close-out\"? Assumed exactly \"COV\".",
+      "Is the match case-sensitive and whitespace-sensitive (e.g. \"cov\")? Assumed exact, case-sensitive.",
+      "A COV with null open_issues is assumed to FAIL (the count is unknown). Should it pass instead?",
+      "A row with null visit_type is assumed to PASS because it cannot be identified as a COV. Should it fail instead?",
+      "Non-COV visits are assumed unconstrained."
+    ],
+    "cases": [
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"COV\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "0"
+          }
+        ],
+        "why": "COV with zero open issues (boundary, typical pass)"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"COV\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "1"
+          }
+        ],
+        "why": "COV with one open issue, just above the boundary"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"COV\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "5"
+          }
+        ],
+        "why": "typical fail: COV with several open issues"
+      },
+      {
+        "expected": "fail",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"COV\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "null"
+          }
+        ],
+        "why": "null open_issues on a COV is unknown, so it fails"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "null"
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "3"
+          }
+        ],
+        "why": "null visit_type is not identifiable as COV"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "null"
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "null"
+          }
+        ],
+        "why": "both null, rule does not apply"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"SIV\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "4"
+          }
+        ],
+        "why": "non-COV visit may have open issues"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"cov\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "2"
+          }
+        ],
+        "why": "lowercase is not an exact match for COV under the case-sensitive assumption"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_type",
+            "value_json": "\"SIV\""
+          },
+          {
+            "name": "row.open_issues",
+            "value_json": "null"
+          }
+        ],
+        "why": "non-COV with null open_issues"
+      }
+    ],
+    "expression": "row.visit_type != \"COV\" || (row.open_issues != null && row.open_issues == 0)",
+    "referenced": [
+      "row.visit_type",
+      "row.open_issues"
+    ]
+  },
+  "skill": "compiling-english-rules",
+  "task": "compile_rule"
+}
