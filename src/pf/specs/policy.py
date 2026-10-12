@@ -23,9 +23,12 @@ class AccessGrant(StrictModel):
 
 
 class AuditEnvironment(StrictModel):
-    bucket: BucketName = Field(description="Write-once evidence bucket (S3 Object Lock)")
+    bucket: BucketName = Field(description="Write-once evidence bucket (S3 Object Lock); shared buckets are declared once, in foundation/")
     object_lock_mode: Literal["GOVERNANCE", "COMPLIANCE"] = "COMPLIANCE"
     cloudtrail_data_events: bool = True
+    cloudtrail_management_events: bool = Field(default=True, description="Lake Formation grants/tags and Glue changes; set false "
+                                               "only if an organization trail already records management events")
+    kms_key_arn: str | None = Field(default=None, pattern=r"^arn:aws[a-z-]*:kms:", description="Customer managed key for the bucket and trail")
 
 
 class OriginalsEnvironment(StrictModel):
@@ -35,6 +38,7 @@ class OriginalsEnvironment(StrictModel):
     access_key_id: SecretRef
     secret_access_key: SecretRef
     endpoint_url: str | None = Field(default=None, description="S3-compatible endpoint (tests only); https unless localhost")
+    kms_key_arn: str | None = Field(default=None, pattern=r"^arn:aws[a-z-]*:kms:", description="Customer managed key for the bucket")
 
     @field_validator("endpoint_url")
     @classmethod
@@ -48,6 +52,8 @@ class OriginalsEnvironment(StrictModel):
 
 class EnvironmentPolicy(StrictModel):
     access: list[AccessGrant] = Field(default_factory=list)
+    dq_runner_principal: str | None = Field(default=None, pattern=r"^arn:aws[a-z-]*:iam::\d{12}:role/.+",
+                                            description="Role that runs `pf dq run --certify`: reads uncertified tables, tags certification")
     audit: AuditEnvironment
     originals: OriginalsEnvironment | None = None
 

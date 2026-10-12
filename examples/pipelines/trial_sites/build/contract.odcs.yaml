@@ -19,6 +19,19 @@ team:
   role: Governance
 - username: '@rd-data-quality'
   role: Data quality
+servers:
+- server: dev
+  type: athena
+  environment: dev
+  schema: trial_sites
+  description: Glue/Athena over s3://az-rd-lake-dev/fivetran/trial_sites 
+    (Iceberg)
+- server: prod
+  type: athena
+  environment: prod
+  schema: trial_sites
+  description: Glue/Athena over s3://az-rd-lake-prod/fivetran/trial_sites 
+    (Iceberg)
 schema:
 - name: sites
   physicalName: sites
@@ -76,16 +89,94 @@ schema:
     primaryKey: false
     classification: internal
     description: Last change
+  - name: pf_package
+    logicalType: string
+    physicalType: STRING
+    required: false
+    description: pipeline-factory lineage column
+  - name: pf_package_hash
+    logicalType: string
+    physicalType: STRING
+    required: false
+    description: pipeline-factory lineage column
+  - name: pf_member
+    logicalType: string
+    physicalType: STRING
+    required: false
+    description: pipeline-factory lineage column
+  - name: pf_row
+    logicalType: integer
+    physicalType: LONG
+    required: false
+    description: pipeline-factory lineage column
+  - name: pf_run_id
+    logicalType: string
+    physicalType: STRING
+    required: false
+    description: pipeline-factory lineage column
+  - name: pf_pipeline_version
+    logicalType: string
+    physicalType: STRING
+    required: false
+    description: pipeline-factory lineage column
+  - name: pf_key_hash
+    logicalType: string
+    physicalType: STRING
+    required: false
+    description: pipeline-factory lineage column
+  - name: _fivetran_synced
+    logicalType: timestamp
+    physicalType: UTC_DATETIME
+    required: false
+    description: pipeline-factory lineage column
+  - name: _fivetran_deleted
+    logicalType: boolean
+    physicalType: BOOLEAN
+    required: false
+    description: pipeline-factory lineage column
   quality:
-  - rule: row_count
+  - id: sites_lake_rows
+    name: sites_lake_rows
+    type: sql
     description: sites is not empty
+    query: SELECT failed FROM (SELECT CASE WHEN COUNT(*) >= 1 THEN 0 ELSE 1 END 
+      AS failed, COUNT(*) AS observed FROM "trial_sites"."sites" WHERE 
+      COALESCE(_fivetran_deleted, FALSE) = FALSE) q
+    mustBe: 0
     severity: error
-  - rule: freshness
+    dimension: completeness
+  - id: sites_fresh
+    name: sites_fresh
+    type: sql
     description: sites synced within the SLA
+    query: SELECT failed FROM (SELECT CASE WHEN MAX(finished_at) >= 
+      CURRENT_TIMESTAMP - INTERVAL '24' HOUR THEN 0 ELSE 1 END AS failed, 
+      COUNT(*) AS observed FROM "trial_sites"."pf_package_audit" WHERE 
+      COALESCE(_fivetran_deleted, FALSE) = FALSE AND status = 'loaded') q
+    mustBe: 0
     severity: warning
-  - rule: reconciliation
+    dimension: timeliness
+  - id: sites_reconciled
+    name: sites_reconciled
+    type: sql
     description: Lake rows equal rows the connector emitted
+    query: SELECT failed FROM (SELECT (SELECT COUNT(*) FROM 
+      "trial_sites"."sites" x WHERE COALESCE(x._fivetran_deleted, FALSE) = FALSE
+      AND NOT EXISTS (SELECT 1 FROM "trial_sites"."pf_entity_audit" a WHERE 
+      a.package_hash = x.pf_package_hash AND a.entity = 'sites' AND a.status = 
+      'loaded')) + (SELECT COUNT(*) FROM "trial_sites"."pf_keys_sites" k WHERE 
+      COALESCE(k._fivetran_deleted, FALSE) = FALSE AND NOT EXISTS (SELECT 1 FROM
+      "trial_sites"."sites" y WHERE COALESCE(y._fivetran_deleted, FALSE) = FALSE
+      AND y.pf_key_hash = k.key_hash AND y.pf_package_hash = k.package_hash)) + 
+      (SELECT COUNT(*) FROM "trial_sites"."sites" z WHERE 
+      COALESCE(z._fivetran_deleted, FALSE) = FALSE AND NOT EXISTS (SELECT 1 FROM
+      "trial_sites"."pf_keys_sites" k WHERE k.key_hash = z.pf_key_hash AND 
+      COALESCE(k._fivetran_deleted, FALSE) = FALSE)) AS failed, (SELECT COUNT(*)
+      FROM "trial_sites"."sites" WHERE COALESCE(_fivetran_deleted, FALSE) = 
+      FALSE) AS observed) q
+    mustBe: 0
     severity: error
+    dimension: completeness
 slaProperties:
 - property: latency
   value: 24

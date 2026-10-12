@@ -193,6 +193,24 @@ def _registry_prefix(originals: dict, pipeline: str) -> str:
 
 
 @_s3_errors
+def put_evidence(originals: dict, configuration: dict, pipeline: str, env: str, run_id: str, name: str, doc: dict) -> None:
+    """Write-once copy of a delivery's audit evidence beside its original (Object Lock): the lake's pf_* tables
+    are Iceberg tables Fivetran maintains and expires; this copy is the immutable record."""
+    import json as _json
+
+    from botocore.exceptions import ClientError
+
+    s3 = _s3(originals, configuration)
+    key = f"{originals.get('prefix', 'originals').strip('/')}/{pipeline}/_evidence/{env}/{run_id}/{name}.json"
+    body = _json.dumps(doc, sort_keys=True, default=str).encode()
+    try:
+        s3.put_object(Bucket=originals["bucket"], Key=key, Body=body, IfNoneMatch="*", ChecksumAlgorithm="SHA256")
+    except ClientError as exc:
+        if exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode") != 412:
+            raise
+
+
+@_s3_errors
 def mark_loaded(originals: dict, configuration: dict, pipeline: str, sha: str, path: str, order: list) -> None:
     """Write-once marker 'this content was loaded at this path': rebuilds the registry after a historical re-sync."""
     import json as _json

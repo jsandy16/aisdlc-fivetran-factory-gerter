@@ -1,5 +1,7 @@
 {
   "archive_originals": false,
+  "classification": {},
+  "default_classification": "internal",
   "entities": [
     {
       "attributes": [

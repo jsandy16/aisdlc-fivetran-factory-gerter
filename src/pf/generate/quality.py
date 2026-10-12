@@ -31,9 +31,14 @@ def check_sql(c, schema: str, entity_load: dict[str, str]) -> str:
                 f"GROUP BY {cols} HAVING COUNT(*) > 1) d")
     if c.kind == "not_null":
         return f"SELECT COUNT(*) AS failed, COUNT(*) AS observed FROM {live(t, schema)} AND {q(c.column)} IS NULL"
-    if c.kind == "freshness":
-        return (f"SELECT CASE WHEN MAX(_fivetran_synced) >= CURRENT_TIMESTAMP - INTERVAL '{c.max_hours}' HOUR THEN 0 ELSE 1 END AS failed, "
-                f"COUNT(*) AS observed FROM {live(t, schema)}")
+    if c.kind == "freshness":  # when data last arrived, not when an unchanged row was last touched
+        return (f"SELECT CASE WHEN MAX(finished_at) >= CURRENT_TIMESTAMP - INTERVAL '{c.max_hours}' HOUR THEN 0 ELSE 1 END AS failed, "
+                f"COUNT(*) AS observed FROM {live('pf_package_audit', schema)} AND status = 'loaded'")
+    if c.kind == "quarantine_rate":
+        ea = live("pf_entity_audit", schema)
+        return (f"SELECT CASE WHEN COALESCE(SUM(rows_quarantined), 0) * 100.0 > {c.max_pct} * GREATEST(COALESCE(SUM(rows_read), 0), 1) "
+                f"THEN 1 ELSE 0 END AS failed, COALESCE(SUM(rows_quarantined), 0) AS observed FROM {ea} AND entity = '{t}' "
+                f"AND _fivetran_synced >= CURRENT_TIMESTAMP - INTERVAL '{c.window_hours}' HOUR")
     if c.kind == "referential":
         return (f"SELECT COUNT(*) AS failed, COUNT(*) AS observed FROM {q(schema)}.{q(t)} a "
                 f"LEFT JOIN (SELECT {q(c.ref_column)} AS k FROM {live(c.ref_entity, schema)}) r ON a.{q(c.column)} = r.k "
@@ -47,7 +52,12 @@ def check_sql(c, schema: str, entity_load: dict[str, str]) -> str:
                        f"WHERE entity = '{t}' AND status = 'loaded') e")
             count = f"SELECT COUNT(*) FROM {live(t, schema)}"
             return (f"SELECT ({orphans}) + ABS(({emitted}) - ({count})) AS failed, ({count}) AS observed")
-        return f"SELECT ({orphans}) AS failed, (SELECT COUNT(*) FROM {live(t, schema)}) AS observed"
+        reg = q(schema) + "." + q(f"pf_keys_{t}")
+        lost = (f"SELECT COUNT(*) FROM {reg} k WHERE COALESCE(k._fivetran_deleted, FALSE) = FALSE AND NOT EXISTS (SELECT 1 FROM "
+                f"{live(t, schema, 'y')} AND y.pf_key_hash = k.key_hash AND y.pf_package_hash = k.package_hash)")
+        unregistered = (f"SELECT COUNT(*) FROM {live(t, schema, 'z')} AND NOT EXISTS (SELECT 1 FROM {reg} k "
+                        f"WHERE k.key_hash = z.pf_key_hash AND COALESCE(k._fivetran_deleted, FALSE) = FALSE)")
+        return (f"SELECT ({orphans}) + ({lost}) + ({unregistered}) AS failed, (SELECT COUNT(*) FROM {live(t, schema)}) AS observed")
     if c.kind == "sql_assert":
         return f"SELECT failed, 0 AS observed FROM ({c.query.strip().rstrip(';')}) s"
     raise ValueError(c.kind)

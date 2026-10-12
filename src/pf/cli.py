@@ -160,17 +160,23 @@ def cmd_rules(a) -> Result:
 
 
 def cmd_build(a) -> Result:
-    from .generate import check, render_all, write
+    from .generate import check, render_all, render_foundation, write, write_foundation
 
     root = _root()
     b = _bundle(a.name)
     files = render_all(b, root)
+    found = render_foundation(root)
     if a.check:
-        diffs = check(root, files)
+        diffs = check(root, files) + check(root, found)
+        stale = [str(p.relative_to(root)) for p in (root / "foundation").rglob("*.tf") if str(p.relative_to(root)) not in found] \
+            if (root / "foundation").is_dir() else []
+        diffs += [f"stale: {s_}" for s_ in stale]
         return Result(command="build --check", ok=not diffs, issues=[Issue(msg=d, code="stale_build") for d in diffs],
-                      data={"files": len(files)})
+                      data={"files": len(files) + len(found)})
     written = write(root, files, a.name)
-    return Result(command="build", ok=True, data={"files": len(written), "build": f"pipelines/{a.name}/build"})
+    write_foundation(root, found)
+    return Result(command="build", ok=True, data={"files": len(written), "build": f"pipelines/{a.name}/build",
+                                                  "foundation": sorted({k.split("/")[1] for k in found})})
 
 
 def cmd_test(a) -> Result:
@@ -226,8 +232,10 @@ class _DryApi:
 
 
 def cmd_dq(a) -> Result:
-    from .dq import run
+    from .dq import decertify, run
 
+    if a.action == "decertify":
+        return Result(command="dq decertify", ok=True, data=decertify(_root(), a.name))
     rep = run(_root(), a.name, a.engine, db=a.db, schema=a.schema, workgroup=a.workgroup, output=a.output,
               certify=a.certify, evidence_bucket=a.evidence_bucket)
     return Result(command="dq run", ok=rep["certified"], data=rep)
@@ -357,7 +365,7 @@ def parser() -> argparse.ArgumentParser:
     s.set_defaults(fn=cmd_fivetran)
 
     s = sub.add_parser("dq", help="post-load checks (athena or duckdb) and certification")
-    s.add_argument("action", choices=["run"])
+    s.add_argument("action", choices=["run", "decertify"])
     s.add_argument("name")
     s.add_argument("--engine", choices=["athena", "duckdb"], default="athena")
     s.add_argument("--db", help="duckdb file (dry runs)")

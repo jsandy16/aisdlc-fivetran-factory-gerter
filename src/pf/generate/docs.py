@@ -12,6 +12,12 @@ LOGICAL = {"STRING": "string", "INT": "integer", "LONG": "integer", "DOUBLE": "n
            "NAIVE_DATE": "date", "NAIVE_DATETIME": "timestamp", "UTC_DATETIME": "timestamp", "JSON": "object"}
 
 
+DIMENSION = {"row_count": "completeness", "unique": "uniqueness", "not_null": "completeness", "freshness": "timeliness",
+             "referential": "consistency", "reconciliation": "completeness", "quarantine_rate": "accuracy", "sql_assert": "accuracy"}
+LINEAGE_COLUMNS = {"pf_package": "STRING", "pf_package_hash": "STRING", "pf_member": "STRING", "pf_row": "LONG", "pf_run_id": "STRING",
+                   "pf_pipeline_version": "STRING", "pf_key_hash": "STRING", "_fivetran_synced": "UTC_DATETIME", "_fivetran_deleted": "BOOLEAN"}
+
+
 def contract(b: Bundle, lock: dict) -> str:
     assert b.pipeline and b.sttm and b.policy and b.quality
     p, pol = b.pipeline, b.policy
@@ -27,8 +33,15 @@ def contract(b: Bundle, lock: dict) -> str:
             if a.name in e.primary_key:
                 prop["primaryKeyPosition"] = e.primary_key.index(a.name) + 1
             props.append(prop)
-        quality = [{"rule": c.kind, "description": c.description, "severity": "error" if c.severity == "blocker" else "warning"}
+        from .quality import check_sql
+
+        loads = {x.name: x.load for x in b.sttm.entities}
+        quality = [{"id": c.id, "name": c.id, "type": "sql", "description": c.description,
+                    "query": f"SELECT failed FROM ({check_sql(c, b.name, loads)}) q", "mustBe": 0,
+                    "severity": "error" if c.severity == "blocker" else "warning", "dimension": DIMENSION.get(c.kind, "consistency")}
                    for c in b.quality.checks if c.entity == e.name]
+        props += [{"name": n, "logicalType": LOGICAL.get(t, "string"), "physicalType": t, "required": False,
+                   "description": "pipeline-factory lineage column"} for n, t in LINEAGE_COLUMNS.items()]
         obj = {"name": e.name, "physicalName": e.name, "logicalType": "object", "physicalType": "table",
                "description": e.description or e.name, "properties": props}
         if quality:
@@ -39,6 +52,10 @@ def contract(b: Bundle, lock: dict) -> str:
         "description": {"purpose": p.requirement.purpose, "usage": "Consumers read certified tables only (pf_certified = true)."},
         "team": [{"username": p.owners.product_owner, "role": "Owner"}, {"username": p.owners.data_engineer, "role": "Data engineer"},
                  {"username": p.owners.governance, "role": "Governance"}, {"username": p.owners.quality, "role": "Data quality"}],
+        "servers": [{"server": env, "type": "athena", "environment": env, "schema": p.name,
+                     "description": f"Glue/Athena over s3://{b.destination.destination.environments[env].bucket}/"
+                                    f"{b.destination.destination.environments[env].prefix_path}/{p.name} (Iceberg)"}
+                    for env in p.environments],
         "schema": schema,
         "slaProperties": [{"property": "latency", "value": p.requirement.freshness_sla_hours, "unit": "h"},
                           {"property": "retention", "value": pol.retention.days, "unit": "d"}],

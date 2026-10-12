@@ -175,8 +175,9 @@ ticket_route: "{{ R }}"
 checks:
 {%- for e in entities %}
   - {id: {{ e }}_lake_rows, kind: row_count, entity: {{ e }}, min: 1, severity: blocker, description: "{{ e }} is not empty"}
-  - {id: {{ e }}_fresh, kind: freshness, entity: {{ e }}, max_hours: 24, severity: warning, description: "{{ e }} synced within the SLA"}
-  - {id: {{ e }}_reconciled, kind: reconciliation, entity: {{ e }}, severity: blocker, description: "Lake rows equal rows the connector emitted"}
+  - {id: {{ e }}_fresh, kind: freshness, entity: {{ e }}, max_hours: 24, severity: warning, description: "data for {{ e }} arrived within the SLA"}
+  - {id: {{ e }}_reconciled, kind: reconciliation, entity: {{ e }}, severity: blocker, description: "Every row the connector emitted is in the lake, nothing else is"}
+  - {id: {{ e }}_quarantine_rate, kind: quarantine_rate, entity: {{ e }}, max_pct: 5, severity: warning, description: "Under 5% of rows quarantined in the last day"}
 {%- endfor %}
 """
 

@@ -1,5 +1,9 @@
 {
   "archive_originals": true,
+  "classification": {
+    "site_monitoring.cra_email": "confidential"
+  },
+  "default_classification": "internal",
   "entities": [
     {
       "attributes": [
@@ -274,6 +278,7 @@
       },
       "bucket": "az-rd-originals-dev",
       "endpoint_url": null,
+      "kms_key_arn": null,
       "prefix": "originals",
       "region": "us-east-1",
       "secret_access_key": {
@@ -286,6 +291,7 @@
       },
       "bucket": "az-rd-originals-prod",
       "endpoint_url": null,
+      "kms_key_arn": null,
       "prefix": "originals",
       "region": "us-east-1",
       "secret_access_key": {

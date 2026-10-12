@@ -101,6 +101,8 @@ def build_lock(b: Bundle) -> dict:
         "title": p.title,
         "gxp_tier": p.gxp_tier,
         "late_data_policy": p.requirement.late_data_policy,
+        "classification": {k: v for k, v in sorted(pol.classification.items()) if v != pol.default_classification},
+        "default_classification": pol.default_classification,
         "environments": list(p.environments),
         "runtime": p.runtime.model_dump(mode="json"),
         "source": source,

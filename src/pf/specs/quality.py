@@ -36,7 +36,7 @@ class LakeNotNull(_LakeCheck):
 
 class LakeFreshness(_LakeCheck):
     kind: Literal["freshness"]
-    max_hours: int = Field(ge=1, description="Newest _fivetran_synced must be within this many hours")
+    max_hours: int = Field(ge=1, description="The newest delivery (or database read) loaded for the pipeline must be this recent")
 
 
 class LakeReferential(_LakeCheck):
@@ -47,9 +47,18 @@ class LakeReferential(_LakeCheck):
 
 
 class LakeReconciliation(_LakeCheck):
-    """Rows in the table must equal rows the connector reported as emitted (pf_package_audit)."""
+    """Append: lake rows equal the rows the connector emitted. Upsert: every key in the connector's key registry
+    (pf_keys_<entity>) has its current row in the lake (nothing lost) and every live row is registered (no orphans)."""
 
     kind: Literal["reconciliation"]
+
+
+class LakeQuarantineRate(_LakeCheck):
+    """Share of rows quarantined in the recent window stays below a threshold (row-level rules can hide a broken feed)."""
+
+    kind: Literal["quarantine_rate"]
+    max_pct: float = Field(gt=0, le=100)
+    window_hours: int = Field(default=24, ge=1)
 
 
 class LakeSqlAssert(_LakeCheck):
@@ -72,7 +81,7 @@ class LakeSqlAssert(_LakeCheck):
 
 
 LakeCheck = Annotated[
-    Union[LakeRowCount, LakeUnique, LakeNotNull, LakeFreshness, LakeReferential, LakeReconciliation, LakeSqlAssert],
+    Union[LakeRowCount, LakeUnique, LakeNotNull, LakeFreshness, LakeReferential, LakeReconciliation, LakeQuarantineRate, LakeSqlAssert],
     Field(discriminator="kind"),
 ]
 

@@ -308,6 +308,11 @@ def scenario_ftp(state: Path, E: dict, env: dict) -> None:
     for rid, text in answers.items():
         r = pf(repo, "set", "site_monitoring", "sttm.yaml", f"entities[site_monitoring].row_checks[{rid}].text", json.dumps(text), env=env, ok=None)
         R.check(r["ok"], f"owner reworded {rid} to answer the open questions", r["issues"][:2])
+    for attr_name, cid in attr_check.items():  # intake proposes checks in shadow; the owner reviews and enforces them
+        if cid:
+            r = pf(repo, "set", "site_monitoring", "sttm.yaml", f"entities[site_monitoring].attributes[{attr_name}].checks[{cid}].mode",
+                   json.dumps("enforce"), env=env, ok=None)
+            R.check(r["ok"], f"owner reviewed and enforced the proposed check {cid}", r["issues"][:2])
     examples = {
         rid_report: [{"input": {"visit_date": "2024-03-01", "report_date": "2024-03-11"}, "expected": "pass"},
                      {"input": {"visit_date": "2024-03-01", "report_date": "2024-03-12"}, "expected": "fail"},

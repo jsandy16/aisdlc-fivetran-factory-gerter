@@ -34,8 +34,14 @@ from .values import to_emit
 
 LINEAGE = {
     "pf_package": "STRING", "pf_package_hash": "STRING", "pf_member": "STRING", "pf_row": "LONG",
-    "pf_run_id": "STRING", "pf_pipeline_version": "STRING",
+    "pf_run_id": "STRING", "pf_pipeline_version": "STRING", "pf_key_hash": "STRING",
 }
+KEY_REGISTRY = {"key_hash": "STRING", "package_hash": "STRING", "pf_run_id": "STRING"}
+
+
+def _key_hash(row: dict, pk: list[str]) -> str:
+    """Stable hash of the primary-key values as emitted (lake reconciliation joins on it)."""
+    return hashlib.sha256(json.dumps([row.get(k) for k in pk], sort_keys=True, default=str).encode()).hexdigest()[:32]
 EVIDENCE_TABLES = [
     {"table": "pf_package_audit", "primary_key": ["pf_run_id", "package_hash", "package"],
      "columns": {"pf_run_id": "STRING", "package_hash": "STRING", "package": "STRING", "pipeline": "STRING",
@@ -69,6 +75,8 @@ def schema(lock: dict) -> list[dict]:
         cols.update(LINEAGE)
         pk = list(e["primary_key"]) if e["load"] == "upsert" else ["pf_package_hash", "pf_member", "pf_row"]
         out.append({"table": e["name"], "primary_key": pk, "columns": cols})
+        if e["load"] == "upsert":  # which delivery last wrote each key: lets the lake check find lost rows
+            out.append({"table": f"pf_keys_{e['name']}", "primary_key": ["key_hash"], "columns": dict(KEY_REGISTRY)})
     return out + [dict(t) for t in EVIDENCE_TABLES]
 
 
@@ -577,7 +585,8 @@ class Sync:
                         continue
                     rec = {k: to_emit(v) for k, v in res.row.items()}
                     rec.update({"pf_package": lp.pkg.path, "pf_package_hash": lp.sha256, "pf_member": m, "pf_row": row_no,
-                                "pf_run_id": self.run_id, "pf_pipeline_version": self.lock["version"]})
+                                "pf_run_id": self.run_id, "pf_pipeline_version": self.lock["version"],
+                                "pf_key_hash": _key_hash(rec, e["primary_key"]) if e["load"] == "upsert" else f"{lp.sha256[:16]}:{m}:{row_no}"})
                     sp.write(json.dumps(rec, separators=(",", ":")) + "\n")
                     eo.emitted += 1
                 if not checked_header and e["file"]["format"].get("type") == "csv":
@@ -643,9 +652,14 @@ class Sync:
                 rows_read += eo.read
                 if eo.status != "loaded" or not eo.spool:
                     continue
+                upsert = next(e for e in self.lock["entities"] if e["name"] == eo.name)["load"] == "upsert"
                 with open(eo.spool, encoding="utf-8") as fh:
                     for line in fh:
-                        self.op.upsert(table=eo.name, data=json.loads(line))
+                        rec = json.loads(line)
+                        self.op.upsert(table=eo.name, data=rec)
+                        if upsert:
+                            self.op.upsert(table=f"pf_keys_{eo.name}", data={"key_hash": rec["pf_key_hash"], "package_hash": p.sha256,
+                                                                             "pf_run_id": self.run_id})
                         rows_emitted += 1
                         since_cp += 1
                         if since_cp >= every:
@@ -659,23 +673,32 @@ class Sync:
         entities = {n: {"read": eo.read, "emitted": eo.emitted if (p.status == "loaded" and eo.status == "loaded") else 0,
                         "quarantined": len(eo.quarantined), "status": eo.status if p.status == "loaded" else p.status, "reason": eo.reason}
                     for n, eo in p.entities.items()}
+        evidence_doc: dict[str, Any] = {"entities": [], "rules": []}
         for n, ed in entities.items():
+            evidence_doc["entities"].append({"entity": n, **ed})
             self._evidence("pf_entity_audit", {
                 "pf_run_id": self.run_id, "package_hash": p.sha256 or "-", "entity": n, "package": p.pkg.path,
                 "status": ed["status"], "reason": ed["reason"] or p.reason, "rows_read": ed["read"], "rows_emitted": ed["emitted"],
                 "rows_quarantined": ed["quarantined"]})
         for (rule_id, ent, attr), st in sorted(p.stats.rules.items()):
-            self._evidence("pf_rule_results", {
-                "pf_run_id": self.run_id, "package_hash": p.sha256 or "-", "rule_id": rule_id, "entity": ent, "attribute": attr,
-                "package": p.pkg.path, "scope": st.scope, "kind": st.kind, "mode": st.mode, "action": st.action,
-                "evaluated": st.evaluated, "failed": st.failed, "outcome": st.outcome})
-        self._evidence("pf_package_audit", {
+            row = {"pf_run_id": self.run_id, "package_hash": p.sha256 or "-", "rule_id": rule_id, "entity": ent, "attribute": attr,
+                   "package": p.pkg.path, "scope": st.scope, "kind": st.kind, "mode": st.mode, "action": st.action,
+                   "evaluated": st.evaluated, "failed": st.failed, "outcome": st.outcome}
+            evidence_doc["rules"].append(row)
+            self._evidence("pf_rule_results", row)
+        audit_row = {
             "pf_run_id": self.run_id, "package_hash": p.sha256 or "-", "package": p.pkg.path, "pipeline": self.lock["pipeline"],
             "pipeline_version": self.lock["version"], "runtime_version": VERSION, "spec_hash": self.lock["spec_sha256"],
             "environment": self.env, "package_size": p.size, "status": p.status, "rule_id": p.rule_id,
             "reason": p.reason or ("late: arrived after newer deliveries" if p.late else ""),
             "entities": entities, "rows_read": rows_read, "rows_emitted": rows_emitted, "rows_quarantined": rows_q,
-            "original_key": p.original_key, "started_at": p.started_at, "finished_at": p.finished_at})
+            "original_key": p.original_key, "started_at": p.started_at, "finished_at": p.finished_at}
+        self._evidence("pf_package_audit", audit_row)
+        originals = self.lock.get("originals", {}).get(self.env)
+        if self.lock.get("archive_originals") and originals and p.status in ("loaded", "rejected", "failed"):
+            name = (p.sha256 or hashlib.sha256(p.pkg.path.encode()).hexdigest())[:32]
+            retry(lambda: P.put_evidence(originals, self.cfg, self.lock["pipeline"], self.env, self.run_id, name,
+                                         {"package": audit_row, **evidence_doc}), what="evidence", **self.retry_kw)
         if p.status in ("loaded", "rejected"):
             prev = self.state.packages.get(p.pkg.path, {})
             rec = {"sha256": p.sha256, "size": p.pkg.file.size, "mtime": p.pkg.file.mtime,
@@ -736,6 +759,7 @@ class Sync:
             # next checkpoint, so nothing is checkpointed until the whole table has been read and checked: a
             # failure part-way leaves the previous snapshot intact.
             self.op.truncate(table=e["name"])
+            self.op.truncate(table=f"pf_keys_{e['name']}")
         read = emitted = quarantined = 0
         pk_sources = [next(a.get("source") or a["name"] for a in e["attributes"] if a["name"] == k) for k in e["primary_key"]]
         order_extra = [c for c in pk_sources if c != cursor_col]
@@ -765,8 +789,11 @@ class Sync:
                         continue
                     rec = {k: to_emit(v) for k, v in res.row.items()}
                     rec.update({"pf_package": f"rds:{tb['table']}", "pf_package_hash": batch_id, "pf_member": tb["table"],
-                                "pf_row": read, "pf_run_id": self.run_id, "pf_pipeline_version": self.lock["version"]})
+                                "pf_row": read, "pf_run_id": self.run_id, "pf_pipeline_version": self.lock["version"],
+                                "pf_key_hash": _key_hash(rec, e["primary_key"])})
                     self.op.upsert(table=e["name"], data=rec)
+                    self.op.upsert(table=f"pf_keys_{e['name']}", data={"key_hash": rec["pf_key_hash"], "package_hash": batch_id,
+                                                                       "pf_run_id": self.run_id})
                     emitted += 1
                 if inc:
                     if last_cursor is not None:
