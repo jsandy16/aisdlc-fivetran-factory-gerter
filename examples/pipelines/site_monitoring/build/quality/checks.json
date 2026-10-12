@@ -1,0 +1,30 @@
+{
+  "checks": [
+    {
+      "description": "site_monitoring is not empty",
+      "entity": "site_monitoring",
+      "id": "site_monitoring_lake_rows",
+      "kind": "row_count",
+      "severity": "blocker",
+      "sql": "SELECT CASE WHEN COUNT(*) >= 1 THEN 0 ELSE 1 END AS failed, COUNT(*) AS observed FROM \"site_monitoring\".\"site_monitoring\" WHERE COALESCE(_fivetran_deleted, FALSE) = FALSE"
+    },
+    {
+      "description": "site_monitoring synced within the SLA",
+      "entity": "site_monitoring",
+      "id": "site_monitoring_fresh",
+      "kind": "freshness",
+      "severity": "warning",
+      "sql": "SELECT CASE WHEN MAX(_fivetran_synced) >= CURRENT_TIMESTAMP - INTERVAL '24' HOUR THEN 0 ELSE 1 END AS failed, COUNT(*) AS observed FROM \"site_monitoring\".\"site_monitoring\" WHERE COALESCE(_fivetran_deleted, FALSE) = FALSE"
+    },
+    {
+      "description": "Lake rows equal rows the connector emitted",
+      "entity": "site_monitoring",
+      "id": "site_monitoring_reconciled",
+      "kind": "reconciliation",
+      "severity": "blocker",
+      "sql": "SELECT (SELECT COUNT(*) FROM \"site_monitoring\".\"site_monitoring\" x WHERE COALESCE(x._fivetran_deleted, FALSE) = FALSE AND NOT EXISTS (SELECT 1 FROM \"site_monitoring\".\"pf_entity_audit\" a WHERE a.package_hash = x.pf_package_hash AND a.entity = 'site_monitoring' AND a.status = 'loaded')) AS failed, (SELECT COUNT(*) FROM \"site_monitoring\".\"site_monitoring\" WHERE COALESCE(_fivetran_deleted, FALSE) = FALSE) AS observed"
+    }
+  ],
+  "pipeline": "site_monitoring",
+  "schema": "site_monitoring"
+}

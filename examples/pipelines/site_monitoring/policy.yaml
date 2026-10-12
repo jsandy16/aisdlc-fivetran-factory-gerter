@@ -1,0 +1,34 @@
+# policy.yaml — governance decisions, enforced outside Fivetran. Owner: governance.
+# Classification, access and retention are human-owned decisions: none of them is defaulted.
+default_classification: "internal"             # public | internal | confidential | restricted
+classification: {"site_monitoring.cra_email": "confidential"} # entity.attribute: classification, for columns that differ from the default
+archive_originals: true                    # keep every received file byte-for-byte (file sources)
+retention:
+  days: 2555
+  rationale: "7 years per business requirement"
+  object_lock_days: 2555
+environments:
+  dev:
+    access: []                              # e.g. - {principal: arn:aws:iam::123456789012:role/analyst, classifications: [internal], justification: "..."}
+    audit:
+      bucket: "az-rd-pf-audit-dev"             # write-once evidence bucket (S3 Object Lock)
+      object_lock_mode: GOVERNANCE
+      cloudtrail_data_events: true
+    originals:
+      bucket: "az-rd-originals-dev"            # write-once bucket for original files
+      prefix: originals
+      region: "us-east-1"
+      access_key_id: {secret: originals_access_key_id_dev}
+      secret_access_key: {secret: originals_secret_access_key_dev}
+  prod:
+    access: []                              # e.g. - {principal: arn:aws:iam::123456789012:role/analyst, classifications: [internal], justification: "..."}
+    audit:
+      bucket: "az-rd-pf-audit-prod"            # write-once evidence bucket (S3 Object Lock)
+      object_lock_mode: COMPLIANCE
+      cloudtrail_data_events: true
+    originals:
+      bucket: "az-rd-originals-prod"           # write-once bucket for original files
+      prefix: originals
+      region: "us-east-1"
+      access_key_id: {secret: originals_access_key_id_prod}
+      secret_access_key: {secret: originals_secret_access_key_prod}

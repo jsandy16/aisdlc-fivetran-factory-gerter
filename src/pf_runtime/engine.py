@@ -570,6 +570,7 @@ class Sync:
         inc = tb.get("incremental")
         cursor_col = inc["cursor_column"] if inc else None
         since = self.state.cursors.get(e["name"], inc.get("initial_value") if inc else None)
+        incremental_run = bool(cursor_col) and e["name"] in self.state.cursors  # not the initial full load
         if not inc:
             self.op.truncate(table=e["name"])  # full reload: rows absent from the source become soft-deleted
         read = emitted = quarantined = 0
@@ -607,7 +608,9 @@ class Sync:
         for c in e.get("checks", []):
             try:
                 if c["kind"] == "row_count":
-                    ok = emitted >= c.get("min", 1) and (c.get("max") is None or emitted <= c["max"])
+                    # an incremental read returns only changed rows, often none: `min` applies to the initial load only
+                    low_ok = incremental_run or emitted >= c.get("min", 1)
+                    ok = low_ok and (c.get("max") is None or emitted <= c["max"])
                     R.entity_check(c, e["name"], stats, ok, f"{emitted} rows outside the expected count")
             except (PackageRejected, EntityRejected, SyncFailed) as exc:
                 status, rule_id, reason = "failed", exc.rule_id, exc.reason

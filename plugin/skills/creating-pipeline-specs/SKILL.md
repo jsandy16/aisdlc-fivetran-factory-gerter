@@ -34,7 +34,7 @@ People fill the specs; `pf` generates and checks everything. Work in the reposit
 ## Decisions you must not make (escalate, never decide)
 
 Classification, access grants, retention and its rationale, GxP tier, blocker-vs-warning severity, host keys,
-the meaning of a business rule. Leave them `<REQUIRED>` and name the owner who must answer. Never invent a
+TLS trust (FTPS `ca_cert`, RDS `ssl_mode`/`ca_cert`), the meaning of a business rule. Leave them `<REQUIRED>` and name the owner who must answer. Never invent a
 host key, bucket, role ARN or secret; secrets are only ever `{secret: <key>}` references.
 
 ## Reference

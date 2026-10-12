@@ -147,7 +147,7 @@ def scenario_sftp(state: Path, E: dict, env: dict) -> None:
     R.scenario = "sftp"
     print("\n== SFTP: oncology_labs (zip packages, 10 structural checks, English rule, originals archive)", flush=True)
     repo = new_repo(state, env)
-    shutil.copytree(FRAMEWORK / "pipelines" / "oncology_labs", repo / "pipelines" / "oncology_labs",
+    shutil.copytree(FRAMEWORK / "examples" / "pipelines" / "oncology_labs", repo / "pipelines" / "oncology_labs",
                     ignore=shutil.ignore_patterns("build", "intake"), dirs_exist_ok=True)
     fill(repo, "oncology_labs", {("source.yaml", "source.host"): "127.0.0.1", ("source.yaml", "source.port"): E["ports"]["sftp"],
                                  ("source.yaml", "source.host_key"): E["host_key"], ("source.yaml", "source.root"): "/outbound/oncology"}, env)

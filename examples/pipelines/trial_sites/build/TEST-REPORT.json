@@ -1,0 +1,156 @@
+{
+  "cases": [
+    {
+      "case": "good",
+      "errors": [],
+      "fired": [],
+      "quarantined": {},
+      "statuses": [
+        [
+          "rds:clinical.sites",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "active_without_activation",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "activated_on_required_when_active": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "activated_on_required_when_active"
+      ],
+      "quarantined": {
+        "activated_on_required_when_active": 1
+      },
+      "statuses": [
+        [
+          "rds:clinical.sites",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "country_lower_case",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "country_format": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "country_format"
+      ],
+      "quarantined": {
+        "country_format": 1
+      },
+      "statuses": [
+        [
+          "rds:clinical.sites",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "empty_table",
+      "errors": [
+        "Sync stopped by rule sites_has_rows: 0 rows outside the expected count"
+      ],
+      "expected": {
+        "rule_id": "sites_has_rows"
+      },
+      "fired": [
+        "sites_has_rows"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "rds:clinical.sites",
+          "failed",
+          "sites_has_rows"
+        ]
+      ]
+    },
+    {
+      "case": "site_id_not_4_digits",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "site_id_format": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "site_id_format"
+      ],
+      "quarantined": {
+        "site_id_format": 1
+      },
+      "statuses": [
+        [
+          "rds:clinical.sites",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "target_out_of_range",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "enrolment_target_range": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "enrolment_target_range"
+      ],
+      "quarantined": {
+        "enrolment_target_range": 1
+      },
+      "statuses": [
+        [
+          "rds:clinical.sites",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "unknown_status",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "status_values": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "status_values"
+      ],
+      "quarantined": {
+        "status_values": 1
+      },
+      "statuses": [
+        [
+          "rds:clinical.sites",
+          "loaded",
+          ""
+        ]
+      ]
+    }
+  ],
+  "ok": true,
+  "pipeline": "trial_sites",
+  "spec_sha256": "d4cafee52eb723d9949a28dedb44a73859abb183165221e79b46c4c3d240642a",
+  "uncovered": []
+}

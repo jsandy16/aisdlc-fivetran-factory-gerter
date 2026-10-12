@@ -11,6 +11,7 @@ import shutil
 import tempfile
 import time
 import zipfile
+import zlib
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -201,6 +202,13 @@ def unpack(lp: LocalPackage, transforms: list[dict]) -> None:
 
 
 def _unzip(lp: LocalPackage, t: dict) -> dict[str, str]:
+    try:
+        return _unzip_all(lp, t)
+    except (zipfile.BadZipFile, EOFError, zlib.error, NotImplementedError) as exc:  # corrupt, encrypted or unsupported
+        raise PackageRejected("unzip", f"unreadable archive ({type(exc).__name__})") from None
+
+
+def _unzip_all(lp: LocalPackage, t: dict) -> dict[str, str]:
     out: dict[str, str] = {}
     for src_name, src_local in list(lp.members.items()):
         if sniff(src_local) != "zip":
@@ -229,12 +237,15 @@ def _unzip(lp: LocalPackage, t: dict) -> dict[str, str]:
                 dest = os.path.join(lp.workdir, "m", hashlib.sha256(name.encode()).hexdigest()[:24])
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 written = 0
+                limit = max(info.compress_size, 1) * t["max_ratio"]  # enforced on real bytes: headers can lie
                 with zf.open(info) as src, open(dest, "wb") as dst:
                     for chunk in iter(lambda: src.read(1 << 20), b""):
                         written += len(chunk)
                         total += len(chunk)
                         if total > t["max_total_bytes"]:
                             raise PackageRejected("unzip", "uncompressed size exceeds max_total_bytes")
+                        if written > limit and written > (1 << 20):
+                            raise PackageRejected("unzip", "compression ratio exceeds max_ratio (zip-bomb guard)")
                         dst.write(chunk)
                 out[name] = dest
     return out

@@ -1,5 +1,5 @@
 """Builds the synthetic fixtures for pipelines/oncology_labs (never real data). Deterministic: re-running
-produces byte-identical files. Usage: python tests/fixture_builders/oncology_labs.py [repo_root]"""
+produces byte-identical files. Usage: python tests/fixture_builders/oncology_labs.py [pipeline_repo_root, default: examples]"""
 from __future__ import annotations
 
 import hashlib
@@ -136,4 +136,4 @@ def build(root: Path) -> None:
 
 
 if __name__ == "__main__":
-    build(Path(sys.argv[1] if len(sys.argv) > 1 else "."))
+    build(Path(sys.argv[1] if len(sys.argv) > 1 else "examples"))

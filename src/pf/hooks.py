@@ -49,7 +49,7 @@ def pre_tool(data: dict) -> int:
         for rx, why in DENY_BASH:
             if re.search(rx, cmd):
                 return _deny(why)
-        if re.search(r"(>|>>|\btee\b|\bsed\s+-i\b|\bcp\b|\bmv\b).*pipelines/[^/\s]+/(build|releases)/", cmd):
+        if re.search(r"(>|>>|\btee\b|\bsed\s+-i\b|\bcp\b|\bmv\b).*pipelines/[^/\s]+/(build/|releases/|rules\.lock\.yaml)", cmd):
             return _deny("generated files are written only by pf build / pf release")
     return 0
 

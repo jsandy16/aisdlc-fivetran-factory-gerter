@@ -1,0 +1,35 @@
+# pipeline.yaml — identity, owners, requirement summary, environments and schedule.
+# Owner: product owner. Fill every <REQUIRED>; keep or change the defaults.
+api_version: pf/v1
+name: site_monitoring                       # = Fivetran connection name = destination schema; never change after first deploy
+version: 0.1.0                         # semver; `pf release` refuses a breaking change without a major bump
+title: "Site monitoring visit reports (CRO FTPS feed)" # from site_monitoring.md: "# Requirement: Site monitoring visit reports (CRO FTPS feed)"
+gxp_tier: "non_gxp"                       # non_gxp | gxp_indirect | gxp_direct  (decided with QA)
+owners:                                # GitHub handles or @org/team — each approves the files they own (CODEOWNERS)
+  product_owner: "@clinops-po"
+  data_engineer: "@rd-data-eng"
+  governance: "@rd-governance"
+  quality: "@rd-data-quality"
+requirement:
+  purpose: "Give clinical operations a daily view of monitoring visits and open issues per investigator site, so that overdue
+    sites are escalated within one business day."  # from site_monitoring.md: "Give clinical operations a daily view of monitoring visits and open issues per investigato"
+  consumers: # from site_monitoring.md: "**Business owner:** Clinical Operations — Site Performance"
+    - Clinical Operations — Site Performance
+  freshness_sla_hours: 24
+  late_data_policy: load_late          # wait | load_late | reject_late
+  source_document: site_monitoring.md  # set by `pf intake` when drafted from a requirement document
+environments: [dev, prod]
+schedule:
+  dev:
+    sync_frequency: 360  # from site_monitoring.md: "The feed should refresh every 6 hours."
+    daily_sync_time:                   # "HH:MM" UTC, only with 1440
+    paused: true
+  prod:
+    sync_frequency: 360  # from site_monitoring.md: "The feed should refresh every 6 hours."
+    daily_sync_time:                   # "HH:MM" UTC, only with 1440
+    paused: false
+runtime:
+  parallelism: 2                       # packages prepared in parallel (1-8); always emitted in order
+  retry: {attempts: 5, base_seconds: 2.0, max_seconds: 60.0}
+  checkpoint_every_rows: 5000
+  python_version: "3.12"

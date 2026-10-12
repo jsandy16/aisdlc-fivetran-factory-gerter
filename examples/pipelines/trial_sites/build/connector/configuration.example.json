@@ -1,0 +1,5 @@
+{
+  "pf_environment": "dev|prod",
+  "rds_ca_bundle": "",
+  "rds_password": ""
+}

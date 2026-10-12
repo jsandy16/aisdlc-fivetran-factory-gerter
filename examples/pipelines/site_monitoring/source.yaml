@@ -1,0 +1,51 @@
+# source.yaml — connection and delivery (package) rules. Owner: data engineer.
+# Secrets are never written here: {secret: key} names a Fivetran configuration key that CI fills.
+source:
+  type: ftp
+  host: "ftps.cro-partner.example"  # from site_monitoring.md: "FTPS server `ftps.cro-partner.example`"
+  port: 21    # from site_monitoring.md: "port 21, explicit TLS"
+  username: "az_sitemon" # from site_monitoring.md: "Our account is `az_sitemon`"
+  password: {secret: ftp_password}
+  tls: explicit  # from site_monitoring.md: "port 21, explicit TLS"
+  passive: true # from site_monitoring.md: "passive mode"
+  ca_cert:                                  # {secret: key} holding a PEM CA bundle if the server uses a private CA
+  root: "/exports/monitoring"               # from site_monitoring.md: "Files are under `/exports/monitoring`"
+  timeout_seconds: 60
+  package:
+    match: "SMV_(?P<date>\\d+)_(?P<seq>\\d+)\\.csv"      # from site_monitoring.md: "named `SMV_YYYYMMDD_NN.csv`"
+    order_by: # from site_monitoring.md: "loaded in date then sequence order"
+      - date
+      - seq
+    readiness: {min_age_seconds: 600, marker: null}
+    on_redelivery: reject                   # same path, new content: skip | reprocess | reject
+    max_package_bytes: 2147483648
+    transforms: []                          # e.g. [{kind: unzip}]
+    # Available package checks:
+    #   file_name_pattern(pattern)
+    #   file_extension(allowed)
+    #   file_size(min_bytes?, max_bytes?)
+    #   checksum(algorithm?, sidecar?)
+    #   package_type(allowed)
+    #   required_members(patterns)
+    #   forbidden_members(patterns)
+    #   member_count(min?, max?)
+    #   folder_structure(path_pattern)
+    #   not_empty()
+    #   duplicate_package(lookback_packages?)
+    #   encoding(encoding?)
+    #   expression(expr)
+    #   python(ref, params?)
+    #   english(text, examples?)
+    # Available package transforms:
+    #   unzip(max_members?, max_total_bytes?, max_ratio?)
+    #   gunzip(max_total_bytes?)
+    #   rename_members(pattern, to)
+    checks:
+      - {id: package_not_empty, kind: not_empty, description: "A delivery with no bytes is a broken source"}
+      - {id: package_size, kind: file_size, min_bytes: 60, max_bytes: 2147483648, description: "Delivery size within agreed
+          bounds"}
+      - {id: package_not_duplicate, kind: duplicate_package, description: "The same file content is never loaded twice"}
+      - id: package_name
+        kind: file_name_pattern
+        pattern: "SMV_\\d{8}_\\d{2}\\.csv"  # from site_monitoring.md: "named `SMV_YYYYMMDD_NN.csv`"
+        description: "File names follow the agreed naming convention"

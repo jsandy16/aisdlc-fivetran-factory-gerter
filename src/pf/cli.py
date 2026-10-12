@@ -36,6 +36,14 @@ def cmd_init_repo(a) -> Result:
     lines = ["artifacts/", "**/build/connector/files/", "**/build/connector/configuration.json", "configuration.json", ".venv/", "__pycache__/", "*.pyc"]
     existing = gi.read_text().splitlines() if gi.exists() else []
     gi.write_text("\n".join(existing + [x for x in lines if x not in existing]) + "\n", encoding="utf-8")
+    cs = root / ".claude" / "settings.json"
+    if not cs.exists():  # Claude Code permission rules for this repository (the plugin's hooks add the same guards)
+        cs.parent.mkdir(exist_ok=True)
+        cs.write_text(json.dumps({"permissions": {"deny": [
+            "Bash(fivetran deploy:*)", "Bash(pf rules accept:*)", "Bash(pf --json rules accept:*)",
+            "Read(**/configuration.json)", "Read(**/.env*)", "Edit(pipelines/*/build/**)", "Edit(pipelines/*/releases/**)",
+            "Edit(pipelines/*/rules.lock.yaml)", "Write(pipelines/*/build/**)", "Write(pipelines/*/releases/**)",
+            "Write(pipelines/*/rules.lock.yaml)"]}}, indent=2) + "\n", encoding="utf-8")
     return Result(command="init-repo", ok=True, data={"root": str(root)})
 
 
@@ -180,14 +188,21 @@ def cmd_deploy(a) -> Result:
 def cmd_fivetran(a) -> Result:
     from .fivetran_api import FivetranApi, drift, ensure_destination
 
+    if a.action == "ensure-destination" and agent_session() and not a.dry_run:
+        raise PfError("creating Fivetran destinations is a platform action; agents may only use --dry-run", "forbidden")
     root = _root()
     b = _bundle(a.name)
-    settings = json.loads((root / "pipelines" / a.name / "build" / "fivetran" / f"{a.env}.json").read_text())
+    sf = root / "pipelines" / a.name / "build" / "fivetran" / f"{a.env}.json"
+    if not sf.exists():
+        raise PfError(f"no Fivetran settings for environment '{a.env}': run `pf build {a.name}` first", "not_built")
+    settings = json.loads(sf.read_text())
     if a.action == "ensure-destination":
-        if agent_session() and not a.dry_run:
-            raise PfError("creating Fivetran destinations is a platform action; agents may only use --dry-run", "forbidden")
-        api = FivetranApi() if not a.dry_run else _DryApi()
-        return Result(command="fivetran ensure-destination", ok=True, data=ensure_destination(api, settings, dry_run=a.dry_run))
+        # a dry run still reads Fivetran (read-only) when a key is available, so it reports what would really happen
+        api = FivetranApi() if (not a.dry_run or os.environ.get("FIVETRAN_API_KEY")) else _DryApi()
+        data = ensure_destination(api, settings, dry_run=a.dry_run)
+        if isinstance(api, _DryApi):
+            data["note"] = "no FIVETRAN_API_KEY: existence of the destination was not checked"
+        return Result(command="fivetran ensure-destination", ok=True, data=data)
     sched = b.pipeline.schedule[a.env].model_dump() if b.pipeline and a.env in b.pipeline.schedule else {"sync_frequency": 360, "paused": False}
     d = drift(FivetranApi(), settings["destination"]["group_name"], a.name, sched)
     return Result(command="fivetran drift", ok=d["status"] == "in_sync", data=d)

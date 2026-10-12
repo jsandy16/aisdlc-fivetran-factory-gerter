@@ -1,0 +1,18 @@
+# quality.yaml — whole-table checks after each sync, run on the lake (Athena). Owner: data quality.
+# severity: blocker keeps the table uncertified for consumers (a human-owned decision); warning only alerts.
+# Available lake checks:
+#   row_count(entity, severity?, min?, max?)
+#   unique(entity, severity?, columns)
+#   not_null(entity, severity?, column)
+#   freshness(entity, severity?, max_hours)
+#   referential(entity, severity?, column, ref_entity, ref_column)
+#   reconciliation(entity, severity?)
+#   sql_assert(entity, severity?, query)
+ticket_route: "jira:CLINOPS"
+checks:
+  - {id: site_monitoring_lake_rows, kind: row_count, entity: site_monitoring, min: 1, severity: blocker, description: "site_monitoring
+      is not empty"}
+  - {id: site_monitoring_fresh, kind: freshness, entity: site_monitoring, max_hours: 24, severity: warning, description: "site_monitoring
+      synced within the SLA"}
+  - {id: site_monitoring_reconciled, kind: reconciliation, entity: site_monitoring, severity: blocker, description: "Lake
+      rows equal rows the connector emitted"}

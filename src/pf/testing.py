@@ -197,6 +197,9 @@ def run_tests(root: Path, b: Bundle) -> dict:
         # idempotency: a second sync with the final state must emit nothing new
         if op.checkpoints:
             op2, _ = run_case(lock, good, state=op.checkpoints[-1])
+            if op2.errors:
+                issues.append(Issue(file="fixtures/good", code="rerun_failed",
+                                    msg=f"a second sync with the saved state (nothing new to read) failed: {op2.errors[:2]}"))
             data_rows = sum(len(v) for t, v in op2.rows.items() if not t.startswith("pf_"))
             if data_rows and lock["source"]["type"] in ("sftp", "ftp"):
                 issues.append(Issue(file="fixtures/good", code="not_idempotent", msg=f"re-running with the saved state emitted {data_rows} rows again"))

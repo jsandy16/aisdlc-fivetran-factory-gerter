@@ -1,0 +1,269 @@
+{
+  "archive_originals": false,
+  "entities": [
+    {
+      "attributes": [
+        {
+          "business_rule": "4 digits, unique",
+          "checks": [
+            {
+              "description": "Site numbers are 4 digits",
+              "id": "site_id_format",
+              "kind": "regex",
+              "max_failed_pct": null,
+              "mode": "enforce",
+              "on_fail": "quarantine_row",
+              "pattern": "^\\d{4}$",
+              "tags": []
+            }
+          ],
+          "description": "Site number",
+          "input_format": null,
+          "name": "site_id",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": null,
+          "transforms": [],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "mandatory",
+          "checks": [],
+          "description": "Site name",
+          "input_format": null,
+          "name": "site_name",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": null,
+          "transforms": [],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "two upper-case letters",
+          "checks": [
+            {
+              "description": "Two upper-case letters",
+              "id": "country_format",
+              "kind": "regex",
+              "max_failed_pct": null,
+              "mode": "enforce",
+              "on_fail": "quarantine_row",
+              "pattern": "^[A-Z]{2}$",
+              "tags": []
+            }
+          ],
+          "description": "ISO country code",
+          "input_format": null,
+          "name": "country",
+          "nullable": true,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": null,
+          "transforms": [],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "ACTIVE, CLOSED or PLANNED",
+          "checks": [
+            {
+              "description": "Allowed statuses",
+              "id": "status_values",
+              "kind": "allowed_values",
+              "max_failed_pct": null,
+              "mode": "enforce",
+              "on_fail": "quarantine_row",
+              "tags": [],
+              "values": [
+                "ACTIVE",
+                "CLOSED",
+                "PLANNED"
+              ]
+            }
+          ],
+          "description": "Site status",
+          "input_format": null,
+          "name": "status",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": null,
+          "transforms": [],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "required when status is ACTIVE",
+          "checks": [],
+          "description": "Date the site was activated",
+          "input_format": null,
+          "name": "activated_on",
+          "nullable": true,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": null,
+          "transforms": [],
+          "type": "NAIVE_DATE"
+        },
+        {
+          "business_rule": "between 1 and 500",
+          "checks": [
+            {
+              "description": "Between 1 and 500",
+              "id": "enrolment_target_range",
+              "kind": "range",
+              "max": 500.0,
+              "max_failed_pct": null,
+              "min": 1.0,
+              "mode": "enforce",
+              "on_fail": "quarantine_row",
+              "tags": []
+            }
+          ],
+          "description": "Planned subjects",
+          "input_format": null,
+          "name": "enrolment_target",
+          "nullable": true,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": null,
+          "transforms": [],
+          "type": "INT"
+        },
+        {
+          "business_rule": "Last change",
+          "checks": [],
+          "description": "Last change",
+          "input_format": null,
+          "name": "updated_at",
+          "nullable": true,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": null,
+          "transforms": [],
+          "type": "NAIVE_DATETIME"
+        }
+      ],
+      "checks": [
+        {
+          "description": "Every delivery of sites has rows",
+          "id": "sites_has_rows",
+          "kind": "row_count",
+          "max": null,
+          "min": 1,
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        }
+      ],
+      "description": "Investigator sites from CTMS",
+      "file": null,
+      "load": "upsert",
+      "name": "sites",
+      "primary_key": [
+        "site_id"
+      ],
+      "row_checks": [
+        {
+          "compiled_expr": "row.status == null || row.status != \"ACTIVE\" || row.activated_on != null",
+          "description": "activated_on is required when status is ACTIVE",
+          "examples": [
+            {
+              "expected": "pass",
+              "input": {
+                "activated_on": "2023-01-15",
+                "status": "ACTIVE"
+              }
+            },
+            {
+              "expected": "fail",
+              "input": {
+                "activated_on": null,
+                "status": "ACTIVE"
+              }
+            },
+            {
+              "expected": "pass",
+              "input": {
+                "activated_on": null,
+                "status": "PLANNED"
+              }
+            }
+          ],
+          "id": "activated_on_required_when_active",
+          "kind": "english",
+          "max_failed_pct": null,
+          "mode": "enforce",
+          "on_fail": "quarantine_row",
+          "tags": [],
+          "text": "When STATUS is exactly ACTIVE (upper case), ACTIVATED_ON must be present. For any other STATUS, or a missing STATUS, ACTIVATED_ON is not checked."
+        }
+      ],
+      "table": {
+        "incremental": {
+          "cursor_column": "updated_at",
+          "initial_value": null
+        },
+        "table": "clinical.sites"
+      }
+    }
+  ],
+  "environments": [
+    "dev",
+    "prod"
+  ],
+  "framework_version": "0.1.0",
+  "gxp_tier": "non_gxp",
+  "lock_version": 1,
+  "originals": {},
+  "pipeline": "trial_sites",
+  "rules_lock_sha256": "934e008db0402e8b87e5f87b9686703788d8f7240c4f8bc37a37d1bd6f51e15f",
+  "runtime": {
+    "checkpoint_every_rows": 5000,
+    "parallelism": 2,
+    "python_version": "3.12",
+    "retry": {
+      "attempts": 5,
+      "base_seconds": 2.0,
+      "max_seconds": 60.0
+    }
+  },
+  "runtime_version": "0.1.0",
+  "secrets": {
+    "dev": [
+      "rds_ca_bundle",
+      "rds_password"
+    ],
+    "prod": [
+      "rds_ca_bundle",
+      "rds_password"
+    ]
+  },
+  "source": {
+    "batch_size": 5000,
+    "ca_cert": {
+      "secret": "rds_ca_bundle"
+    },
+    "database": "ctms",
+    "engine": "postgres",
+    "host": "ctms-prod.cluster-c1abcd2efgh3.eu-west-1.rds.amazonaws.com",
+    "password": {
+      "secret": "rds_password"
+    },
+    "port": 5432,
+    "ssl_mode": "verify-full",
+    "timeout_seconds": 60,
+    "type": "rds",
+    "username": "pf_reader"
+  },
+  "spec_sha256": "d4cafee52eb723d9949a28dedb44a73859abb183165221e79b46c4c3d240642a",
+  "title": "Investigator sites from CTMS",
+  "version": "0.1.0"
+}

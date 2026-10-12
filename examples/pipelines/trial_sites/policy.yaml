@@ -1,0 +1,22 @@
+# policy.yaml — governance decisions, enforced outside Fivetran. Owner: governance.
+# Classification, access and retention are human-owned decisions: none of them is defaulted.
+default_classification: "internal"             # public | internal | confidential | restricted
+classification: {}                          # entity.attribute: classification, for columns that differ from the default
+archive_originals: false                    # keep every received file byte-for-byte (file sources)
+retention:
+  days: 3650
+  rationale: "Reference data, 10 years"
+  object_lock_days: 365
+environments:
+  dev:
+    access: []                              # e.g. - {principal: arn:aws:iam::123456789012:role/analyst, classifications: [internal], justification: "..."}
+    audit:
+      bucket: "az-rd-pf-audit-dev"             # write-once evidence bucket (S3 Object Lock)
+      object_lock_mode: GOVERNANCE
+      cloudtrail_data_events: true
+  prod:
+    access: []                              # e.g. - {principal: arn:aws:iam::123456789012:role/analyst, classifications: [internal], justification: "..."}
+    audit:
+      bucket: "az-rd-pf-audit-prod"            # write-once evidence bucket (S3 Object Lock)
+      object_lock_mode: COMPLIANCE
+      cloudtrail_data_events: true

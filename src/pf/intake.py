@@ -131,6 +131,7 @@ def _set(node: Any, parts: list[str], value: Any, comment: str) -> None:
     else:
         node[last] = value
         if isinstance(node, CommentedMap):
+            node.fa.set_block_style()  # a comment inside a {flow: map} renders unreadably
             node.yaml_add_eol_comment(comment, last)
 
 

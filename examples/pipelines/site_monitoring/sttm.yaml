@@ -1,0 +1,148 @@
+# sttm.yaml — source-to-target mapping. Owner: BA (meaning) + data engineer (technical columns).
+# One entity per target table; one attribute per target column (source column -> transforms -> checks).
+# Available attribute transforms:
+#   trim()
+#   upper()
+#   lower()
+#   null_if(values)
+#   default(value)
+#   replace(pattern, replacement?)
+#   map_values(mapping, unmapped?)
+#   pad_left(length, char?)
+#   pseudonymise(key)
+#   derive(expr)
+# Available attribute checks:
+#   not_null(max_failed_pct?)
+#   regex(max_failed_pct?, pattern)
+#   allowed_values(max_failed_pct?, values)
+#   range(max_failed_pct?, min?, max?)
+#   length(max_failed_pct?, min?, max?)
+#   expression(expr, max_failed_pct?)
+#   python(ref, params?, max_failed_pct?)
+#   english(text, examples?, max_failed_pct?)
+# Available row checks:
+#   expression(expr, max_failed_pct?)
+#   python(ref, params?, max_failed_pct?)
+#   english(text, examples?, max_failed_pct?)
+# Available entity checks:
+#   row_count(min?, max?)
+#   unique(columns)
+#   control_count(control_member, count_pattern?)
+entities:
+  - name: site_monitoring  # from site_monitoring.md: "Each row is one monitoring visit."
+    description: One row per monitoring visit from the CRO daily CSV
+    file:
+      member: SMV_\d{8}_\d{2}\.csv
+      format:
+        type: csv
+        delimiter: ','
+        header: true
+        encoding: utf-8
+      extra_columns: reject
+    load: upsert
+    primary_key:
+      - visit_id
+    attributes:
+      - name: visit_id
+        source: VISIT_ID
+        type: STRING
+        nullable: false
+        description: CRO identifier of the monitoring visit
+        business_rule: unique, mandatory
+        transforms: []
+        checks: []
+      - name: site_no
+        source: SITE_NO
+        type: STRING
+        nullable: false
+        description: Investigator site number
+        business_rule: mandatory, 4 digits
+        transforms: []
+        checks:
+          - id: site_no_format
+            kind: regex
+            pattern: ^\d{4}$
+            description: Site numbers are 4 digits  # evidence: "mandatory, 4 digits"
+      - name: study
+        source: STUDY
+        type: STRING
+        nullable: false
+        description: Study code, e.g. D1234C00001
+        business_rule: mandatory
+        transforms: []
+        checks: []
+      - name: visit_type
+        source: VISIT_TYPE
+        type: STRING
+        nullable: false
+        description: 'Visit type: initiation, interim, close-out'
+        business_rule: SIV, IMV, COV (initiation, interim, close-out)
+        transforms: []
+        checks:
+          - id: visit_type_values
+            kind: allowed_values
+            values:
+              - SIV
+              - IMV
+              - COV
+            description: Visit type must be SIV, IMV or COV  # evidence: "SIV, IMV, COV (initiation, interim, close-out)"
+      - name: visit_date
+        source: VISIT_DATE
+        type: NAIVE_DATE
+        input_format: '%Y-%m-%d'
+        nullable: false
+        description: Date of the visit
+        business_rule: mandatory
+        transforms: []
+        checks: []
+      - name: report_date
+        source: REPORT_DATE
+        type: NAIVE_DATE
+        input_format: '%Y-%m-%d'
+        nullable: true
+        description: Date the report was finalised
+        business_rule: optional until finalised
+        transforms: []
+        checks: []
+      - name: open_issues
+        source: OPEN_ISSUES
+        type: INT
+        nullable: true
+        description: Number of open issues at the site
+        business_rule: whole number, zero or more
+        transforms: []
+        checks:
+          - id: open_issues_non_negative
+            kind: range
+            min: 0
+            description: Open issues can never be negative  # evidence: "Open issues can never be negative."
+      - name: cra_email
+        source: CRA_EMAIL
+        type: STRING
+        nullable: true
+        description: Email of the monitor
+        business_rule: personal data
+        transforms: []
+        checks: []
+    row_checks:
+      - id: report_within_10_days
+        kind: english
+        description: A report must be finalised no more than 10 calendar days after the visit date.
+        text: "When REPORT_DATE is present, it must be on or after VISIT_DATE and at most 10 calendar days after it (exactly
+          10 days passes). When REPORT_DATE is missing the report is not finalised yet and the row passes. When REPORT_DATE
+          is present but VISIT_DATE is missing, the row fails."
+        examples: [{"input": {"visit_date": "2024-03-01", "report_date": "2024-03-11"}, "expected": "pass"}, {"input": {"visit_date": "2024-03-01",
+                "report_date": "2024-03-12"}, "expected": "fail"}, {"input": {"visit_date": "2024-03-01", "report_date": 
+                  null}, "expected": "pass"}] # from site_monitoring.md; add >=3 owner examples, then pf rules compile
+      - id: cov_zero_open_issues
+        kind: english
+        description: Close-out visits (COV) must have zero open issues.
+        text: "When VISIT_TYPE is exactly COV (case-sensitive), OPEN_ISSUES must be present and equal to 0. Rows with any
+          other VISIT_TYPE, or with VISIT_TYPE missing, pass this rule."
+        examples: [{"input": {"visit_type": "COV", "open_issues": 0}, "expected": "pass"}, {"input": {"visit_type": "COV",
+                "open_issues": 2}, "expected": "fail"}, {"input": {"visit_type": "IMV", "open_issues": 5}, "expected": "pass"}] # from site_monitoring.md; add >=3 owner examples, then pf rules compile
+    checks:
+      - id: site_monitoring_has_rows
+        kind: row_count
+        min: 1
+        description: Every delivery of site_monitoring has rows

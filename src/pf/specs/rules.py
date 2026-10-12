@@ -168,6 +168,8 @@ class _EntityCheck(_Check):
 
 
 class RowCount(_EntityCheck):
+    """Rows per delivery (file sources) or per sync (database). For incremental tables `min` applies only to the
+    initial full load, because a later sync legitimately reads no changed rows."""
     kind: Literal["row_count"]
     min: int = Field(default=1, ge=0)
     max: int | None = Field(default=None, ge=1)
