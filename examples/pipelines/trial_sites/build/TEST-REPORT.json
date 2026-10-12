@@ -151,6 +151,6 @@
   ],
   "ok": true,
   "pipeline": "trial_sites",
-  "spec_sha256": "d4cafee52eb723d9949a28dedb44a73859abb183165221e79b46c4c3d240642a",
+  "spec_sha256": "afd94d1f375aa7ec76198c6eedb5a0d4dffa8fd1636a4250097377239ecf59e4",
   "uncovered": []
 }

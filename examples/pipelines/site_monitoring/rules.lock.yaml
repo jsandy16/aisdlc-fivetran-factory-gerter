@@ -136,7 +136,9 @@ rules:
         prompt_version: '1'
     status: accepted
     accepted_by: '@rd-data-quality'
-    accepted_at: '2026-10-12T20:14:00+00:00'
+    accepted_identity: rd-data-quality@example.com
+    accepted_at: '2026-10-12T21:41:06+00:00'
+    acceptance_sha256: a13f7af5e53a234d48adaec53b618c6d0c6e4f8cf12db84f004d6b39a77b4433
   cov_zero_open_issues:
     scope: row
     location: sttm.yaml:entities.0.row_checks.1
@@ -270,4 +272,6 @@ rules:
         prompt_version: '1'
     status: accepted
     accepted_by: '@rd-data-quality'
-    accepted_at: '2026-10-12T20:14:00+00:00'
+    accepted_identity: rd-data-quality@example.com
+    accepted_at: '2026-10-12T21:41:07+00:00'
+    acceptance_sha256: d2941bb4c1a96b7fc2953ac66d06342c15dcecb89d60451a9c4e65fe53e2cdf5

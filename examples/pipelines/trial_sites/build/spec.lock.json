@@ -225,7 +225,7 @@
   "lock_version": 1,
   "originals": {},
   "pipeline": "trial_sites",
-  "rules_lock_sha256": "934e008db0402e8b87e5f87b9686703788d8f7240c4f8bc37a37d1bd6f51e15f",
+  "rules_lock_sha256": "0df7124def10a39e51f74ae7ff087b2dc018f1350c64aeaca885aa6b2eceb29d",
   "runtime": {
     "checkpoint_every_rows": 5000,
     "parallelism": 2,

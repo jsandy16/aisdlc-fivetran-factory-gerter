@@ -486,6 +486,6 @@
   ],
   "ok": true,
   "pipeline": "oncology_labs",
-  "spec_sha256": "b956e99048976c16be5c13bcde9d499a703f4d154972e670de4adf63bfa22fb5",
+  "spec_sha256": "b212601b60543ef79b27aed84f9ce469cbc4c77d609186fc0e1318be955e9127",
   "uncovered": []
 }

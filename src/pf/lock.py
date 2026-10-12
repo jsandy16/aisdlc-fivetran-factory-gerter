@@ -42,6 +42,17 @@ def english_status(b: Bundle, rl: RulesLock | None) -> list[Issue]:
         elif entry.status != "accepted":
             issues.append(Issue(file="rules.lock.yaml", loc=ref.rule_id, code="not_accepted",
                                 msg=f"English rule '{ref.rule_id}' is compiled but not accepted: its owner reviews it and runs `pf rules accept {b.name} {ref.rule_id} --by <@handle>`"))
+        elif entry.acceptance_sha256 != entry.acceptance_digest():
+            issues.append(Issue(file="rules.lock.yaml", loc=ref.rule_id, code="acceptance_invalid",
+                                msg=f"English rule '{ref.rule_id}' was changed after it was accepted (expression, cases or status edited): "
+                                    f"compile and accept it again"))
+        else:
+            from .rulecompiler import reverify
+
+            problems = reverify(ref, entry)
+            if problems:
+                issues.append(Issue(file="rules.lock.yaml", loc=ref.rule_id, code="acceptance_invalid",
+                                    msg=f"English rule '{ref.rule_id}' no longer verifies with this runtime: {'; '.join(problems)}"))
     return issues
 
 

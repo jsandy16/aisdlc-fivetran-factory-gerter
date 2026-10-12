@@ -1,14 +1,19 @@
 {
   "permissions": {
     "deny": [
-      "Bash(fivetran deploy:*)",
-      "Bash(pf rules accept:*)",
-      "Read(**/configuration.json)",
+      "Bash(fivetran deploy *)",
+      "Bash(pf rules accept *)",
+      "Bash(pf --json rules accept *)",
+      "Bash(python -m pf.cli *)",
+      "Bash(env -u CLAUDECODE *)",
+      "Bash(printenv *)",
+      "Read(**/configuration*.json)",
       "Read(**/.env*)",
-      "Edit(pipelines/*/build/**)",
-      "Edit(pipelines/*/releases/**)",
-      "Edit(pipelines/*/rules.lock.yaml)"
+      "Edit(/pipelines/*/build/**)",
+      "Edit(/pipelines/*/releases/**)",
+      "Edit(/pipelines/*/rules.lock.yaml)",
+      "Edit(/.github/workflows/pf-*.yml)",
+      "Edit(/.github/CODEOWNERS)"
     ]
-  },
-  "enabledPlugins": {}
+  }
 }

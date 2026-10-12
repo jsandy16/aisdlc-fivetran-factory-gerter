@@ -1,50 +1,62 @@
 {
   "output": {
-    "ambiguities": [
-      "If visit_date or received_date is missing, should the row fail (assumed) or pass?"
-    ],
+    "ambiguities": [],
     "cases": [
       {
         "expected": "pass",
         "values": [
           {
             "name": "row.visit_date",
-            "value_json": "\"2024-01-31\""
+            "value_json": "\"2024-03-01\""
           },
           {
             "name": "row.received_date",
-            "value_json": "\"2024-01-31\""
+            "value_json": "\"2024-03-05\""
           }
         ],
-        "why": "Equality boundary: same day is allowed (on or before)"
+        "why": "typical: visit before receipt"
       },
       {
         "expected": "pass",
         "values": [
           {
             "name": "row.visit_date",
-            "value_json": "\"2024-01-30\""
+            "value_json": "\"2024-03-05\""
           },
           {
             "name": "row.received_date",
-            "value_json": "\"2024-01-31\""
+            "value_json": "\"2024-03-05\""
           }
         ],
-        "why": "Visit one day before receipt"
+        "why": "same day; 'on or before' is inclusive"
       },
       {
         "expected": "fail",
         "values": [
           {
             "name": "row.visit_date",
-            "value_json": "\"2024-02-01\""
+            "value_json": "\"2024-03-06\""
           },
           {
             "name": "row.received_date",
-            "value_json": "\"2024-01-31\""
+            "value_json": "\"2024-03-05\""
           }
         ],
-        "why": "Visit one day after receipt"
+        "why": "visit one day after receipt"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2024-03-04\""
+          },
+          {
+            "name": "row.received_date",
+            "value_json": "\"2024-03-05\""
+          }
+        ],
+        "why": "visit one day before receipt"
       },
       {
         "expected": "fail",
@@ -55,52 +67,52 @@
           },
           {
             "name": "row.received_date",
-            "value_json": "\"2024-01-31\""
+            "value_json": "\"2024-03-05\""
           }
         ],
-        "why": "Null visit_date"
+        "why": "missing visit_date fails"
       },
       {
         "expected": "fail",
         "values": [
           {
             "name": "row.visit_date",
-            "value_json": "\"2024-01-31\""
+            "value_json": "\"2024-03-01\""
           },
           {
             "name": "row.received_date",
             "value_json": "null"
           }
         ],
-        "why": "Null received_date"
-      },
-      {
-        "expected": "pass",
-        "values": [
-          {
-            "name": "row.visit_date",
-            "value_json": "\"2023-12-15\""
-          },
-          {
-            "name": "row.received_date",
-            "value_json": "\"2024-03-10\""
-          }
-        ],
-        "why": "Typical pass across months/years"
+        "why": "missing received_date fails"
       },
       {
         "expected": "fail",
         "values": [
           {
             "name": "row.visit_date",
-            "value_json": "\"2024-06-20\""
+            "value_json": "null"
           },
           {
             "name": "row.received_date",
-            "value_json": "\"2024-03-10\""
+            "value_json": "null"
           }
         ],
-        "why": "Typical fail, visit well after receipt"
+        "why": "both dates missing fails"
+      },
+      {
+        "expected": "pass",
+        "values": [
+          {
+            "name": "row.visit_date",
+            "value_json": "\"2023-12-31\""
+          },
+          {
+            "name": "row.received_date",
+            "value_json": "\"2024-01-01\""
+          }
+        ],
+        "why": "visit before receipt across a year boundary"
       }
     ],
     "expression": "row.visit_date != null && row.received_date != null && row.visit_date <= row.received_date",
@@ -108,6 +120,15 @@
       "row.visit_date",
       "row.received_date"
     ]
+  },
+  "output_sha256": "7f2723d8acef44be8f6d3412dbb24a47c38e6eda2cfb11c12a8ab5a41065f942",
+  "provenance": {
+    "cost_usd": 0.0223632,
+    "model": "claude-sonnet-5-5",
+    "prompt_version": "1",
+    "recorded_at": "2026-10-12T21:47:24Z",
+    "skill_sha256": "f2aa107ba76ea6b626c53137d8464138036ce4f7c441149a9fd9b058225f04cd",
+    "turns": 4
   },
   "skill": "compiling-english-rules",
   "task": "compile_rule"

@@ -1,0 +1,7 @@
+{
+  "name": "pipeline-factory-steps",
+  "version": "0.1.0",
+  "description": "Headless LLM steps of pipeline-factory (requirement extraction, English-rule compilation, back-translation). Loaded only by pf through the Claude Agent SDK; not for interactive sessions.",
+  "author": { "name": "Sandeep Jaguri" },
+  "license": "Proprietary"
+}

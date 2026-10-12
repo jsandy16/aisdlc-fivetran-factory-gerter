@@ -294,7 +294,7 @@
     }
   },
   "pipeline": "site_monitoring",
-  "rules_lock_sha256": "c878ec567dd0cf3e27fb8e2f174daeee584aac0ee0176bb5275456d8e19346d8",
+  "rules_lock_sha256": "1b5e0975f3f98e3710a42ee6117673ef06eddd80ae0a5d4026421971ea107a00",
   "runtime": {
     "checkpoint_every_rows": 5000,
     "parallelism": 2,

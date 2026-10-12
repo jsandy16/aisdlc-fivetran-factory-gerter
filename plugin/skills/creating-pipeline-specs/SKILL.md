@@ -19,14 +19,15 @@ People fill the specs; `pf` generates and checks everything. Work in the reposit
    ```
    With `--requirements`, an LLM step drafts values into placeholders only and records evidence for each
    (`pipelines/<name>/intake/*.proposal.json`). Read `data.intake.open_questions` and `for_owners` and pass
-   them to the user. Governance decisions are never auto-filled.
+   them to the user. Governance, transport security and region are never auto-filled; checks the document
+   implies arrive with `mode: shadow` until their owner sets `mode: enforce`.
 3. Show the user what is left: `pf --json validate <name> --allow-unfilled` lists every `<REQUIRED>` value by
    file. Group them by owner (file → owner: pipeline.yaml product owner; source/destination/sttm data
    engineer; quality.yaml quality; policy.yaml governance).
 4. Fill values the user gives you with `pf set` / `pf add` / `pf add-check` — never patch YAML as text:
    ```bash
    pf --json set <name> source.yaml source.host '"sftp.vendor.example"'
-   pf --json add-check <name> --entity lab_results --attribute visit_date '{id: visit_not_future, kind: expression, expr: "value <= \"2099-12-31\"", description: "..."}'
+   pf --json add-check <name> --entity lab_results --attribute site_id '{id: site_id_format, kind: regex, pattern: "^\d{4}$", on_fail: quarantine_row, description: "Site ids are 4 digits"}'
    ```
    Every edit is validated and rolled back if it introduces errors; fix and retry.
 5. Loop `pf --json validate <name>` until `ok` is true. Then `pf --json status <name>` names the next stage.

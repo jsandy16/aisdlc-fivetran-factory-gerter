@@ -31,7 +31,7 @@ are recorded (`PF_LLM_PROVIDER=record`) and replayed offline in CI (`replay`).
 ```bash
 pip install -e '.[runtime,fivetran,agent,docs]'     # framework + Connector SDK CLI + Agent SDK + docx/pdf intake
 pf init-repo ../rd-pipelines                        # a pipelines repository (pf.toml, .gitignore, .claude/settings.json)
-claude --plugin-dir ./plugin                        # Claude Code with the pipeline-factory skills, agent and hooks
+claude --plugin-dir <framework>/plugin              # run in the pipelines repo: skills, reviewer agent, guard-rail hooks
 ```
 
 ## Quick start
@@ -57,7 +57,8 @@ git add -A && git commit && git push              # PR: verify job; merge: deplo
 |---|---|
 | `src/pf/` | CLI, spec models (pydantic, `extra=forbid`), validation, intake, rule compiler, generators, release, deploy |
 | `src/pf_runtime/` | runtime vendored into every connector (sources, package/unzip safety, CEL rules, engine) |
-| `plugin/` | Claude Code plugin: 7 skills, the read-only `pipeline-spec-reviewer` agent, guard-rail hooks |
+| `plugin/` | interactive Claude Code plugin: 4 skills, the read-only `pipeline-spec-reviewer` agent, guard-rail hooks |
+| `steps-plugin/` | headless plugin loaded only by `pf` through the Agent SDK: the 3 LLM-step skills |
 | `examples/` | a pipelines repository with three complete pipelines (SFTP zip packages, FTPS CSV, RDS PostgreSQL) |
 | `tests/` | pytest suite; `tests/llm-fixtures` recorded LLM answers; `tests/fixture_builders` synthetic data |
 | `dryrun/` | end-to-end rehearsal against local SFTP/FTPS/Postgres/S3 stand-ins and the official Fivetran tester |

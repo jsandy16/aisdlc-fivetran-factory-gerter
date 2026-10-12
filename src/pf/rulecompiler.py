@@ -53,7 +53,15 @@ class RuleEntry(BaseModel):
     compiled_by: dict[str, Any]
     status: Literal["compiled", "accepted"] = "compiled"
     accepted_by: str | None = None
+    accepted_identity: str | None = None  # git user.email or GITHUB_ACTOR of whoever ran accept
     accepted_at: str | None = None
+    acceptance_sha256: str | None = None  # binds the acceptance to text, expression, references and cases
+
+    def acceptance_digest(self) -> str:
+        payload = {"scope": self.scope, "text_sha256": self.text_sha256, "expression": self.expression,
+                   "referenced": sorted(self.referenced),
+                   "cases": sorted((json.dumps(c.input, sort_keys=True, default=str), c.expected, c.source) for c in self.cases)}
+        return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
 class RulesLock(BaseModel):
@@ -156,13 +164,62 @@ def verify(ref: EnglishRef, expression: str, referenced: list[str], cases: list[
     unknown = sorted(used - allowed)
     if unknown:
         problems.append(f"expression uses unknown names {unknown}")
+    if re.search(r"\b(row|package)\s*\[", expression):
+        problems.append("use row.<column> / package.<fact>, not index syntax (names are checked)")
     for c in cases:
         if c.actual != c.expected:
             problems.append(f"{c.source} case {json.dumps(c.input, sort_keys=True)} expected {c.expected} but the expression gives {c.actual}")
+    if len([c for c in cases if c.source == "generated"]) < 6:
+        problems.append("fewer than 6 generated boundary cases")
+    if not problems:
+        for m in surviving_mutants(ref, expression, cases):
+            problems.append(f"the cases cannot tell the expression from `{m}`: add an example at that boundary")
     return problems
 
 
+_OPS = [("<=", "<"), (">=", ">"), ("==", "!="), ("!=", "=="), ("<", "<="), (">", ">=")]
+
+
+def surviving_mutants(ref: "EnglishRef", expression: str, cases: list[Case]) -> list[str]:
+    """Deterministic mutation testing: flip one comparison operator at a time (and drop each `x == null ||`
+    allowance). A mutant that every case still classifies the same way means the cases do not pin that boundary,
+    so a wrong expression would have verified just as well."""
+    masked = re.sub(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'', lambda m: "\0" * len(m.group(0)), expression)
+    mutants: list[str] = []
+    for m in re.finditer(r"<=|>=|==|!=|<|>", masked):
+        op = m.group(0)
+        for a, b in _OPS:
+            if op == a:
+                mutants.append(expression[:m.start()] + b + expression[m.end():])
+                break
+    nullables: dict[str, str] = {}
+    for m in re.finditer(r"([A-Za-z_][\w.]*)\s*==\s*null\s*\|\|\s*", masked):
+        mu = expression[:m.start()] + expression[m.end():]
+        mutants.append(mu)
+        nullables[mu] = re.sub(r"^(row|package)\.", "", m.group(1))
+    survivors = []
+    for mu in mutants:
+        try:
+            outcomes = ["pass" if evaluate(ref, mu, c.input) else "fail" for c in cases]
+        except Exception:  # noqa: BLE001 - a mutant that does not even compile is killed
+            continue
+        if not all(o == c.expected for o, c in zip(outcomes, cases)):
+            continue
+        if mu in nullables:  # dropping a null allowance can be equivalent (e.g. null != "X" is already true)
+            probes = [{**c.input, nullables[mu]: None} for c in cases] or [{nullables[mu]: None}]
+            try:
+                if all(evaluate(ref, mu, x) == evaluate(ref, expression, x) for x in probes):
+                    continue  # equivalent mutant: nothing an example could distinguish
+            except Exception:  # noqa: BLE001
+                pass
+        survivors.append(mu)
+    return survivors
+
+
 # ---------------------------------------------------------------------------- compile / accept
+from .llm.base import fence  # noqa: E402
+
+
 def _prompt_compile(ref: EnglishRef) -> str:
     if ref.scope == "package":
         names = "\n".join(f"- package.{k} ({t})" for k, t in PACKAGE_FACTS.items())
@@ -174,7 +231,7 @@ def _prompt_compile(ref: EnglishRef) -> str:
     return (
         f"Rule id: {ref.rule_id}\nScope: {ref.scope} — applies to {target}\n\n"
         f"Available names (dates and timestamps are ISO-8601 strings; decimals are numbers; missing values are null):\n{names}\n\n"
-        f"<rule_text>\n{ref.text.strip()}\n</rule_text>\n"
+        f"{fence('rule_text', ref.text.strip())}\n"
     )
 
 
@@ -218,8 +275,8 @@ def compile_rules(b, only: list[str] | None = None, log_dir: Path | None = None)
             expression=compiled.expression, referenced=sorted(set(compiled.referenced)),
             back_translation=explanation.explanation, passes_when=explanation.passes_when, fails_when=explanation.fails_when,
             ambiguities=compiled.ambiguities, cases=cases, verification="failed" if problems else "passed", verification_issues=problems,
-            compiled_by={"compile": meta1.model_dump(exclude={"duration_s", "cost_usd", "turns"}),
-                         "explain": meta2.model_dump(exclude={"duration_s", "cost_usd", "turns"})},
+            compiled_by={"compile": meta1.model_dump(exclude={"duration_s", "cost_usd", "turns", "provider"}),
+                         "explain": meta2.model_dump(exclude={"duration_s", "cost_usd", "turns", "provider"})},
         )
         rl.rules[ref.rule_id] = entry
         if problems:
@@ -232,6 +289,28 @@ def compile_rules(b, only: list[str] | None = None, log_dir: Path | None = None)
         del rl.rules[rid]  # rule removed from the specs
     save_rules_lock(b.path, rl)
     return rl, issues
+
+
+def _identity(path) -> str | None:
+    """Who ran the command: CI actor, else git user.email. Recorded next to the free-text --by handle."""
+    import os
+    import subprocess
+
+    if os.environ.get("GITHUB_ACTOR"):
+        return "github:" + os.environ["GITHUB_ACTOR"]
+    try:
+        out = subprocess.run(["git", "-C", str(path), "config", "user.email"], capture_output=True, text=True, timeout=10).stdout.strip()
+        return out or None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def reverify(ref: "EnglishRef", entry: RuleEntry) -> list[str]:
+    """Re-run every stored case with the runtime CEL engine and re-check names and mutants: what was accepted must
+    still be true of the expression that will run."""
+    cases = [Case(input=c.input, expected=c.expected, actual="pass" if evaluate(ref, entry.expression, c.input) else "fail",
+                  source=c.source, why=c.why) for c in entry.cases]
+    return verify(ref, entry.expression, entry.referenced, cases)
 
 
 def accept_rule(b, rule_id: str, by: str) -> RuleEntry:
@@ -248,10 +327,16 @@ def accept_rule(b, rule_id: str, by: str) -> RuleEntry:
         raise PfError(f"rule '{rule_id}' failed verification: {'; '.join(entry.verification_issues)}", "verification_failed")
     if entry.ambiguities:
         raise PfError(f"rule '{rule_id}' has open questions; reword the rule text to answer them, then compile again", "ambiguous")
-    if not any(c.source == "owner" for c in entry.cases):
-        raise PfError(f"rule '{rule_id}' has no owner-labelled examples; add examples before accepting", "no_examples")
+    owner = [c for c in entry.cases if c.source == "owner"]
+    if len(owner) < 3 or not {c.expected for c in owner} >= {"pass", "fail"}:
+        raise PfError(f"rule '{rule_id}' needs at least 3 owner-labelled examples, including a pass and a fail", "no_examples")
+    problems = reverify(ref, entry)
+    if problems:
+        raise PfError(f"rule '{rule_id}' does not re-verify: {'; '.join(problems)}", "verification_failed")
     entry.status = "accepted"
     entry.accepted_by = by
+    entry.accepted_identity = _identity(b.path)
     entry.accepted_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+    entry.acceptance_sha256 = entry.acceptance_digest()
     save_rules_lock(b.path, rl)
     return entry

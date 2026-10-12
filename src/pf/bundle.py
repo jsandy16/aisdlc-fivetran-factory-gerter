@@ -278,10 +278,10 @@ def cross_validate(b: Bundle) -> list[Issue]:
             err = _python_ref_ok(b.path, ref)
             if err:
                 out.append(Issue(file="sttm.yaml", loc=loc, msg=err, code="cross_ref"))
-        for loc, n in _english_rules(e, i):
-            if p.gxp_tier != "non_gxp" and n < 3:
-                out.append(Issue(file="sttm.yaml", loc=loc, code="invalid",
-                                 msg=f"{p.gxp_tier} pipelines need at least 3 owner-labelled examples per English rule (found {n})"))
+        for loc, ex in _english_rules(e, i):
+            msg = _examples_problem(ex)
+            if msg:
+                out.append(Issue(file="sttm.yaml", loc=f"{loc}.examples", code="required", msg=msg))
 
     if file_source:
         pk = s.source.package
@@ -294,9 +294,9 @@ def cross_validate(b: Bundle) -> list[Issue]:
                 err = _python_ref_ok(b.path, c.ref)
                 if err:
                     out.append(Issue(file="source.yaml", loc=f"source.package.checks.{j}.ref", msg=err, code="cross_ref"))
-            if c.kind == "english" and p.gxp_tier != "non_gxp" and len(c.examples) < 3:
-                out.append(Issue(file="source.yaml", loc=f"source.package.checks.{j}", code="invalid",
-                                 msg=f"{p.gxp_tier} pipelines need at least 3 owner-labelled examples per English rule"))
+            if c.kind == "english" and _examples_problem(c.examples):
+                out.append(Issue(file="source.yaml", loc=f"source.package.checks.{j}.examples", code="required",
+                                 msg=_examples_problem(c.examples)))
         if pol.archive_originals:
             for env, ep in pol.environments.items():
                 if ep.originals is None:
@@ -399,14 +399,22 @@ def _python_refs(e: Entity, i: int):
             yield f"entities.{i}.row_checks.{j}.ref", c.ref
 
 
+def _examples_problem(examples) -> str | None:
+    """Owner-labelled examples anchor an English rule: the LLM's own cases cannot (it writes both sides)."""
+    got = {x.expected for x in examples}
+    if len(examples) < 3 or not got >= {"pass", "fail"}:
+        return f"an English rule needs at least 3 owner-labelled examples including a pass and a fail (found {len(examples)})"
+    return None
+
+
 def _english_rules(e: Entity, i: int):
     for k, a in enumerate(e.attributes):
         for j, c in enumerate(a.checks):
             if c.kind == "english":
-                yield f"entities.{i}.attributes.{k}.checks.{j}", len(c.examples)
+                yield f"entities.{i}.attributes.{k}.checks.{j}", c.examples
     for j, c in enumerate(e.row_checks):
         if c.kind == "english":
-            yield f"entities.{i}.row_checks.{j}", len(c.examples)
+            yield f"entities.{i}.row_checks.{j}", c.examples
 
 
 def _all_rule_ids(b: Bundle):

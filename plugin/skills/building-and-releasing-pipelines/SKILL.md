@@ -17,8 +17,8 @@ Deployment happens only in CI, after review, through GitHub Environments. You bu
    `quarantined: {rule_id: rows}`). Database sources use `<entity>.csv` with source column names as header.
 4. `pf --json test <p>` — runs the real runtime on the fixtures, checks idempotency, and lists checks that never
    fired (`uncovered`). Add a bad case for each uncovered check; for GxP tiers this is mandatory.
-5. Optional local run with Fivetran's own tester (needs local copies of the source):
-   `cd pipelines/<p>/build/connector && fivetran debug --configuration <local test config>`.
+5. Optional, run by the user (it needs source credentials): `cd pipelines/<p>/build/connector && fivetran debug
+   --configuration <their local config>`. Do not create, read or pass a configuration file yourself.
 6. Version and record: bump `version` in pipeline.yaml if specs changed since the last release, then
    `pf --json release <p>` (writes `releases/<version>.json`). `pf --json release <p> --check` must pass.
 7. Summarise for the pull request: what changed, check coverage, version bump reason, open owner decisions.
@@ -34,4 +34,7 @@ secrets. `pf deploy <p> --env <env> --dry-run` shows exactly what CI will do.
 Read `issues[].code`: `stale_build` → rebuild; `uncovered` → add bad fixtures; `expectation_failed` → the rule or
 the fixture is wrong — ask the owner which; `rerun_failed` → a sync with nothing new failed (state or row-count
 logic); `dependencies` → a rule module imports something unpinned; `version` → bump as instructed;
-`not_released` (CI deploy) → the build differs from the committed release record.
+`acceptance_invalid` → an English rule changed after acceptance: compile, and its owner accepts again;
+`not_released` (CI deploy) → the build differs from the committed release record; `dependency_drift` (CI deploy)
+→ the runner's packages differ from the pins (install with `-c build/connector/requirements.txt`);
+`requires_resync` → a key or load-mode change: the owner drops the table and deploys with `--acknowledge-resync`.

@@ -325,7 +325,7 @@
     }
   },
   "pipeline": "oncology_labs",
-  "rules_lock_sha256": "43b17ac3ea6c0877663bdf0351fd18c612fac11f5a608c3f56c81d6e275660c1",
+  "rules_lock_sha256": "40f552b2f788cde055ab30cf7614ef30583e6bf94ecc4f8ada48d99f978dce99",
   "runtime": {
     "checkpoint_every_rows": 5000,
     "parallelism": 2,

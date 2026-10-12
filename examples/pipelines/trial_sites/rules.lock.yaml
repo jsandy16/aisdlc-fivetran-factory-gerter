@@ -127,4 +127,6 @@ rules:
         prompt_version: '1'
     status: accepted
     accepted_by: '@rd-data-quality'
-    accepted_at: '2026-10-12T20:14:51+00:00'
+    accepted_identity: rd-data-quality@example.com
+    accepted_at: '2026-10-12T21:41:08+00:00'
+    acceptance_sha256: e74572b3c6d5ef3c8ef6e4a38acc1a031756053913b67a437506dd1031b01beb

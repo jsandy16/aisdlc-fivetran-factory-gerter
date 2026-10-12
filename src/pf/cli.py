@@ -27,6 +27,16 @@ def _bundle(name: str):
 
 
 # ---------------------------------------------------------------------------- commands
+# Claude Code project settings written by init-repo. Edit rules cover every file-editing tool ("/" = this repository
+# root); Write(...) path rules are never consulted, so there are none. Bash rules catch the usual spellings only —
+# the plugin hook tokenises commands, and the real boundaries are CI-only credentials and CODEOWNERS review.
+SETTINGS = {"permissions": {"deny": [
+    "Bash(fivetran deploy *)", "Bash(pf rules accept *)", "Bash(pf --json rules accept *)", "Bash(python -m pf.cli *)",
+    "Bash(env -u CLAUDECODE *)", "Bash(printenv *)", "Read(**/configuration*.json)", "Read(**/.env*)",
+    "Edit(/pipelines/*/build/**)", "Edit(/pipelines/*/releases/**)", "Edit(/pipelines/*/rules.lock.yaml)",
+    "Edit(/.github/workflows/pf-*.yml)", "Edit(/.github/CODEOWNERS)"]}}
+
+
 def cmd_init_repo(a) -> Result:
     root = Path(a.path).resolve()
     root.mkdir(parents=True, exist_ok=True)
@@ -44,11 +54,7 @@ def cmd_init_repo(a) -> Result:
     cs = root / ".claude" / "settings.json"
     if not cs.exists():  # Claude Code permission rules for this repository (the plugin's hooks add the same guards)
         cs.parent.mkdir(exist_ok=True)
-        cs.write_text(json.dumps({"permissions": {"deny": [
-            "Bash(fivetran deploy:*)", "Bash(pf rules accept:*)", "Bash(pf --json rules accept:*)",
-            "Read(**/configuration.json)", "Read(**/.env*)", "Edit(pipelines/*/build/**)", "Edit(pipelines/*/releases/**)",
-            "Edit(pipelines/*/rules.lock.yaml)", "Write(pipelines/*/build/**)", "Write(pipelines/*/releases/**)",
-            "Write(pipelines/*/rules.lock.yaml)"]}}, indent=2) + "\n", encoding="utf-8")
+        cs.write_text(json.dumps(SETTINGS, indent=2) + "\n", encoding="utf-8")
     return Result(command="init-repo", ok=True, data={"root": str(root)})
 
 

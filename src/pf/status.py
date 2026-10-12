@@ -50,4 +50,12 @@ def status(root: Path, name: str) -> dict:
     version = b.pipeline.version if b.pipeline else "?"
     if not (path / "releases" / f"{version}.json").exists():
         return out("deploy", f"Run `pf release {name}`, commit, open a pull request; CI deploys after review", "data engineer, then reviewers")
-    return out("operate", "Released. Watch pf_* evidence and `pf dq run`; changes start a new version", "data owner", version=version)
+    from .release import check_version
+
+    lock = json.loads((build / "spec.lock.json").read_text())
+    ver = check_version(b, lock, require_record=True)
+    if not ver["ok"]:  # the specs moved on since this version was released
+        return out("deploy", f"Bump the version and run `pf release {name}`: {ver.get('msg', '')}", "data engineer, then reviewers")
+    return out("operate", "Released: CI deploys on merge to main (GitHub Environments). Then observe: run `pf dq run --certify` "
+               "after each sync, review pf_package_audit / pf_rule_results and `pf fivetran drift`; any change starts a new version",
+               "data owner (operate), quality owner (observe)", version=version)

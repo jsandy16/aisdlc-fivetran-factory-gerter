@@ -1,4 +1,7 @@
-"""Keep a managed CODEOWNERS block per pipeline, so each owner must approve the spec file they own."""
+"""Keep a managed CODEOWNERS block per pipeline, so each owner must approve the spec file they own.
+
+Exactly one owner per file: GitHub accepts an approval from ANY listed owner, so listing a second team next to
+the real owner would let that team approve alone. Enable branch protection "Require review from Code Owners"."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,9 +14,9 @@ def block(root: Path, name: str) -> str:
     p = yamlio.to_plain(yamlio.load(root / "pipelines" / name / "pipeline.yaml"))
     owners = p.get("owners", {})
     lines = [f"# pf:begin {name} (managed by `pf build`)"]
+    lines.append(f"/pipelines/{name}/ {owners.get('data_engineer', '')}".rstrip())  # everything else, incl. build/, rules/
     for fname, role in OWNER_OF_FILE.items():
-        lines.append(f"/pipelines/{name}/{fname} {owners.get(role, '')} {owners.get('data_engineer', '')}".rstrip())
-    lines.append(f"/pipelines/{name}/rules/ {owners.get('data_engineer', '')} {owners.get('quality', '')}")
+        lines.append(f"/pipelines/{name}/{fname} {owners.get(role, '')}".rstrip())  # later lines win in CODEOWNERS
     lines.append(f"# pf:end {name}")
     return "\n".join(lines) + "\n"
 

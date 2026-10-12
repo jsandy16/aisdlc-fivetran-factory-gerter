@@ -11,8 +11,8 @@ scaffold comments and agent knowledge derive from the model automatically.
 ## New check or transform kind
 
 1. Model: add a class to `src/pf/specs/rules.py` (`kind: Literal["<new>"]`, typed params with
-   `Field(description=...)`) and add it to the right union (`PackageCheck`, `EntityCheck`, `AttributeCheck`,
-   `AttributeTransform`, or `LakeCheck` in `specs/quality.py`).
+   `Field(description=...)`) and add it to the right union (`PackageCheck`, `PackageTransform`, `EntityCheck`, `RowCheck`,
+   `AttributeCheck`, `AttributeTransform` in `specs/rules.py`, or `LakeCheck` in `specs/quality.py`).
 2. Runtime: implement it in `src/pf_runtime/` (`rules.check_passes`, `rules.apply_transforms`,
    `package.run_receive_checks`/`run_member_checks`, or `generate/quality.check_sql`). Messages must never
    contain data values.

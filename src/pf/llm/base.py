@@ -12,14 +12,14 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from ..envelope import PfError
 
 T = TypeVar("T", bound=BaseModel)
-PLUGIN_NAME = "pipeline-factory"
+PLUGIN_NAME = "pipeline-factory-steps"  # headless-only plugin: interactive sessions never see these skills
 PROMPT_VERSION = "1"
 
 
@@ -45,8 +45,8 @@ def plugin_root() -> Path:
         return Path(env)
     here = Path(__file__).resolve()
     for p in here.parents:
-        if (p / "plugin" / ".claude-plugin" / "plugin.json").exists():
-            return p / "plugin"
+        if (p / "steps-plugin" / ".claude-plugin" / "plugin.json").exists():
+            return p / "steps-plugin"
     raise PfError("pipeline-factory plugin not found; set PF_PLUGIN_ROOT", "no_plugin")
 
 
@@ -103,7 +103,46 @@ def strict_schema(model: type[BaseModel]) -> dict:
 
 
 def _key(task: str, skill: str, prompt: str, schema: dict) -> str:
-    return hashlib.sha256(json.dumps([task, skill, prompt, schema, PROMPT_VERSION], sort_keys=True).encode()).hexdigest()
+    """Everything that can change the answer: task, skill name AND content, prompt, schema, prompt version, model.
+    Editing a SKILL.md or switching model therefore needs a new recording, never a stale replay."""
+    from .agent_sdk import settings
+
+    return hashlib.sha256(json.dumps([task, skill, skill_sha(skill), prompt, schema, PROMPT_VERSION, settings()["model"]],
+                                     sort_keys=True).encode()).hexdigest()
+
+
+def fence(tag: str, text: str) -> str:
+    """Wrap untrusted text in <tag> delimiters it cannot close or reopen."""
+    import re
+
+    safe = re.sub(rf"<\s*/?\s*{re.escape(tag)}\b[^>]*>", f"[{tag}]", text, flags=re.IGNORECASE)
+    return f"<{tag}>\n{safe}\n</{tag}>"
+
+
+SECRET_PATTERNS = [
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----",
+    r"\bAKIA[0-9A-Z]{16}\b", r"\bASIA[0-9A-Z]{16}\b",
+    r"(?i)\b(password|passwd|pwd|secret|api[_ -]?key|token|access[_ -]?key)\b(\s*(is|:|=)\s*)([^\s,;]{4,})",
+    r"\bgh[pousr]_[A-Za-z0-9]{30,}\b", r"\bxox[abposr]-[A-Za-z0-9-]{10,}\b",
+]
+
+
+def redact_secrets(text: str) -> tuple[str, int]:
+    """Deterministic scrub before any text leaves for the model: keys, AWS key ids, 'password: x' style values."""
+    import re
+
+    n = 0
+    for pat in SECRET_PATTERNS:
+        def repl(m):
+            nonlocal n
+            n += 1
+            return (m.group(1) + m.group(2) + "[REDACTED]") if m.lastindex and m.lastindex >= 4 else "[REDACTED]"
+        text = re.sub(pat, repl, text)
+    return text, n
+
+
+def _canon_sha(obj: Any) -> str:
+    return hashlib.sha256(json.dumps(obj, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 def fixtures_dir() -> Path:
@@ -116,12 +155,18 @@ def run_structured(task: str, skill: str, prompt: str, output: type[T], *, log_d
     key = _key(task, skill, prompt, schema)
     started = time.time()
     meta_extra: dict = {}
+    recorded: dict = {}
     if provider == "replay":
         f = fixtures_dir() / task / f"{key}.json"
         if not f.exists():
             raise PfError(f"no recorded LLM output for this request ({f}); record it with PF_LLM_PROVIDER=record", "no_fixture")
-        raw = json.loads(f.read_text(encoding="utf-8"))["output"]
-        model_name = "replay"
+        rec = json.loads(f.read_text(encoding="utf-8"))
+        raw = rec["output"]
+        if rec.get("output_sha256") != _canon_sha(raw):
+            raise PfError(f"recorded LLM output {f} was edited after recording", "fixture_tampered")
+        recorded = rec.get("provenance", {})  # replay reports how the answer was really produced
+        model_name = recorded.get("model", "unknown")
+        meta_extra = {k: recorded.get(k) for k in ("cost_usd", "turns")}
     elif provider in ("agent-sdk", "record"):
         from .agent_sdk import call
 
@@ -129,14 +174,18 @@ def run_structured(task: str, skill: str, prompt: str, output: type[T], *, log_d
         if provider == "record":
             f = fixtures_dir() / task / f"{key}.json"
             f.parent.mkdir(parents=True, exist_ok=True)
-            f.write_text(json.dumps({"task": task, "skill": skill, "output": raw}, indent=2, sort_keys=True), encoding="utf-8")
+            prov = {"model": model_name, "skill_sha256": skill_sha(skill), "prompt_version": PROMPT_VERSION,
+                    "recorded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), **meta_extra}
+            f.write_text(json.dumps({"task": task, "skill": skill, "provenance": prov, "output": raw,
+                                     "output_sha256": _canon_sha(raw)}, indent=2, sort_keys=True), encoding="utf-8")
     else:
         raise PfError(f"unknown PF_LLM_PROVIDER '{provider}'", "invalid")
     try:
         obj = output.model_validate(raw)
     except ValidationError as exc:
         raise PfError(f"{task}: the model's output did not match the {output.__name__} schema: {exc.errors()[:3]}", "llm_schema") from None
-    meta = LLMMeta(provider=provider, task=task, skill=skill, skill_sha256=skill_sha(skill),
+    meta = LLMMeta(provider=provider if provider != "replay" else f"replay:{recorded.get('recorded_at', '?')}", task=task, skill=skill,
+                   skill_sha256=recorded.get("skill_sha256", skill_sha(skill)),
                    prompt_sha256=hashlib.sha256(prompt.encode()).hexdigest(), schema_sha256=hashlib.sha256(json.dumps(schema, sort_keys=True).encode()).hexdigest(),
                    model=model_name, duration_s=round(time.time() - started, 2), **meta_extra)
     if log_dir is not None:
