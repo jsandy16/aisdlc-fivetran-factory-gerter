@@ -44,12 +44,18 @@ def render_ba(spec: PipelineSpec) -> str:
     for s in spec.integrations.destinations:
         how = "chosen by the self-service portal" if s.resolve.via == "portal" else "fixed"
         out.append(
-            f"- Destination `{s.id}` ({s.label or 'no label'}): {how}; allowed types {', '.join(s.allowed_types)}."
+            f"- `{s.id}`: {s.label or 'destination ' + s.id}; {how}; allowed types {', '.join(s.allowed_types)}."
         )
-    for env in sorted(spec.destinations.destinations):
-        entries = spec.destinations.destinations[env]
-        names = ", ".join(f"{e.id} ({e.type})" for e in entries) or "none"
-        out.append(f"  - approved in {env}: {names}")
+    allow = spec.destinations.destinations
+    if allow:
+        out += ["", "Approved destinations (the portal can only choose among these):", ""]
+        # environments in the order environments.yaml lists them, then any others
+        envs = [e for e in spec.environments.environments if e in allow] + sorted(
+            set(allow) - set(spec.environments.environments)
+        )
+        for env in envs:
+            names = ", ".join(f"{e.id} ({e.type}, for {'/'.join(e.slots)})" for e in allow[env]) or "none"
+            out.append(f"- {env}: {names}")
     out += ["", "## 5. Protection and evidence", ""]
     out.append(f"- Data classification: {sec.data_classification}; GxP tier: {sec.gxp_tier}.")
     out.append(

@@ -54,7 +54,11 @@ def _field_info(spec: FieldSpec, alias: str) -> Any:
 
 def build_model(name: str, fields: dict[str, FieldSpec], *, unknown_fields: str = "ignore") -> type[BaseModel]:
     config = ConfigDict(
-        strict=True, frozen=True, extra="forbid" if unknown_fields == "reject" else "ignore", populate_by_name=False
+        strict=True,
+        frozen=True,
+        extra="forbid" if unknown_fields == "reject" else "ignore",
+        populate_by_name=False,
+        regex_engine="python-re",  # the same engine that validated the pattern (Regex), lookarounds included
     )
     defs: dict[str, Any] = {}
     for i, fname in enumerate(sorted(fields)):

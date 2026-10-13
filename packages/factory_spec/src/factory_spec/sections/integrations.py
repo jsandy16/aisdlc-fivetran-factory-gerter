@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from pydantic import AfterValidator, Field, model_validator
 
 from ..common import StrictModel, ba
-from ..fieldtypes import Duration, Identifier, JmesPath, SortedStrings, TemplateStr
+from ..fieldtypes import Duration, Identifier, JmesPath, SortedStrings, TableName, TemplateStr
 from .fields import RecordSpec
 
 # ---------------------------------------------------------------- sources
@@ -21,7 +21,13 @@ class TriggerLocation(StrictModel):
 
 class StaticLocation(StrictModel):
     via: Literal["static"]
-    prefix: str = ba("Prefix", "Folder under the bound bucket", default="", max_length=900)
+    prefix: str = ba(
+        "Prefix",
+        "Folder under the bound bucket, ending with / (empty: the whole bucket)",
+        default="",
+        max_length=900,
+        pattern=r"^(([A-Za-z0-9_][A-Za-z0-9._-]*/)+)?$",
+    )
 
 
 class S3Source(StrictModel):
@@ -39,7 +45,7 @@ class DatabaseSource(StrictModel):
     label: str = ba("Label", "What this source is", default="", max_length=200)
     engine: Literal["postgres", "mysql", "sqlserver", "oracle"] = ba("Database engine", "Database product")
     credentials: Identifier = ba("Credentials", "Secret name holding the connection credentials")
-    tables: list[str] = ba("Tables", "schema.table names to replicate", min_length=1)
+    tables: list[TableName] = ba("Tables", "schema.table names to replicate", min_length=1)
 
 
 Source = Annotated[S3Source | DatabaseSource, Field(discriminator="type")]

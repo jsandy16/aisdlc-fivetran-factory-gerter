@@ -24,7 +24,7 @@ rules:
     outputs: [package_name]
   - rule_id: r_store
     category: upload
-    plain_english: Store the zip in the landing bucket; never overwrite a zip that is already there.
+    plain_english: Store the zip and its manifest in the landing bucket; never overwrite a zip that is already there.
     implementation: {kind: builtin, op: s3.put, params: {slot: landing, object_name: package_name}}
-    inputs: [package, package_name]
+    inputs: [package, manifest, package_name]
     outputs: [stored]

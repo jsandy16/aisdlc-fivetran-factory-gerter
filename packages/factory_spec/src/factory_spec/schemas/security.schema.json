@@ -1,0 +1,221 @@
+{
+  "$defs": {
+    "Audit": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Write audit events to the write-once audit store",
+          "type": "boolean",
+          "x-ba-label": "Audit trail"
+        },
+        "events": {
+          "description": "Which events are recorded",
+          "items": {
+            "enum": [
+              "delivery",
+              "destination_resolution",
+              "portal_call",
+              "rule_result",
+              "secret_access"
+            ],
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Audited events"
+        },
+        "evidence_retention": {
+          "default": "10y",
+          "description": "How long evidence is kept, e.g. 10y",
+          "pattern": "^\\d+(d|y)$",
+          "type": "string",
+          "x-ba-label": "Evidence retention"
+        }
+      },
+      "type": "object"
+    },
+    "Checksums": {
+      "additionalProperties": false,
+      "properties": {
+        "delivery_sidecars": {
+          "description": "Checksum files delivered next to the package",
+          "items": {
+            "enum": [
+              "md5",
+              "sha256",
+              "sha512"
+            ],
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Delivered checksum files"
+        },
+        "manifest": {
+          "description": "Per-file checksums in the manifest",
+          "items": {
+            "enum": [
+              "md5",
+              "sha256",
+              "sha512"
+            ],
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Manifest checksums"
+        }
+      },
+      "type": "object"
+    },
+    "EncryptionAtRest": {
+      "additionalProperties": false,
+      "properties": {
+        "s3_destinations": {
+          "default": "sse_kms",
+          "description": "Encryption of delivered objects",
+          "enum": [
+            "sse_kms",
+            "sse_s3"
+          ],
+          "type": "string",
+          "x-ba-label": "S3 destinations"
+        },
+        "staging": {
+          "const": "sse_kms",
+          "default": "sse_kms",
+          "description": "Encryption of staged artifacts",
+          "type": "string",
+          "x-ba-label": "Staging"
+        }
+      },
+      "type": "object"
+    },
+    "Residency": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_regions": {
+          "description": "AWS regions data may be processed in",
+          "items": {
+            "pattern": "^[a-z]{2}(-gov)?-[a-z]+-\\d$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Allowed regions"
+        }
+      },
+      "required": [
+        "allowed_regions"
+      ],
+      "type": "object"
+    },
+    "Retention": {
+      "additionalProperties": false,
+      "properties": {
+        "run_logs": {
+          "default": "400d",
+          "description": "Run logs",
+          "pattern": "^\\d+(d|y)$",
+          "type": "string",
+          "x-ba-label": "Run logs"
+        },
+        "staging_after_failure": {
+          "default": "30d",
+          "description": "Staging after failure",
+          "pattern": "^\\d+(d|y)$",
+          "type": "string",
+          "x-ba-label": "Staging after failure"
+        },
+        "staging_after_success": {
+          "default": "7d",
+          "description": "Staging after success",
+          "pattern": "^\\d+(d|y)$",
+          "type": "string",
+          "x-ba-label": "Staging after success"
+        }
+      },
+      "type": "object"
+    },
+    "SecurityAndAccess": {
+      "additionalProperties": false,
+      "properties": {
+        "audit": {
+          "$ref": "#/$defs/Audit",
+          "description": "Audit",
+          "x-ba-label": "Audit"
+        },
+        "checksums": {
+          "$ref": "#/$defs/Checksums",
+          "description": "Checksums",
+          "x-ba-label": "Checksums"
+        },
+        "data_classification": {
+          "description": "Highest classification of the data moved",
+          "enum": [
+            "public",
+            "internal",
+            "confidential",
+            "restricted"
+          ],
+          "type": "string",
+          "x-ba-label": "Data classification"
+        },
+        "encryption_at_rest": {
+          "$ref": "#/$defs/EncryptionAtRest",
+          "description": "Encryption at rest",
+          "x-ba-label": "Encryption at rest"
+        },
+        "gxp_tier": {
+          "description": "Decided with QA",
+          "enum": [
+            "non_gxp",
+            "gxp_indirect",
+            "gxp_direct"
+          ],
+          "type": "string",
+          "x-ba-label": "GxP tier"
+        },
+        "package_encryption": {
+          "const": "none",
+          "default": "none",
+          "description": "Application-level encryption: done outside the pipeline for now (ADR-0012)",
+          "type": "string",
+          "x-ba-label": "Package encryption"
+        },
+        "residency": {
+          "$ref": "#/$defs/Residency",
+          "description": "Where data may be processed",
+          "x-ba-label": "Residency"
+        },
+        "retention": {
+          "$ref": "#/$defs/Retention",
+          "description": "Retention",
+          "x-ba-label": "Retention"
+        }
+      },
+      "required": [
+        "gxp_tier",
+        "data_classification",
+        "residency"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:pipeline-factory:spec:v1:security",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "security.yaml: owned by governance / QA.",
+  "properties": {
+    "security_and_access": {
+      "$ref": "#/$defs/SecurityAndAccess",
+      "description": "Governance decisions",
+      "x-ba-label": "Security and access"
+    }
+  },
+  "required": [
+    "security_and_access"
+  ],
+  "type": "object",
+  "x-ba-label": "Security: classification, GxP, audit, retention",
+  "x-hash": "logic",
+  "x-owner-role": "governance"
+}

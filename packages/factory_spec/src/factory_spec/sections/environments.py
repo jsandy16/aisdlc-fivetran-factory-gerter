@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from ..common import StrictModel, ba
-from ..fieldtypes import EnvName, HttpsBaseUrl, Identifier, ResourceName, S3Bucket
+from ..fieldtypes import EnvName, HttpsBaseUrl, Identifier, PrefixRoot, ResourceName, S3Bucket
 
 PlacementAlias = Identifier
 
@@ -43,13 +43,16 @@ class SourceBinding(StrictModel):
     buckets: list[S3Bucket] = ba(
         "Allowed buckets", "Buckets this source may read in this environment", default_factory=list
     )
-    prefix_roots: list[str] = ba(
+    prefix_roots: list[PrefixRoot] = ba(
         "Allowed prefixes", "Folders a trigger-supplied prefix must start with", default_factory=list
     )
     placement: PlacementAlias = ba("Placement", "Account alias of the buckets", default="team")
     bucket: S3Bucket | None = ba("Bucket", "For static sources: the bucket", default=None)
     fivetran_group: str | None = ba(
-        "Fivetran group", "For database sources: the Fivetran destination group", default=None
+        "Fivetran group",
+        "For database sources: the Fivetran destination group id",
+        default=None,
+        pattern=r"^[A-Za-z0-9_-]{1,64}$",
     )
 
 

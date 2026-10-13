@@ -12,7 +12,17 @@ from factory_core.pathmatch import PatternError, parse_path_pattern
 from pydantic import Field, field_validator
 
 from ..common import StrictModel, ba
-from ..fieldtypes import Attestation, EnvName, HostKeyFingerprint, Hostname, Identifier, KmsAlias, S3Bucket, SortedIds
+from ..fieldtypes import (
+    Attestation,
+    EnvName,
+    HostKeyFingerprint,
+    Hostname,
+    Identifier,
+    KmsAlias,
+    S3Bucket,
+    SortedIds,
+    coded_error,
+)
 from .security import Classification
 
 
@@ -20,7 +30,7 @@ def _pattern(v: str, *, absolute: bool) -> str:
     try:
         parse_path_pattern(v, absolute=absolute)
     except PatternError as exc:
-        raise ValueError(str(exc)) from exc
+        raise coded_error(exc.code, str(exc)) from None
     return v
 
 

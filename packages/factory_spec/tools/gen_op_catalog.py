@@ -71,7 +71,7 @@ for name, cats, summary in [("s3.put",["upload"],"Upload an artifact to a static
     ext = name in ("sftp.put", "https.put")
     lam_bps = None if name == "s3.copy" else (90_000_000 if name == "s3.put" else 25_000_000)
     ops.append(dict(op=name, version="1.0.0", status="available", categories=cats, summary=summary,
-        inputs=([port("objects","object_listing")] if name == "s3.copy" else [port("artifact","package"), port("name","value",required=False)]), outputs=[port("receipt","receipt",md="final")], allowed_engines=[L,P],
+        inputs=([port("objects","object_listing")] if name == "s3.copy" else [port("artifact","package"), port("manifest","manifest",required=False), port("name","value",required=False)]), outputs=[port("receipt","receipt",md="final")], allowed_engines=[L,P],
         side_effects=["reads_staging","writes_target"] + (["reads_secret"] if ext else []),
         aws_actions=([{"actions":["secretsmanager:GetSecretValue"],"resource":"{entry.secret_arns}"}] if ext else [{"actions":["s3:PutObject","s3:GetObject"],"resource":"{entry.object_arns}"}] + ([{"actions":["s3:GetObject","s3:GetObjectVersion"],"resource":"{source.object_arns}"}] if name == "s3.copy" else [])),
         egress=[{"host":"{entry.host}","port":"{entry.port}"}] if ext else [], determinism="deterministic_effect", idempotency="conditional_write",

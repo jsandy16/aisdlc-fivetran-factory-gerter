@@ -90,6 +90,32 @@ class Context:
     def trigger_sourced(self, name: str) -> bool:
         return self.variables.get(name, "").startswith("trigger.")
 
+    @cached_property
+    def portal_values(self) -> set[tuple[str, str]]:
+        portal = self.spec.integrations.portal
+        if portal is None:
+            return set()
+        return {(e.id, v) for e in portal.endpoints for v in e.mapping.values}
+
+    def variable_resolvable(self, name: str) -> bool:
+        src = self.variables.get(name)
+        if src is None:
+            return False
+        parts = src.split(".")
+        trig = self.spec.pipeline.trigger
+        if parts[0] != "trigger":
+            return (parts[1], parts[2]) in self.portal_values
+        kind, fld = parts[1], parts[2]
+        if kind == "message":
+            return trig.type == "sqs" and fld in trig.message.fields
+        if kind == "conf":
+            return trig.type == "manual" and fld in trig.conf.fields
+        if kind == "object":
+            return trig.type == "s3_event" and fld in OBJECT_FIELDS
+        if kind == "schedule":
+            return trig.type == "schedule" and fld in SCHEDULE_FIELDS
+        return False
+
 
 Check = Callable[[Context], Iterable[Issue]]
 
@@ -212,28 +238,9 @@ def check_tasks(ctx: Context) -> Iterable[Issue]:
 
 
 def check_variables(ctx: Context) -> Iterable[Issue]:
-    sp = ctx.spec
-    trig = sp.pipeline.trigger
-    portal_values: set[tuple[str, str]] = set()
-    if sp.integrations.portal:
-        for e in sp.integrations.portal.endpoints:
-            portal_values |= {(e.id, v) for v in e.mapping.values}
+    trig = ctx.spec.pipeline.trigger
     for name, src in ctx.variables.items():
-        parts = src.split(".")
-        ok = False
-        if parts[0] == "trigger":
-            kind, fld = parts[1], parts[2]
-            if kind == "message":
-                ok = trig.type == "sqs" and fld in trig.message.fields
-            elif kind == "conf":
-                ok = trig.type == "manual" and fld in trig.conf.fields
-            elif kind == "object":
-                ok = trig.type == "s3_event" and fld in OBJECT_FIELDS
-            elif kind == "schedule":
-                ok = trig.type == "schedule" and fld in SCHEDULE_FIELDS
-        else:
-            ok = (parts[1], parts[2]) in portal_values
-        if not ok:
+        if not ctx.variable_resolvable(name):
             yield issue(
                 "variable_unresolvable", P, f"variables.{name}", f"'{src}' does not exist for a {trig.type} trigger"
             )
@@ -269,7 +276,7 @@ def _tokens(
         if n not in ctx.variables:
             yield issue("template_unknown_token", f, loc, f"'{{{n}}}' is not a declared variable")
             continue
-        if path and not ctx.variable_constrained(n):
+        if path and ctx.variable_resolvable(n) and not ctx.variable_constrained(n):
             yield issue(
                 "template_token_unconstrained",
                 f,
@@ -330,7 +337,7 @@ def check_templates(ctx: Context) -> Iterable[Issue]:
             for v in sorted(parse_path_pattern(pat, absolute=e.type != "s3").variables):
                 if v not in ctx.variables:
                     yield issue("template_unknown_token", D, loc, f"'{{{v}}}' is not a declared variable")
-                elif not ctx.variable_constrained(v):
+                elif ctx.variable_resolvable(v) and not ctx.variable_constrained(v):
                     yield issue(
                         "template_token_unconstrained", D, loc, f"'{{{v}}}' has no pattern on its trigger field"
                     )
@@ -610,8 +617,11 @@ _SECRET_TEXT = [
     re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
     re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}\b"),
     re.compile(r"\bxox[abposr]-[A-Za-z0-9-]{10,}\b"),
-    re.compile(r"(?i)\b(password|passwd|secret|api[_-]?key|token)\s*[:=]\s*['\"]?[^\s'\",{}\[\]]{6,}"),
 ]
+# `secret: vendor_api_key` names a declared secret (a reference); any other value after such a key is flagged
+_SECRET_KEY_VALUE = re.compile(
+    r"(?i)\b(?:password|passwd|secret|api[_-]?key|token)\s*[:=]\s*['\"]?([^\s'\",{}\[\]]{6,})"
+)
 
 
 def _secret_uses(ctx: Context) -> list[tuple[str, str, str, frozenset[str]]]:
@@ -690,7 +700,8 @@ def check_secrets(ctx: Context) -> Iterable[Issue]:
         if not spec_file.is_file():
             continue
         for n, line in enumerate(spec_file.read_text(encoding="utf-8").splitlines(), 1):
-            if any(p.search(line) for p in _SECRET_TEXT):
+            values = [m.group(1) for m in _SECRET_KEY_VALUE.finditer(line)]
+            if any(p.search(line) for p in _SECRET_TEXT) or any(v not in secrets for v in values):
                 yield issue("secret_in_spec", fname, f"line {n}", "this line looks like a secret value")
 
 
@@ -745,14 +756,18 @@ def check_environments(ctx: Context) -> Iterable[Issue]:
     for msg in ctx.repo.platform_issues:
         yield issue("platform_settings_missing", E, "", msg)
     team = sp.pipeline.metadata.team
+    missing_team = [e for e in ctx.enabled_envs if e in ctx.repo.platform and team not in ctx.repo.platform[e].teams]
+    if missing_team:
+        yield issue(
+            "unknown_team",
+            P,
+            "metadata.team",
+            f"team '{team}' is not defined in the platform settings of {', '.join(missing_team)}",
+        )
     for env in ctx.enabled_envs:
         ps = ctx.repo.platform.get(env)
         if ps is None:
             continue
-        if team not in ps.teams:
-            yield issue(
-                "unknown_team", P, "metadata.team", f"team '{team}' is not defined in the {env} platform settings"
-            )
         b = envs[env]
         aliases = [
             (f"environments.{env}.placement.orchestration", b.placement.orchestration),

@@ -18,6 +18,7 @@ from .spec import PipelineSpec
 
 RULES = "rules.yaml"
 TERMINAL_KINDS = frozenset({"receipt", "report"})
+UNKNOWN_KIND = "unknown"  # outputs of planned ops: matches any input port, so one op_not_available is the only finding
 NO_CROSS_KINDS = frozenset({"file_set"})  # streams of many files: consumed in the task that produced them
 
 
@@ -65,8 +66,7 @@ def derive_artifacts(spec: PipelineSpec) -> ArtifactGraph:
         loc = f"rules[{rule.rule_id}]"
         impl = rule.implementation
         contract = _contract(rule)
-        if impl.kind == "builtin" and contract is None:
-            continue  # planned op: reported as op_not_available
+        planned = impl.kind == "builtin" and contract is None  # reported as op_not_available; no port contract yet
         # ---- inputs
         free_ports = list(contract.inputs) if contract is not None else []
         for name in rule.inputs:
@@ -99,7 +99,7 @@ def derive_artifacts(spec: PipelineSpec) -> ArtifactGraph:
                 )
             node.consumers.append((rule.rule_id, task.task_id))
             if contract is not None:
-                port = next((p for p in free_ports if p.kind == node.kind), None)
+                port = next((p for p in free_ports if node.kind in (p.kind, UNKNOWN_KIND)), None)
                 if port is None:
                     kinds = sorted({p.kind for p in contract.inputs}) or ["none"]
                     g.issues.append(
@@ -120,6 +120,8 @@ def derive_artifacts(spec: PipelineSpec) -> ArtifactGraph:
         # ---- outputs
         if contract is not None:
             ports = [(p.kind, p.streaming, p.min_durability) for p in contract.outputs]
+        elif planned:
+            ports = [(UNKNOWN_KIND, False, "local") for _ in rule.outputs]
         elif impl.kind == "expression":
             ports = [("value", False, "local")] if rule.category == "naming" else []
         else:  # custom

@@ -110,6 +110,7 @@ class DeliverParams(StrictModel):
 class StaticPutParams(StrictModel):
     slot: Identifier = ba("Destination slot", "A destination slot with a static resolution")
     object_name: Identifier | None = ba("Object name", "Artifact holding the file name", default=None)
+    # a manifest listed in the rule's inputs is stored next to the artifact (<name>.manifest.json)
 
 
 OP_PARAMS: dict[str, type[StrictModel]] = {

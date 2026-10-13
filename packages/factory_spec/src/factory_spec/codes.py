@@ -77,7 +77,11 @@ CODES: dict[str, CodeInfo] = {
         "error", "Give the trigger field a 'pattern' so the value is a safe path segment."
     ),
     "run_key_invalid": CodeInfo("error", "Build the run key only from trigger fields (variables from trigger.*)."),
+    "cel_invalid": CodeInfo(
+        "error", "Fix the CEL expression syntax (e.g. artifacts.listing.count == vars.expected_files)."
+    ),
     "cel_unknown_name": CodeInfo("error", "Use artifacts.<input>, vars.<variable> or run.<field> in expressions."),
+    "jmespath_invalid": CodeInfo("error", "Fix the JMESPath expression, e.g. targets[?slot=='x'] | [0].uri."),
     # triggers and sources
     "event_trigger_without_queue": CodeInfo(
         "error", "Bind the trigger's queue in environments.yaml for every environment."

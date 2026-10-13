@@ -1,0 +1,54 @@
+{
+  "$id": "urn:pipeline-factory:spec:v1:factory-toml",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "api_version": {
+      "default": "factory/v1",
+      "description": "API version",
+      "pattern": "^factory/v1$",
+      "type": "string",
+      "x-ba-label": "API version"
+    },
+    "environments": {
+      "description": "Environments every pipeline must bind",
+      "items": {
+        "pattern": "^[a-z][a-z0-9]{1,9}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "x-ba-label": "Environments"
+    },
+    "platform_settings": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Path to the platform settings folder",
+      "x-ba-label": "Platform settings"
+    },
+    "team": {
+      "anyOf": [
+        {
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The team owning this repository",
+      "x-ba-label": "Team"
+    }
+  },
+  "type": "object",
+  "x-owner-role": "platform"
+}

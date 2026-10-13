@@ -1,0 +1,1060 @@
+{
+  "$defs": {
+    "Alerts": {
+      "additionalProperties": false,
+      "properties": {
+        "config": {
+          "anyOf": [
+            {
+              "maxLength": 63,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "const": "none",
+              "type": "string"
+            }
+          ],
+          "description": "Alert channel for configuration problems",
+          "x-ba-label": "Configuration failures"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "maxLength": 63,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "const": "none",
+              "type": "string"
+            }
+          ],
+          "description": "Alert channel for data problems",
+          "x-ba-label": "Data failures"
+        },
+        "security": {
+          "anyOf": [
+            {
+              "maxLength": 63,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "const": "none",
+              "type": "string"
+            }
+          ],
+          "description": "Alert channel for security problems",
+          "x-ba-label": "Security failures"
+        },
+        "transient": {
+          "anyOf": [
+            {
+              "maxLength": 63,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "const": "none",
+              "type": "string"
+            }
+          ],
+          "default": "none",
+          "description": "Alert channel after retries are exhausted",
+          "x-ba-label": "Transient failures"
+        }
+      },
+      "required": [
+        "data",
+        "config",
+        "security"
+      ],
+      "type": "object"
+    },
+    "ArtifactOverride": {
+      "additionalProperties": false,
+      "properties": {
+        "durability": {
+          "description": "Raise an artifact to staged storage",
+          "enum": [
+            "local",
+            "staged"
+          ],
+          "type": "string",
+          "x-ba-label": "Durability"
+        }
+      },
+      "required": [
+        "durability"
+      ],
+      "type": "object"
+    },
+    "Cost": {
+      "additionalProperties": false,
+      "properties": {
+        "budget_per_month_usd": {
+          "description": "USD per month",
+          "examples": [
+            "2.00"
+          ],
+          "pattern": "^\\d+(\\.\\d{1,2})?$",
+          "type": "string",
+          "x-ba-label": "Budget per month"
+        },
+        "budget_per_run_usd": {
+          "description": "USD per run",
+          "examples": [
+            "2.00"
+          ],
+          "pattern": "^\\d+(\\.\\d{1,2})?$",
+          "type": "string",
+          "x-ba-label": "Budget per run"
+        }
+      },
+      "required": [
+        "budget_per_run_usd",
+        "budget_per_month_usd"
+      ],
+      "type": "object"
+    },
+    "CountDistribution": {
+      "additionalProperties": false,
+      "properties": {
+        "max": {
+          "description": "Largest count per run",
+          "minimum": 0,
+          "type": "integer",
+          "x-ba-label": "Largest"
+        },
+        "p50": {
+          "description": "Median count per run",
+          "minimum": 0,
+          "type": "integer",
+          "x-ba-label": "Typical"
+        },
+        "p95": {
+          "description": "95th percentile count per run",
+          "minimum": 0,
+          "type": "integer",
+          "x-ba-label": "Large"
+        }
+      },
+      "required": [
+        "p50",
+        "p95",
+        "max"
+      ],
+      "type": "object"
+    },
+    "DagSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "catchup": {
+          "default": false,
+          "description": "Run missed schedule intervals",
+          "type": "boolean",
+          "x-ba-label": "Catch up"
+        },
+        "max_active_runs": {
+          "default": 1,
+          "description": "Runs of this pipeline at the same time",
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Parallel runs"
+        },
+        "timeout": {
+          "default": "4h",
+          "description": "A whole run fails after this long",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "Run timeout"
+        }
+      },
+      "type": "object"
+    },
+    "Distribution": {
+      "additionalProperties": false,
+      "properties": {
+        "max": {
+          "description": "Largest size per run",
+          "examples": [
+            "10GB",
+            "512MiB"
+          ],
+          "pattern": "^\\d+(\\.\\d+)?\\s?(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)$",
+          "type": "string",
+          "x-ba-label": "Largest"
+        },
+        "p50": {
+          "description": "Median size per run",
+          "examples": [
+            "10GB",
+            "512MiB"
+          ],
+          "pattern": "^\\d+(\\.\\d+)?\\s?(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)$",
+          "type": "string",
+          "x-ba-label": "Typical"
+        },
+        "p95": {
+          "description": "95th percentile size per run",
+          "examples": [
+            "10GB",
+            "512MiB"
+          ],
+          "pattern": "^\\d+(\\.\\d+)?\\s?(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)$",
+          "type": "string",
+          "x-ba-label": "Large"
+        }
+      },
+      "required": [
+        "p50",
+        "p95",
+        "max"
+      ],
+      "type": "object"
+    },
+    "FieldSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_]*$": {
+                  "$ref": "#/$defs/FieldSpec"
+                }
+              },
+              "propertyNames": {
+                "maxLength": 63
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For object fields",
+          "x-ba-label": "Fields"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FieldSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For list fields",
+          "x-ba-label": "Item type"
+        },
+        "max_items": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For list fields",
+          "x-ba-label": "Maximum items"
+        },
+        "max_length": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum string length",
+          "x-ba-label": "Maximum length"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Largest allowed integer",
+          "x-ba-label": "Maximum"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Smallest allowed integer",
+          "x-ba-label": "Minimum"
+        },
+        "pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Regular expression a string must match",
+          "x-ba-label": "Pattern"
+        },
+        "required": {
+          "default": true,
+          "description": "The field must be present",
+          "type": "boolean",
+          "x-ba-label": "Required"
+        },
+        "type": {
+          "description": "Value type",
+          "enum": [
+            "string",
+            "integer",
+            "boolean",
+            "enum",
+            "list",
+            "object"
+          ],
+          "type": "string",
+          "x-ba-label": "Type"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For enum fields",
+          "x-ba-label": "Allowed values"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    },
+    "ManualTrigger": {
+      "additionalProperties": false,
+      "properties": {
+        "conf": {
+          "$ref": "#/$defs/RecordSpec",
+          "description": "Fields a person supplies when starting a run (run_key is required)",
+          "x-ba-label": "Run parameters"
+        },
+        "type": {
+          "const": "manual",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "conf"
+      ],
+      "type": "object"
+    },
+    "Metadata": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "description": "What the pipeline does, in plain English",
+          "maxLength": 4000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "Description"
+        },
+        "name": {
+          "description": "Short human name",
+          "maxLength": 120,
+          "minLength": 3,
+          "type": "string",
+          "x-ba-label": "Name"
+        },
+        "owners": {
+          "$ref": "#/$defs/Owners",
+          "description": "Who approves each part of the spec",
+          "x-ba-label": "Owners"
+        },
+        "pipeline_id": {
+          "description": "Stable id; never changes after the first deploy",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Pipeline id"
+        },
+        "requirements": {
+          "description": "Requirement ids for traceability",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "spec_version": {
+          "description": "Semantic version of this pipeline",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+          "type": "string",
+          "x-ba-label": "Pipeline version"
+        },
+        "tags": {
+          "description": "Cost allocation and grouping tags",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "type": "string"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Tags"
+        },
+        "team": {
+          "description": "Owning team (matches the team account in platform settings)",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Team"
+        }
+      },
+      "required": [
+        "pipeline_id",
+        "name",
+        "description",
+        "team",
+        "spec_version",
+        "owners"
+      ],
+      "type": "object"
+    },
+    "Observability": {
+      "additionalProperties": false,
+      "properties": {
+        "alerts": {
+          "$ref": "#/$defs/Alerts",
+          "description": "Where each kind of failure is reported",
+          "x-ba-label": "Alerts"
+        },
+        "sla": {
+          "anyOf": [
+            {
+              "examples": [
+                "15m",
+                "4h",
+                "1h30m"
+              ],
+              "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Alert when a run takes longer than this",
+          "x-ba-label": "SLA"
+        }
+      },
+      "required": [
+        "alerts"
+      ],
+      "type": "object"
+    },
+    "Orchestration": {
+      "additionalProperties": false,
+      "properties": {
+        "dag": {
+          "$ref": "#/$defs/DagSettings",
+          "description": "Airflow DAG options",
+          "x-ba-label": "DAG settings"
+        },
+        "pool": {
+          "anyOf": [
+            {
+              "maxLength": 63,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Airflow pool (default: the team pool)",
+          "x-ba-label": "Pool"
+        },
+        "tasks": {
+          "description": "Tasks of the DAG",
+          "items": {
+            "$ref": "#/$defs/Task"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Tasks"
+        }
+      },
+      "required": [
+        "tasks"
+      ],
+      "type": "object"
+    },
+    "Owners": {
+      "additionalProperties": false,
+      "properties": {
+        "business_owner": {
+          "description": "GitHub handle or @org/team",
+          "pattern": "^@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9][A-Za-z0-9_.-]*)?$",
+          "type": "string",
+          "x-ba-label": "Business owner"
+        },
+        "data_engineer": {
+          "description": "GitHub handle or @org/team",
+          "pattern": "^@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9][A-Za-z0-9_.-]*)?$",
+          "type": "string",
+          "x-ba-label": "Data engineer"
+        },
+        "governance": {
+          "description": "GitHub handle or @org/team",
+          "pattern": "^@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9][A-Za-z0-9_.-]*)?$",
+          "type": "string",
+          "x-ba-label": "Governance"
+        },
+        "platform": {
+          "description": "GitHub handle or @org/team",
+          "pattern": "^@[A-Za-z0-9][A-Za-z0-9-]*(/[A-Za-z0-9][A-Za-z0-9_.-]*)?$",
+          "type": "string",
+          "x-ba-label": "Platform"
+        }
+      },
+      "required": [
+        "business_owner",
+        "data_engineer",
+        "governance",
+        "platform"
+      ],
+      "type": "object"
+    },
+    "RecordSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "description": "Declared fields",
+          "minProperties": 1,
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "$ref": "#/$defs/FieldSpec"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Fields"
+        },
+        "unknown_fields": {
+          "default": "ignore",
+          "description": "Ignore or reject fields that are not declared",
+          "enum": [
+            "ignore",
+            "reject"
+          ],
+          "type": "string",
+          "x-ba-label": "Unknown fields"
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "type": "object"
+    },
+    "Reliability": {
+      "additionalProperties": false,
+      "properties": {
+        "replay_window": {
+          "default": "30d",
+          "description": "How long failed runs can be replayed",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "Replay window"
+        },
+        "retry": {
+          "$ref": "#/$defs/RetryPolicy",
+          "description": "Default retry policy for tasks",
+          "x-ba-label": "Retry policy"
+        },
+        "run_key": {
+          "description": "Deterministic key of one run, from trigger fields, e.g. '{request_id}'",
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string",
+          "x-ba-label": "Run key"
+        }
+      },
+      "required": [
+        "run_key"
+      ],
+      "type": "object"
+    },
+    "RetryPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "backoff": {
+          "const": "exponential_jitter",
+          "default": "exponential_jitter",
+          "description": "Wait strategy between attempts",
+          "type": "string",
+          "x-ba-label": "Backoff"
+        },
+        "base": {
+          "default": "10s",
+          "description": "Wait before the second attempt",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "First wait"
+        },
+        "max": {
+          "default": "5m",
+          "description": "Upper bound for one wait",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "Longest wait"
+        },
+        "max_attempts": {
+          "default": 3,
+          "description": "Total attempts for transient failures",
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Attempts"
+        }
+      },
+      "type": "object"
+    },
+    "S3EventTrigger": {
+      "additionalProperties": false,
+      "properties": {
+        "key_prefix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only objects under this prefix",
+          "x-ba-label": "Key prefix"
+        },
+        "key_suffix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only objects ending with this",
+          "x-ba-label": "Key suffix"
+        },
+        "max_receive_count": {
+          "default": 5,
+          "description": "Attempts before the dead-letter queue",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Delivery attempts"
+        },
+        "queue": {
+          "description": "Queue receiving the S3 event notifications",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Queue"
+        },
+        "type": {
+          "const": "s3_event",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "queue"
+      ],
+      "type": "object"
+    },
+    "ScheduleTrigger": {
+      "additionalProperties": false,
+      "properties": {
+        "cron": {
+          "description": "Five-field cron expression, in UTC, e.g. '0 6 * * *'",
+          "type": "string",
+          "x-ba-label": "Schedule"
+        },
+        "type": {
+          "const": "schedule",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "cron"
+      ],
+      "type": "object"
+    },
+    "SqsTrigger": {
+      "additionalProperties": false,
+      "properties": {
+        "envelope": {
+          "default": "raw",
+          "description": "How the message is wrapped",
+          "enum": [
+            "raw",
+            "sns",
+            "eventbridge"
+          ],
+          "type": "string",
+          "x-ba-label": "Message envelope"
+        },
+        "max_receive_count": {
+          "default": 5,
+          "description": "Attempts before a message goes to the dead-letter queue",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Delivery attempts"
+        },
+        "message": {
+          "$ref": "#/$defs/RecordSpec",
+          "description": "The fields the message carries",
+          "x-ba-label": "Message fields"
+        },
+        "mode": {
+          "default": "dispatch",
+          "description": "dispatch: a Lambda snapshots the message and starts the run (default)",
+          "enum": [
+            "dispatch",
+            "in_task"
+          ],
+          "type": "string",
+          "x-ba-label": "Consumption mode"
+        },
+        "queue": {
+          "description": "Queue id; its name per environment is in environments.yaml",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Queue"
+        },
+        "type": {
+          "const": "sqs",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "queue",
+        "message"
+      ],
+      "type": "object"
+    },
+    "Task": {
+      "additionalProperties": false,
+      "properties": {
+        "depends_on": {
+          "description": "Tasks that must finish first",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Depends on"
+        },
+        "engine": {
+          "default": "auto",
+          "description": "Where the task runs; auto lets the planner decide",
+          "enum": [
+            "auto",
+            "lambda",
+            "eks_pod",
+            "eks_pod_spot",
+            "mwaa",
+            "fivetran_native",
+            "fivetran_sdk"
+          ],
+          "type": "string",
+          "x-ba-label": "Engine"
+        },
+        "label": {
+          "default": "",
+          "description": "What the task does",
+          "maxLength": 200,
+          "type": "string",
+          "x-ba-label": "Label"
+        },
+        "retry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetryPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides the pipeline retry policy",
+          "x-ba-label": "Retry policy"
+        },
+        "rules": {
+          "description": "Rule ids run by this task, in order",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Rules"
+        },
+        "task_id": {
+          "description": "Stable id, e.g. t1_collect",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Task id"
+        },
+        "timeout": {
+          "default": "30m",
+          "description": "The task fails after this long",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "Timeout"
+        }
+      },
+      "required": [
+        "task_id",
+        "rules"
+      ],
+      "type": "object"
+    },
+    "Workload": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes_per_run": {
+          "$ref": "#/$defs/Distribution",
+          "description": "Bytes moved per run",
+          "x-ba-label": "Data per run"
+        },
+        "files_per_run": {
+          "$ref": "#/$defs/CountDistribution",
+          "description": "Files per run",
+          "x-ba-label": "Files per run"
+        },
+        "runs_per_day": {
+          "description": "Expected runs per day",
+          "maximum": 100000,
+          "minimum": 0,
+          "type": "integer",
+          "x-ba-label": "Runs per day"
+        }
+      },
+      "required": [
+        "bytes_per_run",
+        "files_per_run",
+        "runs_per_day"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:pipeline-factory:spec:v1:pipeline",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "pipeline.yaml: owned by the data engineer.",
+  "properties": {
+    "api_version": {
+      "const": "factory/v1",
+      "description": "Spec API version",
+      "type": "string",
+      "x-ba-label": "API version"
+    },
+    "artifacts": {
+      "description": "Raise durability of named artifacts",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "$ref": "#/$defs/ArtifactOverride"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 63
+      },
+      "type": "object",
+      "x-ba-label": "Artifact overrides"
+    },
+    "cost": {
+      "$ref": "#/$defs/Cost",
+      "description": "Budgets",
+      "x-ba-label": "Cost"
+    },
+    "kind": {
+      "const": "Pipeline",
+      "description": "Document kind",
+      "type": "string",
+      "x-ba-label": "Kind"
+    },
+    "metadata": {
+      "$ref": "#/$defs/Metadata",
+      "description": "Identity and ownership",
+      "x-ba-label": "Metadata"
+    },
+    "observability": {
+      "$ref": "#/$defs/Observability",
+      "description": "Alerts and SLAs",
+      "x-ba-label": "Observability"
+    },
+    "open_questions": {
+      "description": "Must be empty before generation",
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "x-ba-label": "Open questions"
+    },
+    "orchestration": {
+      "$ref": "#/$defs/Orchestration",
+      "description": "Tasks and their order",
+      "x-ba-label": "Orchestration"
+    },
+    "reliability": {
+      "$ref": "#/$defs/Reliability",
+      "description": "Run key, retries, replay",
+      "x-ba-label": "Reliability"
+    },
+    "schema_version": {
+      "description": "Version of the spec schema this file follows",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "type": "string",
+      "x-ba-label": "Schema version"
+    },
+    "trigger": {
+      "description": "What starts a run",
+      "discriminator": {
+        "mapping": {
+          "manual": "#/$defs/ManualTrigger",
+          "s3_event": "#/$defs/S3EventTrigger",
+          "schedule": "#/$defs/ScheduleTrigger",
+          "sqs": "#/$defs/SqsTrigger"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ScheduleTrigger"
+        },
+        {
+          "$ref": "#/$defs/SqsTrigger"
+        },
+        {
+          "$ref": "#/$defs/S3EventTrigger"
+        },
+        {
+          "$ref": "#/$defs/ManualTrigger"
+        }
+      ],
+      "x-ba-label": "Trigger"
+    },
+    "variables": {
+      "description": "Named run values, e.g. study_id: trigger.message.study_id",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "pattern": "^(trigger\\.(message|conf|object|schedule)\\.[a-z][a-z0-9_]*|portal\\.[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*)$",
+          "type": "string"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 63
+      },
+      "type": "object",
+      "x-ba-label": "Variables"
+    },
+    "workload": {
+      "$ref": "#/$defs/Workload",
+      "description": "Expected sizes, for engine choice and cost",
+      "x-ba-label": "Workload"
+    }
+  },
+  "required": [
+    "api_version",
+    "kind",
+    "schema_version",
+    "metadata",
+    "trigger",
+    "orchestration",
+    "reliability",
+    "observability",
+    "workload",
+    "cost"
+  ],
+  "type": "object",
+  "x-ba-label": "Pipeline: identity, trigger, tasks, reliability",
+  "x-hash": "logic",
+  "x-owner-role": "data_engineer"
+}

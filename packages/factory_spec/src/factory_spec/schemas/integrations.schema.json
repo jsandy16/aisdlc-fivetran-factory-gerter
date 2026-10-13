@@ -1,0 +1,1187 @@
+{
+  "$defs": {
+    "ApiKeyAuth": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "e.g. X-Api-Key",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string",
+          "x-ba-label": "Header/parameter name"
+        },
+        "secret": {
+          "description": "Secret name holding the API key",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Key secret"
+        },
+        "send_in": {
+          "default": "header",
+          "description": "Header or query parameter",
+          "enum": [
+            "header",
+            "query"
+          ],
+          "type": "string",
+          "x-ba-label": "Sent in"
+        },
+        "type": {
+          "const": "api_key",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "secret",
+        "name"
+      ],
+      "type": "object"
+    },
+    "ApiReliability": {
+      "additionalProperties": false,
+      "properties": {
+        "backoff_base": {
+          "default": "1s",
+          "description": "First wait",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "First wait"
+        },
+        "backoff_max": {
+          "default": "30s",
+          "description": "Longest wait",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "Longest wait"
+        },
+        "breaker_failure_threshold": {
+          "default": 5,
+          "description": "Consecutive failures that open the breaker",
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Circuit breaker threshold"
+        },
+        "breaker_reset_after": {
+          "default": "60s",
+          "description": "Circuit breaker reset",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "Circuit breaker reset"
+        },
+        "connect_timeout": {
+          "default": "5s",
+          "description": "Connect timeout",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "Connect timeout"
+        },
+        "honour_retry_after": {
+          "default": true,
+          "description": "Honour Retry-After",
+          "type": "boolean",
+          "x-ba-label": "Honour Retry-After"
+        },
+        "max_attempts": {
+          "default": 5,
+          "description": "Total attempts on 429/5xx",
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Attempts"
+        },
+        "rate_limit_per_second": {
+          "default": 5,
+          "description": "Requests per second per process",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Rate limit"
+        },
+        "read_timeout": {
+          "default": "30s",
+          "description": "Read timeout",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "Read timeout"
+        },
+        "retry_on_status": {
+          "description": "HTTP status codes that are retried",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array",
+          "x-ba-label": "Retry on status"
+        }
+      },
+      "type": "object"
+    },
+    "ApiSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "auth": {
+          "description": "How the factory authenticates",
+          "discriminator": {
+            "mapping": {
+              "api_key": "#/$defs/ApiKeyAuth",
+              "mtls": "#/$defs/MtlsAuth",
+              "oauth2_client_credentials": "#/$defs/OAuth2ClientCredentials"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/OAuth2ClientCredentials"
+            },
+            {
+              "$ref": "#/$defs/ApiKeyAuth"
+            },
+            {
+              "$ref": "#/$defs/MtlsAuth"
+            }
+          ],
+          "x-ba-label": "Authentication"
+        },
+        "endpoints": {
+          "description": "Endpoints the pipeline calls",
+          "items": {
+            "$ref": "#/$defs/Endpoint"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Endpoints"
+        },
+        "label": {
+          "default": "",
+          "description": "What this API is",
+          "maxLength": 200,
+          "type": "string",
+          "x-ba-label": "Label"
+        },
+        "reliability": {
+          "$ref": "#/$defs/ApiReliability",
+          "description": "Timeouts, retries, breaker, rate limit",
+          "x-ba-label": "Reliability"
+        }
+      },
+      "required": [
+        "auth",
+        "endpoints"
+      ],
+      "type": "object"
+    },
+    "CursorPagination": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor_param": {
+          "default": "cursor",
+          "description": "Query parameter carrying the cursor",
+          "type": "string",
+          "x-ba-label": "Cursor parameter"
+        },
+        "next": {
+          "description": "Where the next cursor is in the response",
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string",
+          "x-ba-label": "Next cursor"
+        },
+        "type": {
+          "const": "cursor",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "next"
+      ],
+      "type": "object"
+    },
+    "DatabaseSource": {
+      "additionalProperties": false,
+      "properties": {
+        "credentials": {
+          "description": "Secret name holding the connection credentials",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Credentials"
+        },
+        "engine": {
+          "description": "Database product",
+          "enum": [
+            "postgres",
+            "mysql",
+            "sqlserver",
+            "oracle"
+          ],
+          "type": "string",
+          "x-ba-label": "Database engine"
+        },
+        "id": {
+          "description": "Stable id (also the Fivetran connection name)",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Source id"
+        },
+        "label": {
+          "default": "",
+          "description": "What this source is",
+          "maxLength": 200,
+          "type": "string",
+          "x-ba-label": "Label"
+        },
+        "tables": {
+          "description": "schema.table names to replicate",
+          "items": {
+            "maxLength": 255,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_$]*\\.[A-Za-z_][A-Za-z0-9_$]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Tables"
+        },
+        "type": {
+          "const": "database",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "engine",
+        "credentials",
+        "tables"
+      ],
+      "type": "object"
+    },
+    "DestinationSlot": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_types": {
+          "description": "Destination types this slot accepts",
+          "items": {
+            "enum": [
+              "s3",
+              "sftp",
+              "https"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Allowed types"
+        },
+        "id": {
+          "description": "Stable id, e.g. x",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Slot id"
+        },
+        "label": {
+          "default": "",
+          "description": "What this destination is",
+          "maxLength": 200,
+          "type": "string",
+          "x-ba-label": "Label"
+        },
+        "required": {
+          "default": true,
+          "description": "The run fails if this destination cannot be delivered",
+          "type": "boolean",
+          "x-ba-label": "Required"
+        },
+        "resolve": {
+          "description": "Where the destination comes from",
+          "discriminator": {
+            "mapping": {
+              "portal": "#/$defs/PortalResolve",
+              "static": "#/$defs/StaticResolve"
+            },
+            "propertyName": "via"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/PortalResolve"
+            },
+            {
+              "$ref": "#/$defs/StaticResolve"
+            }
+          ],
+          "x-ba-label": "Resolution"
+        }
+      },
+      "required": [
+        "id",
+        "resolve",
+        "allowed_types"
+      ],
+      "type": "object"
+    },
+    "Endpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Stable id",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Endpoint id"
+        },
+        "mapping": {
+          "$ref": "#/$defs/ResponseMapping",
+          "description": "What to take from the response",
+          "x-ba-label": "Mapping"
+        },
+        "method": {
+          "default": "GET",
+          "description": "HTTP method",
+          "enum": [
+            "GET",
+            "POST"
+          ],
+          "type": "string",
+          "x-ba-label": "Method"
+        },
+        "pagination": {
+          "description": "How results are paged",
+          "discriminator": {
+            "mapping": {
+              "cursor": "#/$defs/CursorPagination",
+              "link_header": "#/$defs/LinkHeaderPagination",
+              "none": "#/$defs/NoPagination",
+              "page": "#/$defs/PagePagination"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/NoPagination"
+            },
+            {
+              "$ref": "#/$defs/PagePagination"
+            },
+            {
+              "$ref": "#/$defs/CursorPagination"
+            },
+            {
+              "$ref": "#/$defs/LinkHeaderPagination"
+            }
+          ],
+          "x-ba-label": "Pagination"
+        },
+        "path": {
+          "description": "Path template, e.g. /api/v1/studies/{study_id}/delivery-targets",
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string",
+          "x-ba-label": "Path"
+        },
+        "query": {
+          "additionalProperties": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": "Query parameter templates",
+          "type": "object",
+          "x-ba-label": "Query parameters"
+        },
+        "response": {
+          "$ref": "#/$defs/RecordSpec",
+          "description": "The fields the response must contain",
+          "x-ba-label": "Response fields"
+        }
+      },
+      "required": [
+        "id",
+        "path",
+        "pagination",
+        "response"
+      ],
+      "type": "object"
+    },
+    "Expectation": {
+      "additionalProperties": false,
+      "properties": {
+        "equals": {
+          "description": "Expected value, e.g. '{study_id}'",
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string",
+          "x-ba-label": "Must equal"
+        },
+        "path": {
+          "description": "Where to look in the response",
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string",
+          "x-ba-label": "Response path"
+        }
+      },
+      "required": [
+        "path",
+        "equals"
+      ],
+      "type": "object"
+    },
+    "FieldSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_]*$": {
+                  "$ref": "#/$defs/FieldSpec"
+                }
+              },
+              "propertyNames": {
+                "maxLength": 63
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For object fields",
+          "x-ba-label": "Fields"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FieldSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For list fields",
+          "x-ba-label": "Item type"
+        },
+        "max_items": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For list fields",
+          "x-ba-label": "Maximum items"
+        },
+        "max_length": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum string length",
+          "x-ba-label": "Maximum length"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Largest allowed integer",
+          "x-ba-label": "Maximum"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Smallest allowed integer",
+          "x-ba-label": "Minimum"
+        },
+        "pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Regular expression a string must match",
+          "x-ba-label": "Pattern"
+        },
+        "required": {
+          "default": true,
+          "description": "The field must be present",
+          "type": "boolean",
+          "x-ba-label": "Required"
+        },
+        "type": {
+          "description": "Value type",
+          "enum": [
+            "string",
+            "integer",
+            "boolean",
+            "enum",
+            "list",
+            "object"
+          ],
+          "type": "string",
+          "x-ba-label": "Type"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For enum fields",
+          "x-ba-label": "Allowed values"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    },
+    "LinkHeaderPagination": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "link_header",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    },
+    "MtlsAuth": {
+      "additionalProperties": false,
+      "properties": {
+        "ca": {
+          "anyOf": [
+            {
+              "maxLength": 63,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Secret name holding a private CA bundle",
+          "x-ba-label": "CA bundle"
+        },
+        "cert": {
+          "description": "Secret name holding the client certificate",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Client certificate"
+        },
+        "key": {
+          "description": "Secret name holding the client key",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Client key"
+        },
+        "type": {
+          "const": "mtls",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "cert",
+        "key"
+      ],
+      "type": "object"
+    },
+    "NamedApi": {
+      "additionalProperties": false,
+      "properties": {
+        "auth": {
+          "description": "How the factory authenticates",
+          "discriminator": {
+            "mapping": {
+              "api_key": "#/$defs/ApiKeyAuth",
+              "mtls": "#/$defs/MtlsAuth",
+              "oauth2_client_credentials": "#/$defs/OAuth2ClientCredentials"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/OAuth2ClientCredentials"
+            },
+            {
+              "$ref": "#/$defs/ApiKeyAuth"
+            },
+            {
+              "$ref": "#/$defs/MtlsAuth"
+            }
+          ],
+          "x-ba-label": "Authentication"
+        },
+        "endpoints": {
+          "description": "Endpoints the pipeline calls",
+          "items": {
+            "$ref": "#/$defs/Endpoint"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Endpoints"
+        },
+        "id": {
+          "description": "Stable id",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "API id"
+        },
+        "label": {
+          "default": "",
+          "description": "What this API is",
+          "maxLength": 200,
+          "type": "string",
+          "x-ba-label": "Label"
+        },
+        "reliability": {
+          "$ref": "#/$defs/ApiReliability",
+          "description": "Timeouts, retries, breaker, rate limit",
+          "x-ba-label": "Reliability"
+        }
+      },
+      "required": [
+        "auth",
+        "endpoints",
+        "id"
+      ],
+      "type": "object"
+    },
+    "NoPagination": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "none",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    },
+    "OAuth2ClientCredentials": {
+      "additionalProperties": false,
+      "properties": {
+        "client": {
+          "description": "Secret name holding client_id and client_secret",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Client secret"
+        },
+        "scopes": {
+          "description": "OAuth scopes",
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Scopes"
+        },
+        "token_path": {
+          "description": "Path of the token endpoint on the API host",
+          "pattern": "^/[A-Za-z0-9._/-]*$",
+          "type": "string",
+          "x-ba-label": "Token path"
+        },
+        "type": {
+          "const": "oauth2_client_credentials",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "token_path",
+        "client"
+      ],
+      "type": "object"
+    },
+    "PagePagination": {
+      "additionalProperties": false,
+      "properties": {
+        "page_param": {
+          "default": "page",
+          "description": "Query parameter carrying the page number",
+          "type": "string",
+          "x-ba-label": "Page parameter"
+        },
+        "size": {
+          "default": 100,
+          "description": "Items per page",
+          "maximum": 10000,
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Page size"
+        },
+        "size_param": {
+          "default": "size",
+          "description": "Query parameter carrying the page size",
+          "type": "string",
+          "x-ba-label": "Size parameter"
+        },
+        "type": {
+          "const": "page",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    },
+    "PortalResolve": {
+      "additionalProperties": false,
+      "properties": {
+        "endpoint": {
+          "description": "Endpoint whose mapping gives this slot's URI",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Portal endpoint"
+        },
+        "via": {
+          "const": "portal",
+          "type": "string",
+          "x-ba-label": "Via"
+        }
+      },
+      "required": [
+        "via",
+        "endpoint"
+      ],
+      "type": "object"
+    },
+    "RecordSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "description": "Declared fields",
+          "minProperties": 1,
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "$ref": "#/$defs/FieldSpec"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Fields"
+        },
+        "unknown_fields": {
+          "default": "ignore",
+          "description": "Ignore or reject fields that are not declared",
+          "enum": [
+            "ignore",
+            "reject"
+          ],
+          "type": "string",
+          "x-ba-label": "Unknown fields"
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "type": "object"
+    },
+    "ResponseMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "destinations": {
+          "description": "JMESPath per destination slot giving the destination URI",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Destinations"
+        },
+        "expect": {
+          "description": "Checks the response must pass",
+          "items": {
+            "$ref": "#/$defs/Expectation"
+          },
+          "type": "array",
+          "x-ba-label": "Expectations"
+        },
+        "values": {
+          "description": "Named values taken from the response",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Values"
+        }
+      },
+      "type": "object"
+    },
+    "S3Source": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Stable id",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Source id"
+        },
+        "label": {
+          "default": "",
+          "description": "What this source is",
+          "maxLength": 200,
+          "type": "string",
+          "x-ba-label": "Label"
+        },
+        "location": {
+          "description": "Where the bucket and prefix come from",
+          "discriminator": {
+            "mapping": {
+              "static": "#/$defs/StaticLocation",
+              "trigger": "#/$defs/TriggerLocation"
+            },
+            "propertyName": "via"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/TriggerLocation"
+            },
+            {
+              "$ref": "#/$defs/StaticLocation"
+            }
+          ],
+          "x-ba-label": "Location"
+        },
+        "type": {
+          "const": "s3",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "location"
+      ],
+      "type": "object"
+    },
+    "SecretRef": {
+      "additionalProperties": false,
+      "description": "A reference to a secret; the value is never in a spec.",
+      "properties": {
+        "key": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_.-]{1,128}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Field inside the secret (JSON key or KV field)",
+          "x-ba-label": "Key"
+        },
+        "kind": {
+          "description": "What the secret is",
+          "enum": [
+            "password",
+            "ssh_private_key",
+            "tls_client_cert",
+            "tls_client_key",
+            "ca_bundle",
+            "oauth_client",
+            "api_key",
+            "aes_key",
+            "generic"
+          ],
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "path": {
+          "description": "Path template; tokens: env, team, pipeline_id",
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string",
+          "x-ba-label": "Path"
+        },
+        "provider": {
+          "description": "HashiCorp Vault or AWS Secrets Manager",
+          "enum": [
+            "vault",
+            "aws_secrets_manager"
+          ],
+          "type": "string",
+          "x-ba-label": "Secret store"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pinned version or stage; empty = current",
+          "x-ba-label": "Version"
+        }
+      },
+      "required": [
+        "provider",
+        "path",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "StaticLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "prefix": {
+          "default": "",
+          "description": "Folder under the bound bucket, ending with / (empty: the whole bucket)",
+          "maxLength": 900,
+          "pattern": "^(([A-Za-z0-9_][A-Za-z0-9._-]*/)+)?$",
+          "type": "string",
+          "x-ba-label": "Prefix"
+        },
+        "via": {
+          "const": "static",
+          "type": "string",
+          "x-ba-label": "Via"
+        }
+      },
+      "required": [
+        "via"
+      ],
+      "type": "object"
+    },
+    "StaticResolve": {
+      "additionalProperties": false,
+      "properties": {
+        "entry": {
+          "description": "destinations.yaml entry id (same id in every environment)",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Allow-list entry"
+        },
+        "path": {
+          "description": "Path or prefix under the entry, e.g. studies/{study_id}/in/",
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string",
+          "x-ba-label": "Path"
+        },
+        "via": {
+          "const": "static",
+          "type": "string",
+          "x-ba-label": "Via"
+        }
+      },
+      "required": [
+        "via",
+        "entry",
+        "path"
+      ],
+      "type": "object"
+    },
+    "TriggerLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "bucket_field": {
+          "description": "Trigger field holding the bucket name",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Bucket field"
+        },
+        "prefix_field": {
+          "description": "Trigger field holding the prefix (folder)",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Prefix field"
+        },
+        "via": {
+          "const": "trigger",
+          "type": "string",
+          "x-ba-label": "Via"
+        }
+      },
+      "required": [
+        "via",
+        "bucket_field",
+        "prefix_field"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:pipeline-factory:spec:v1:integrations",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "integrations.yaml: owned by the data engineer.",
+  "properties": {
+    "apis": {
+      "description": "External REST APIs",
+      "items": {
+        "$ref": "#/$defs/NamedApi"
+      },
+      "type": "array",
+      "x-ba-label": "Other APIs"
+    },
+    "destinations": {
+      "description": "Where data is delivered",
+      "items": {
+        "$ref": "#/$defs/DestinationSlot"
+      },
+      "type": "array",
+      "x-ba-label": "Destination slots"
+    },
+    "portal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ApiSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Portal integration",
+      "x-ba-label": "Self-service portal"
+    },
+    "secrets": {
+      "description": "Named secret references",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "$ref": "#/$defs/SecretRef"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 63
+      },
+      "type": "object",
+      "x-ba-label": "Secrets"
+    },
+    "sources": {
+      "description": "Where data is read from",
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "database": "#/$defs/DatabaseSource",
+            "s3": "#/$defs/S3Source"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/S3Source"
+          },
+          {
+            "$ref": "#/$defs/DatabaseSource"
+          }
+        ]
+      },
+      "type": "array",
+      "x-ba-label": "Sources"
+    }
+  },
+  "type": "object",
+  "x-ba-label": "Integrations: sources, portal, destinations, secrets",
+  "x-hash": "logic",
+  "x-owner-role": "data_engineer"
+}

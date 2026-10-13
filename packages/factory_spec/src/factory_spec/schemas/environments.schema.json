@@ -1,0 +1,394 @@
+{
+  "$defs": {
+    "ApiBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "base_url": {
+          "description": "https:// base URL in this environment",
+          "type": "string",
+          "x-ba-label": "Base URL"
+        }
+      },
+      "required": [
+        "base_url"
+      ],
+      "type": "object"
+    },
+    "EmailChannel": {
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "description": "Distribution list",
+          "pattern": "^[^@\\s]+@[^@\\s]+\\.[a-z]{2,}$",
+          "type": "string",
+          "x-ba-label": "Email"
+        },
+        "type": {
+          "const": "email",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "address"
+      ],
+      "type": "object"
+    },
+    "EnvBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "alert_channels": {
+          "description": "Channels by name",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "discriminator": {
+                "mapping": {
+                  "email": "#/$defs/EmailChannel",
+                  "slack": "#/$defs/SlackChannel",
+                  "sns": "#/$defs/SnsChannel"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/SnsChannel"
+                },
+                {
+                  "$ref": "#/$defs/EmailChannel"
+                },
+                {
+                  "$ref": "#/$defs/SlackChannel"
+                }
+              ]
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Alert channels"
+        },
+        "apis": {
+          "description": "API base URLs by API id",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "$ref": "#/$defs/ApiBinding"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "APIs"
+        },
+        "enabled": {
+          "default": true,
+          "description": "Deploy to this environment",
+          "type": "boolean",
+          "x-ba-label": "Enabled"
+        },
+        "placement": {
+          "$ref": "#/$defs/Placement",
+          "description": "Account aliases",
+          "x-ba-label": "Placement"
+        },
+        "portal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApiBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Portal base URL",
+          "x-ba-label": "Portal"
+        },
+        "queues": {
+          "description": "Queue names by queue id",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "$ref": "#/$defs/QueueBinding"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Queues"
+        },
+        "schedule_cron": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Cron override for this environment",
+          "x-ba-label": "Schedule override"
+        },
+        "secrets": {
+          "$ref": "#/$defs/SecretStores",
+          "description": "Secret store bindings",
+          "x-ba-label": "Secret stores"
+        },
+        "sources": {
+          "description": "Source bindings by source id",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "$ref": "#/$defs/SourceBinding"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Sources"
+        }
+      },
+      "type": "object"
+    },
+    "Placement": {
+      "additionalProperties": false,
+      "properties": {
+        "orchestration": {
+          "default": "mwaa",
+          "description": "Placement alias of the MWAA environment",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Orchestration placement"
+        },
+        "workload": {
+          "default": "team",
+          "description": "Placement alias of the team account",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Workload placement"
+        }
+      },
+      "type": "object"
+    },
+    "QueueBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "SQS queue name in the team account",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$",
+          "type": "string",
+          "x-ba-label": "Queue name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "SecretStores": {
+      "additionalProperties": false,
+      "properties": {
+        "aws_secrets_manager": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SecretsManagerBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Secrets Manager binding",
+          "x-ba-label": "Secrets Manager"
+        },
+        "vault": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VaultBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vault binding",
+          "x-ba-label": "Vault"
+        }
+      },
+      "type": "object"
+    },
+    "SecretsManagerBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "prefix": {
+          "default": "",
+          "description": "Prefix of secret names in this account",
+          "pattern": "^[A-Za-z0-9/_+=.@-]{0,128}$",
+          "type": "string",
+          "x-ba-label": "Name prefix"
+        }
+      },
+      "type": "object"
+    },
+    "SlackChannel": {
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "description": "e.g. #clinops-alerts",
+          "pattern": "^#[a-z0-9_-]{1,80}$",
+          "type": "string",
+          "x-ba-label": "Slack channel"
+        },
+        "type": {
+          "const": "slack",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "channel"
+      ],
+      "type": "object"
+    },
+    "SnsChannel": {
+      "additionalProperties": false,
+      "properties": {
+        "topic": {
+          "description": "Topic name in the team account",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$",
+          "type": "string",
+          "x-ba-label": "SNS topic"
+        },
+        "type": {
+          "const": "sns",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "topic"
+      ],
+      "type": "object"
+    },
+    "SourceBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "bucket": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For static sources: the bucket",
+          "x-ba-label": "Bucket"
+        },
+        "buckets": {
+          "description": "Buckets this source may read in this environment",
+          "items": {
+            "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Allowed buckets"
+        },
+        "fivetran_group": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For database sources: the Fivetran destination group id",
+          "x-ba-label": "Fivetran group"
+        },
+        "placement": {
+          "default": "team",
+          "description": "Account alias of the buckets",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Placement"
+        },
+        "prefix_roots": {
+          "description": "Folders a trigger-supplied prefix must start with",
+          "items": {
+            "maxLength": 512,
+            "pattern": "^([A-Za-z0-9_][A-Za-z0-9._-]*/)+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Allowed prefixes"
+        }
+      },
+      "type": "object"
+    },
+    "VaultBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "mount": {
+          "description": "Vault KV v2 mount",
+          "pattern": "^[a-z0-9_-]{1,64}$",
+          "type": "string",
+          "x-ba-label": "KV mount"
+        },
+        "namespace": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9_/-]{1,128}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vault Enterprise namespace",
+          "x-ba-label": "Namespace"
+        }
+      },
+      "required": [
+        "mount"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:pipeline-factory:spec:v1:environments",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "environments.yaml: owned by the platform team.",
+  "properties": {
+    "environments": {
+      "description": "Bindings per environment (dev, test, ppt, prod)",
+      "patternProperties": {
+        "^[a-z][a-z0-9]{1,9}$": {
+          "$ref": "#/$defs/EnvBinding"
+        }
+      },
+      "type": "object",
+      "x-ba-label": "Environments"
+    }
+  },
+  "required": [
+    "environments"
+  ],
+  "type": "object",
+  "x-ba-label": "Environments: per-environment bindings",
+  "x-hash": "binding",
+  "x-owner-role": "platform"
+}

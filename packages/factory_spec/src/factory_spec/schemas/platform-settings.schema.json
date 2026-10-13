@@ -1,0 +1,395 @@
+{
+  "$defs": {
+    "Account": {
+      "additionalProperties": false,
+      "properties": {
+        "account_id": {
+          "description": "12-digit AWS account id",
+          "pattern": "^\\d{12}$",
+          "type": "string",
+          "x-ba-label": "Account id"
+        }
+      },
+      "required": [
+        "account_id"
+      ],
+      "type": "object"
+    },
+    "IdentitySettings": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "default": "pod_identity",
+          "enum": [
+            "pod_identity",
+            "irsa"
+          ],
+          "type": "string",
+          "x-ba-label": "Default"
+        }
+      },
+      "type": "object"
+    },
+    "LambdaLimitsSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "ephemeral_storage": {
+          "default": "10240MiB",
+          "description": "Lambda /tmp maximum",
+          "examples": [
+            "10GB",
+            "512MiB"
+          ],
+          "pattern": "^\\d+(\\.\\d+)?\\s?(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)$",
+          "type": "string",
+          "x-ba-label": "Ephemeral storage"
+        },
+        "memory": {
+          "default": "10240MiB",
+          "description": "Lambda maximum",
+          "examples": [
+            "10GB",
+            "512MiB"
+          ],
+          "pattern": "^\\d+(\\.\\d+)?\\s?(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)$",
+          "type": "string",
+          "x-ba-label": "Memory"
+        },
+        "timeout": {
+          "default": "15m",
+          "description": "Lambda maximum",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "Timeout"
+        }
+      },
+      "type": "object"
+    },
+    "Limits": {
+      "additionalProperties": false,
+      "properties": {
+        "lambda": {
+          "$ref": "#/$defs/LambdaLimitsSettings",
+          "description": "Lambda limits",
+          "x-ba-label": "Lambda limits"
+        },
+        "max_package_bytes": {
+          "default": "10GB",
+          "description": "Per run",
+          "examples": [
+            "10GB",
+            "512MiB"
+          ],
+          "pattern": "^\\d+(\\.\\d+)?\\s?(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)$",
+          "type": "string",
+          "x-ba-label": "Largest package"
+        }
+      },
+      "type": "object"
+    },
+    "MwaaSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "airflow_version": {
+          "description": "Airflow version",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "type": "string",
+          "x-ba-label": "Airflow version"
+        },
+        "environment_name": {
+          "description": "MWAA environment",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$",
+          "type": "string",
+          "x-ba-label": "MWAA environment"
+        },
+        "launcher_role_pattern": {
+          "description": "e.g. factory-launcher-{team}",
+          "type": "string",
+          "x-ba-label": "Launcher role pattern"
+        },
+        "rbac_role_pattern": {
+          "description": "e.g. team_{team}",
+          "type": "string",
+          "x-ba-label": "RBAC role pattern"
+        },
+        "trigger_role_pattern": {
+          "description": "e.g. factory-trigger-{team}",
+          "type": "string",
+          "x-ba-label": "Trigger role pattern"
+        }
+      },
+      "required": [
+        "environment_name",
+        "airflow_version",
+        "rbac_role_pattern",
+        "trigger_role_pattern",
+        "launcher_role_pattern"
+      ],
+      "type": "object"
+    },
+    "PlacementDef": {
+      "additionalProperties": false,
+      "properties": {
+        "account": {
+          "description": "Account key, or @team for the pipeline's own team account",
+          "pattern": "^(@team|[a-z][a-z0-9_]*)$",
+          "type": "string",
+          "x-ba-label": "Account"
+        },
+        "role": {
+          "description": "What runs or lives there",
+          "enum": [
+            "orchestration",
+            "workload",
+            "destination"
+          ],
+          "type": "string",
+          "x-ba-label": "Role"
+        }
+      },
+      "required": [
+        "account",
+        "role"
+      ],
+      "type": "object"
+    },
+    "TeamEks": {
+      "additionalProperties": false,
+      "properties": {
+        "cluster": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$",
+          "type": "string",
+          "x-ba-label": "Cluster"
+        },
+        "namespace": {
+          "description": "Namespace",
+          "pattern": "^[a-z0-9-]{1,63}$",
+          "type": "string",
+          "x-ba-label": "Namespace"
+        }
+      },
+      "required": [
+        "cluster",
+        "namespace"
+      ],
+      "type": "object"
+    },
+    "TeamSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "account": {
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Account"
+        },
+        "eks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TeamEks"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only when the team has pipelines that need pods",
+          "x-ba-label": "EKS"
+        },
+        "kms_aliases": {
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "pattern": "^alias/[A-Za-z0-9/_-]{1,250}$",
+              "type": "string"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Kms aliases"
+        },
+        "stores": {
+          "$ref": "#/$defs/TeamStores",
+          "x-ba-label": "Stores"
+        }
+      },
+      "required": [
+        "account",
+        "stores",
+        "kms_aliases"
+      ],
+      "type": "object"
+    },
+    "TeamStores": {
+      "additionalProperties": false,
+      "properties": {
+        "audit_store": {
+          "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+          "type": "string",
+          "x-ba-label": "Audit store"
+        },
+        "bundle_store": {
+          "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+          "type": "string",
+          "x-ba-label": "Bundle store"
+        },
+        "run_state_table": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$",
+          "type": "string",
+          "x-ba-label": "Run state table"
+        },
+        "staging_bucket": {
+          "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+          "type": "string",
+          "x-ba-label": "Staging bucket"
+        }
+      },
+      "required": [
+        "staging_bucket",
+        "run_state_table",
+        "bundle_store",
+        "audit_store"
+      ],
+      "type": "object"
+    },
+    "VaultSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "description": "Address",
+          "pattern": "^https://[a-z0-9.-]+(:\\d{1,5})?$",
+          "type": "string",
+          "x-ba-label": "Address"
+        },
+        "auth_method": {
+          "default": "aws",
+          "enum": [
+            "aws",
+            "approle"
+          ],
+          "type": "string",
+          "x-ba-label": "Auth method"
+        },
+        "auth_mount": {
+          "default": "aws",
+          "description": "Auth mount",
+          "pattern": "^[a-z0-9_-]{1,64}$",
+          "type": "string",
+          "x-ba-label": "Auth mount"
+        }
+      },
+      "required": [
+        "address"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:pipeline-factory:spec:v1:platform-settings",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "account_model": {
+      "enum": [
+        "account_per_team",
+        "shared_per_env"
+      ],
+      "type": "string",
+      "x-ba-label": "Account model"
+    },
+    "accounts": {
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "$ref": "#/$defs/Account"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 63
+      },
+      "type": "object",
+      "x-ba-label": "Accounts"
+    },
+    "environment": {
+      "pattern": "^[a-z][a-z0-9]{1,9}$",
+      "type": "string",
+      "x-ba-label": "Environment"
+    },
+    "identity": {
+      "$ref": "#/$defs/IdentitySettings",
+      "description": "Workload identity",
+      "x-ba-label": "Workload identity"
+    },
+    "limits": {
+      "$ref": "#/$defs/Limits",
+      "description": "Limits",
+      "x-ba-label": "Limits"
+    },
+    "mwaa": {
+      "$ref": "#/$defs/MwaaSettings",
+      "x-ba-label": "Mwaa"
+    },
+    "placements": {
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "$ref": "#/$defs/PlacementDef"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 63
+      },
+      "type": "object",
+      "x-ba-label": "Placements"
+    },
+    "region": {
+      "pattern": "^[a-z]{2}(-gov)?-[a-z]+-\\d$",
+      "type": "string",
+      "x-ba-label": "Region"
+    },
+    "settings_version": {
+      "const": 1,
+      "type": "integer",
+      "x-ba-label": "Settings version"
+    },
+    "teams": {
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "$ref": "#/$defs/TeamSettings"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 63
+      },
+      "type": "object",
+      "x-ba-label": "Teams"
+    },
+    "vault": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VaultSettings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "x-ba-label": "Vault"
+    }
+  },
+  "required": [
+    "settings_version",
+    "environment",
+    "region",
+    "account_model",
+    "accounts",
+    "placements",
+    "mwaa",
+    "teams"
+  ],
+  "type": "object",
+  "x-owner-role": "platform"
+}

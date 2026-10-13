@@ -1,0 +1,2528 @@
+{
+  "$defs": {
+    "Builtin_checksum_compute": {
+      "additionalProperties": false,
+      "description": "Built-in op checksum.compute.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "checksum.compute",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/ChecksumComputeParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_destination_deliver": {
+      "additionalProperties": false,
+      "description": "Built-in op destination.deliver.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "destination.deliver",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/DeliverParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_destination_resolve": {
+      "additionalProperties": false,
+      "description": "Built-in op destination.resolve.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "destination.resolve",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/DestinationResolveParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_fivetran_sync": {
+      "additionalProperties": false,
+      "description": "Built-in op fivetran.sync.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "fivetran.sync",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/FivetranSyncParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_https_put": {
+      "additionalProperties": false,
+      "description": "Built-in op https.put.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "https.put",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/StaticPutParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_manifest_build": {
+      "additionalProperties": false,
+      "description": "Built-in op manifest.build.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "manifest.build",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/ManifestBuildParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object"
+    },
+    "Builtin_naming_render": {
+      "additionalProperties": false,
+      "description": "Built-in op naming.render.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "naming.render",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/NamingRenderParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_package_zip": {
+      "additionalProperties": false,
+      "description": "Built-in op package.zip.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "package.zip",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/PackageZipParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object"
+    },
+    "Builtin_portal_lookup": {
+      "additionalProperties": false,
+      "description": "Built-in op portal.lookup.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "portal.lookup",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/PortalLookupParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_rest_fetch": {
+      "additionalProperties": false,
+      "description": "Built-in op rest.fetch.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "rest.fetch",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/RestFetchParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_s3_copy": {
+      "additionalProperties": false,
+      "description": "Built-in op s3.copy.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "s3.copy",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/StaticPutParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_s3_download": {
+      "additionalProperties": false,
+      "description": "Built-in op s3.download.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "s3.download",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/S3DownloadParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object"
+    },
+    "Builtin_s3_list": {
+      "additionalProperties": false,
+      "description": "Built-in op s3.list.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "s3.list",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/S3ListParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_s3_put": {
+      "additionalProperties": false,
+      "description": "Built-in op s3.put.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "s3.put",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/StaticPutParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_sftp_put": {
+      "additionalProperties": false,
+      "description": "Built-in op sftp.put.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "sftp.put",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/StaticPutParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
+    "Builtin_sqs_read": {
+      "additionalProperties": false,
+      "description": "Built-in op sqs.read.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "sqs.read",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/NoParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object"
+    },
+    "Builtin_validate_file_count": {
+      "additionalProperties": false,
+      "description": "Built-in op validate.file_count.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "validate.file_count",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/FileCountParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object"
+    },
+    "Builtin_validate_manifest_match": {
+      "additionalProperties": false,
+      "description": "Built-in op validate.manifest_match.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "validate.manifest_match",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/NoParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object"
+    },
+    "Builtin_validate_total_size": {
+      "additionalProperties": false,
+      "description": "Built-in op validate.total_size.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "validate.total_size",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/TotalSizeParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object"
+    },
+    "ChecksumComputeParams": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithms": {
+          "description": "Which checksums to compute, e.g. [md5, sha256]",
+          "items": {
+            "enum": [
+              "md5",
+              "sha256",
+              "sha512"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Checksums"
+        },
+        "compare_with_manifest": {
+          "default": true,
+          "description": "Fail if the re-computed checksums differ from the manifest",
+          "type": "boolean",
+          "x-ba-label": "Compare with the manifest"
+        }
+      },
+      "required": [
+        "algorithms"
+      ],
+      "type": "object"
+    },
+    "ChecksumRule": {
+      "additionalProperties": false,
+      "description": "A rule of category checksum.",
+      "properties": {
+        "category": {
+          "const": "checksum",
+          "type": "string",
+          "x-ba-label": "Category"
+        },
+        "implementation": {
+          "discriminator": {
+            "mapping": {
+              "builtin": "#/$defs/Builtin_checksum_compute",
+              "custom": "#/$defs/CustomImpl"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Builtin_checksum_compute"
+            },
+            {
+              "$ref": "#/$defs/CustomImpl"
+            }
+          ],
+          "x-ba-label": "Implementation"
+        },
+        "inputs": {
+          "description": "Artifacts this rule reads",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Inputs"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/OnFailure",
+          "description": "What happens when the rule fails",
+          "x-ba-label": "On failure"
+        },
+        "outputs": {
+          "description": "Artifacts this rule produces",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Outputs"
+        },
+        "plain_english": {
+          "description": "The business wording, kept for traceability",
+          "maxLength": 2000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "What the rule does (plain English)"
+        },
+        "preconditions": {
+          "description": "CEL checks that must hold before the rule runs",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Preconditions"
+        },
+        "requirements": {
+          "description": "Requirement ids this rule implements",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "rule_id": {
+          "description": "Stable id, e.g. r_zip",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Rule id"
+        },
+        "test_cases": {
+          "description": "Owner-approved examples (the test oracle)",
+          "items": {
+            "$ref": "#/$defs/TestCase"
+          },
+          "type": "array",
+          "x-ba-label": "Examples"
+        }
+      },
+      "required": [
+        "rule_id",
+        "plain_english",
+        "category",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "CustomImpl": {
+      "additionalProperties": false,
+      "description": "Custom code under rules/<rule_id>/ (agent-authored, reviewed, accepted, committed).",
+      "properties": {
+        "code_sha256": {
+          "description": "sha256 of rules/<rule_id>/impl.py",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string",
+          "x-ba-label": "Code hash"
+        },
+        "kind": {
+          "const": "custom",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "output_kinds": {
+          "description": "Kind of each artifact the code produces",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "enum": [
+                "message",
+                "portal_snapshot",
+                "destination_set",
+                "object_listing",
+                "file_set",
+                "package",
+                "manifest",
+                "checksum",
+                "value",
+                "report",
+                "receipt"
+              ],
+              "type": "string"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Output kinds"
+        }
+      },
+      "required": [
+        "kind",
+        "code_sha256"
+      ],
+      "type": "object"
+    },
+    "DeliverParams": {
+      "additionalProperties": false,
+      "properties": {
+        "manifest": {
+          "default": true,
+          "description": "Deliver the manifest next to the package",
+          "type": "boolean",
+          "x-ba-label": "Deliver the manifest"
+        },
+        "object_name": {
+          "description": "The artifact (from a naming rule) that holds the file name",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Object name"
+        },
+        "sidecars": {
+          "description": "Checksum files delivered next to the package, e.g. [md5, sha256]",
+          "items": {
+            "enum": [
+              "md5",
+              "sha256",
+              "sha512"
+            ],
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Checksum files"
+        },
+        "slot": {
+          "description": "Which destination slot (integrations.yaml → destinations)",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Destination slot"
+        },
+        "verify_after_write": {
+          "default": true,
+          "description": "Re-check the delivered package",
+          "type": "boolean",
+          "x-ba-label": "Verify after writing"
+        }
+      },
+      "required": [
+        "slot",
+        "object_name"
+      ],
+      "type": "object"
+    },
+    "DestinationResolveParams": {
+      "additionalProperties": false,
+      "properties": {
+        "slots": {
+          "description": "Which destination slots to resolve, e.g. [x, y]",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Destination slots"
+        }
+      },
+      "required": [
+        "slots"
+      ],
+      "type": "object"
+    },
+    "EncryptRule": {
+      "additionalProperties": false,
+      "description": "A rule of category encrypt.",
+      "properties": {
+        "category": {
+          "const": "encrypt",
+          "type": "string",
+          "x-ba-label": "Category"
+        },
+        "implementation": {
+          "discriminator": {
+            "mapping": {
+              "builtin": "#/$defs/Planned_encrypt",
+              "custom": "#/$defs/CustomImpl"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Planned_encrypt"
+            },
+            {
+              "$ref": "#/$defs/CustomImpl"
+            }
+          ],
+          "x-ba-label": "Implementation"
+        },
+        "inputs": {
+          "description": "Artifacts this rule reads",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Inputs"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/OnFailure",
+          "description": "What happens when the rule fails",
+          "x-ba-label": "On failure"
+        },
+        "outputs": {
+          "description": "Artifacts this rule produces",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Outputs"
+        },
+        "plain_english": {
+          "description": "The business wording, kept for traceability",
+          "maxLength": 2000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "What the rule does (plain English)"
+        },
+        "preconditions": {
+          "description": "CEL checks that must hold before the rule runs",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Preconditions"
+        },
+        "requirements": {
+          "description": "Requirement ids this rule implements",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "rule_id": {
+          "description": "Stable id, e.g. r_zip",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Rule id"
+        },
+        "test_cases": {
+          "description": "Owner-approved examples (the test oracle)",
+          "items": {
+            "$ref": "#/$defs/TestCase"
+          },
+          "type": "array",
+          "x-ba-label": "Examples"
+        }
+      },
+      "required": [
+        "rule_id",
+        "plain_english",
+        "category",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "ExpressionImpl": {
+      "additionalProperties": false,
+      "description": "A CEL expression: a true/false check (validate) or a computed value (naming).",
+      "properties": {
+        "cel": {
+          "description": "CEL expression over artifacts, vars and run",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string",
+          "x-ba-label": "Expression"
+        },
+        "kind": {
+          "const": "expression",
+          "type": "string",
+          "x-ba-label": "Kind"
+        }
+      },
+      "required": [
+        "kind",
+        "cel"
+      ],
+      "type": "object"
+    },
+    "ExtractRule": {
+      "additionalProperties": false,
+      "description": "A rule of category extract.",
+      "properties": {
+        "category": {
+          "const": "extract",
+          "type": "string",
+          "x-ba-label": "Category"
+        },
+        "implementation": {
+          "oneOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "discover.list": "#/$defs/Planned_extract",
+                  "rest.fetch": "#/$defs/Builtin_rest_fetch",
+                  "s3.download": "#/$defs/Builtin_s3_download",
+                  "s3.list": "#/$defs/Builtin_s3_list",
+                  "transfer.download": "#/$defs/Planned_extract"
+                },
+                "propertyName": "op"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Builtin_rest_fetch"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_s3_download"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_s3_list"
+                },
+                {
+                  "$ref": "#/$defs/Planned_extract"
+                }
+              ]
+            },
+            {
+              "$ref": "#/$defs/CustomImpl"
+            }
+          ],
+          "x-ba-label": "Implementation"
+        },
+        "inputs": {
+          "description": "Artifacts this rule reads",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Inputs"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/OnFailure",
+          "description": "What happens when the rule fails",
+          "x-ba-label": "On failure"
+        },
+        "outputs": {
+          "description": "Artifacts this rule produces",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Outputs"
+        },
+        "plain_english": {
+          "description": "The business wording, kept for traceability",
+          "maxLength": 2000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "What the rule does (plain English)"
+        },
+        "preconditions": {
+          "description": "CEL checks that must hold before the rule runs",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Preconditions"
+        },
+        "requirements": {
+          "description": "Requirement ids this rule implements",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "rule_id": {
+          "description": "Stable id, e.g. r_zip",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Rule id"
+        },
+        "test_cases": {
+          "description": "Owner-approved examples (the test oracle)",
+          "items": {
+            "$ref": "#/$defs/TestCase"
+          },
+          "type": "array",
+          "x-ba-label": "Examples"
+        }
+      },
+      "required": [
+        "rule_id",
+        "plain_english",
+        "category",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "FileCountParams": {
+      "additionalProperties": false,
+      "properties": {
+        "max": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum number of files",
+          "x-ba-label": "At most"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum number of files",
+          "x-ba-label": "At least"
+        }
+      },
+      "type": "object"
+    },
+    "FivetranSyncParams": {
+      "additionalProperties": false,
+      "properties": {
+        "connection": {
+          "description": "Source id of the Fivetran-managed database source",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Fivetran connection"
+        },
+        "timeout": {
+          "default": "2h",
+          "description": "How long to wait for the sync",
+          "examples": [
+            "15m",
+            "4h",
+            "1h30m"
+          ],
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string",
+          "x-ba-label": "Sync timeout"
+        },
+        "wait": {
+          "default": true,
+          "description": "Wait until the sync has finished",
+          "type": "boolean",
+          "x-ba-label": "Wait for the sync"
+        }
+      },
+      "required": [
+        "connection"
+      ],
+      "type": "object"
+    },
+    "HousekeepingRule": {
+      "additionalProperties": false,
+      "description": "A rule of category housekeeping.",
+      "properties": {
+        "category": {
+          "const": "housekeeping",
+          "type": "string",
+          "x-ba-label": "Category"
+        },
+        "implementation": {
+          "oneOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "housekeeping.retention": "#/$defs/Planned_housekeeping",
+                  "s3.copy": "#/$defs/Builtin_s3_copy",
+                  "s3.move": "#/$defs/Planned_housekeeping",
+                  "s3.rename": "#/$defs/Planned_housekeeping"
+                },
+                "propertyName": "op"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Builtin_s3_copy"
+                },
+                {
+                  "$ref": "#/$defs/Planned_housekeeping"
+                }
+              ]
+            },
+            {
+              "$ref": "#/$defs/CustomImpl"
+            }
+          ],
+          "x-ba-label": "Implementation"
+        },
+        "inputs": {
+          "description": "Artifacts this rule reads",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Inputs"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/OnFailure",
+          "description": "What happens when the rule fails",
+          "x-ba-label": "On failure"
+        },
+        "outputs": {
+          "description": "Artifacts this rule produces",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Outputs"
+        },
+        "plain_english": {
+          "description": "The business wording, kept for traceability",
+          "maxLength": 2000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "What the rule does (plain English)"
+        },
+        "preconditions": {
+          "description": "CEL checks that must hold before the rule runs",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Preconditions"
+        },
+        "requirements": {
+          "description": "Requirement ids this rule implements",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "rule_id": {
+          "description": "Stable id, e.g. r_zip",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Rule id"
+        },
+        "test_cases": {
+          "description": "Owner-approved examples (the test oracle)",
+          "items": {
+            "$ref": "#/$defs/TestCase"
+          },
+          "type": "array",
+          "x-ba-label": "Examples"
+        }
+      },
+      "required": [
+        "rule_id",
+        "plain_english",
+        "category",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "IntegrationRule": {
+      "additionalProperties": false,
+      "description": "A rule of category integration.",
+      "properties": {
+        "category": {
+          "const": "integration",
+          "type": "string",
+          "x-ba-label": "Category"
+        },
+        "implementation": {
+          "oneOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "destination.resolve": "#/$defs/Builtin_destination_resolve",
+                  "fivetran.sync": "#/$defs/Builtin_fivetran_sync",
+                  "portal.lookup": "#/$defs/Builtin_portal_lookup",
+                  "secret.read": "#/$defs/Planned_integration",
+                  "sqs.ack": "#/$defs/Planned_integration",
+                  "sqs.read": "#/$defs/Builtin_sqs_read"
+                },
+                "propertyName": "op"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Builtin_destination_resolve"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_fivetran_sync"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_portal_lookup"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_sqs_read"
+                },
+                {
+                  "$ref": "#/$defs/Planned_integration"
+                }
+              ]
+            },
+            {
+              "$ref": "#/$defs/CustomImpl"
+            }
+          ],
+          "x-ba-label": "Implementation"
+        },
+        "inputs": {
+          "description": "Artifacts this rule reads",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Inputs"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/OnFailure",
+          "description": "What happens when the rule fails",
+          "x-ba-label": "On failure"
+        },
+        "outputs": {
+          "description": "Artifacts this rule produces",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Outputs"
+        },
+        "plain_english": {
+          "description": "The business wording, kept for traceability",
+          "maxLength": 2000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "What the rule does (plain English)"
+        },
+        "preconditions": {
+          "description": "CEL checks that must hold before the rule runs",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Preconditions"
+        },
+        "requirements": {
+          "description": "Requirement ids this rule implements",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "rule_id": {
+          "description": "Stable id, e.g. r_zip",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Rule id"
+        },
+        "test_cases": {
+          "description": "Owner-approved examples (the test oracle)",
+          "items": {
+            "$ref": "#/$defs/TestCase"
+          },
+          "type": "array",
+          "x-ba-label": "Examples"
+        }
+      },
+      "required": [
+        "rule_id",
+        "plain_english",
+        "category",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "JsonValue": {},
+    "ManifestBuildParams": {
+      "additionalProperties": false,
+      "properties": {
+        "file_algorithms": {
+          "description": "Checksums listed for every file",
+          "items": {
+            "enum": [
+              "md5",
+              "sha256",
+              "sha512"
+            ],
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Per-file checksums"
+        },
+        "format": {
+          "const": "json",
+          "default": "json",
+          "description": "Manifest file format",
+          "type": "string",
+          "x-ba-label": "Manifest format"
+        },
+        "package_algorithms": {
+          "description": "Checksums of the whole package",
+          "items": {
+            "enum": [
+              "md5",
+              "sha256",
+              "sha512"
+            ],
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Package checksums"
+        }
+      },
+      "type": "object"
+    },
+    "NamingRenderParams": {
+      "additionalProperties": false,
+      "properties": {
+        "template": {
+          "description": "e.g. {study_id}_{package_id}.zip",
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string",
+          "x-ba-label": "Name template"
+        }
+      },
+      "required": [
+        "template"
+      ],
+      "type": "object"
+    },
+    "NamingRule": {
+      "additionalProperties": false,
+      "description": "A rule of category naming.",
+      "properties": {
+        "category": {
+          "const": "naming",
+          "type": "string",
+          "x-ba-label": "Category"
+        },
+        "implementation": {
+          "discriminator": {
+            "mapping": {
+              "builtin": "#/$defs/Builtin_naming_render",
+              "custom": "#/$defs/CustomImpl",
+              "expression": "#/$defs/ExpressionImpl"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Builtin_naming_render"
+            },
+            {
+              "$ref": "#/$defs/ExpressionImpl"
+            },
+            {
+              "$ref": "#/$defs/CustomImpl"
+            }
+          ],
+          "x-ba-label": "Implementation"
+        },
+        "inputs": {
+          "description": "Artifacts this rule reads",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Inputs"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/OnFailure",
+          "description": "What happens when the rule fails",
+          "x-ba-label": "On failure"
+        },
+        "outputs": {
+          "description": "Artifacts this rule produces",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Outputs"
+        },
+        "plain_english": {
+          "description": "The business wording, kept for traceability",
+          "maxLength": 2000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "What the rule does (plain English)"
+        },
+        "preconditions": {
+          "description": "CEL checks that must hold before the rule runs",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Preconditions"
+        },
+        "requirements": {
+          "description": "Requirement ids this rule implements",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "rule_id": {
+          "description": "Stable id, e.g. r_zip",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Rule id"
+        },
+        "test_cases": {
+          "description": "Owner-approved examples (the test oracle)",
+          "items": {
+            "$ref": "#/$defs/TestCase"
+          },
+          "type": "array",
+          "x-ba-label": "Examples"
+        }
+      },
+      "required": [
+        "rule_id",
+        "plain_english",
+        "category",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "NoParams": {
+      "additionalProperties": false,
+      "description": "This operation takes no parameters.",
+      "properties": {},
+      "type": "object"
+    },
+    "OnFailure": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "default": "fail",
+          "description": "Stop the run, quarantine, or only warn",
+          "enum": [
+            "fail",
+            "quarantine",
+            "warn"
+          ],
+          "type": "string",
+          "x-ba-label": "When it fails"
+        },
+        "error_class": {
+          "default": "data",
+          "description": "Routes the alert: data owner, platform/engineer, or security",
+          "enum": [
+            "data",
+            "config",
+            "security"
+          ],
+          "type": "string",
+          "x-ba-label": "Kind of failure"
+        }
+      },
+      "type": "object"
+    },
+    "PackageRule": {
+      "additionalProperties": false,
+      "description": "A rule of category package.",
+      "properties": {
+        "category": {
+          "const": "package",
+          "type": "string",
+          "x-ba-label": "Category"
+        },
+        "implementation": {
+          "oneOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "manifest.build": "#/$defs/Builtin_manifest_build",
+                  "package.tar": "#/$defs/Planned_package",
+                  "package.zip": "#/$defs/Builtin_package_zip"
+                },
+                "propertyName": "op"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Builtin_manifest_build"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_package_zip"
+                },
+                {
+                  "$ref": "#/$defs/Planned_package"
+                }
+              ]
+            },
+            {
+              "$ref": "#/$defs/CustomImpl"
+            }
+          ],
+          "x-ba-label": "Implementation"
+        },
+        "inputs": {
+          "description": "Artifacts this rule reads",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Inputs"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/OnFailure",
+          "description": "What happens when the rule fails",
+          "x-ba-label": "On failure"
+        },
+        "outputs": {
+          "description": "Artifacts this rule produces",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Outputs"
+        },
+        "plain_english": {
+          "description": "The business wording, kept for traceability",
+          "maxLength": 2000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "What the rule does (plain English)"
+        },
+        "preconditions": {
+          "description": "CEL checks that must hold before the rule runs",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Preconditions"
+        },
+        "requirements": {
+          "description": "Requirement ids this rule implements",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "rule_id": {
+          "description": "Stable id, e.g. r_zip",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Rule id"
+        },
+        "test_cases": {
+          "description": "Owner-approved examples (the test oracle)",
+          "items": {
+            "$ref": "#/$defs/TestCase"
+          },
+          "type": "array",
+          "x-ba-label": "Examples"
+        }
+      },
+      "required": [
+        "rule_id",
+        "plain_english",
+        "category",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "PackageZipParams": {
+      "additionalProperties": false,
+      "properties": {
+        "compression": {
+          "default": "deflate",
+          "description": "deflate or store",
+          "enum": [
+            "deflate",
+            "store"
+          ],
+          "type": "string",
+          "x-ba-label": "Compression"
+        },
+        "level": {
+          "default": 6,
+          "description": "0 (none) to 9 (smallest)",
+          "maximum": 9,
+          "minimum": 0,
+          "type": "integer",
+          "x-ba-label": "Compression level"
+        },
+        "paths": {
+          "default": "relative_to_prefix",
+          "description": "Keep folders relative to the message prefix, or the full object key",
+          "enum": [
+            "relative_to_prefix",
+            "full_key"
+          ],
+          "type": "string",
+          "x-ba-label": "Folder layout in the zip"
+        },
+        "store_if_compressed": {
+          "default": true,
+          "description": "Store files that are already compressed (zip, gz, png, …) without compressing again",
+          "type": "boolean",
+          "x-ba-label": "Do not re-compress"
+        },
+        "zip64": {
+          "default": "auto",
+          "description": "Use zip64 when needed or always",
+          "enum": [
+            "auto",
+            "always"
+          ],
+          "type": "string",
+          "x-ba-label": "Large zip support"
+        }
+      },
+      "type": "object"
+    },
+    "Planned_encrypt": {
+      "additionalProperties": false,
+      "description": "A planned op: accepted by the schema, rejected by the validator until it is available.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "enum": [
+            "crypto.decrypt",
+            "crypto.encrypt"
+          ],
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object",
+      "x-status": "planned"
+    },
+    "Planned_extract": {
+      "additionalProperties": false,
+      "description": "A planned op: accepted by the schema, rejected by the validator until it is available.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "enum": [
+            "discover.list",
+            "transfer.download"
+          ],
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object",
+      "x-status": "planned"
+    },
+    "Planned_housekeeping": {
+      "additionalProperties": false,
+      "description": "A planned op: accepted by the schema, rejected by the validator until it is available.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "enum": [
+            "housekeeping.retention",
+            "s3.move",
+            "s3.rename"
+          ],
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object",
+      "x-status": "planned"
+    },
+    "Planned_integration": {
+      "additionalProperties": false,
+      "description": "A planned op: accepted by the schema, rejected by the validator until it is available.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "enum": [
+            "secret.read",
+            "sqs.ack"
+          ],
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object",
+      "x-status": "planned"
+    },
+    "Planned_package": {
+      "additionalProperties": false,
+      "description": "A planned op: accepted by the schema, rejected by the validator until it is available.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "package.tar",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object",
+      "x-status": "planned"
+    },
+    "Planned_transform": {
+      "additionalProperties": false,
+      "description": "A planned op: accepted by the schema, rejected by the validator until it is available.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "package.unzip",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object",
+      "x-status": "planned"
+    },
+    "Planned_validate": {
+      "additionalProperties": false,
+      "description": "A planned op: accepted by the schema, rejected by the validator until it is available.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "enum": [
+            "validate.checksum_match",
+            "validate.name_pattern",
+            "validate.schema"
+          ],
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op"
+      ],
+      "type": "object",
+      "x-status": "planned"
+    },
+    "PortalLookupParams": {
+      "additionalProperties": false,
+      "properties": {
+        "endpoint": {
+          "description": "Which portal endpoint (integrations.yaml → portal.endpoints) to call",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Portal endpoint"
+        }
+      },
+      "required": [
+        "endpoint"
+      ],
+      "type": "object"
+    },
+    "RestFetchParams": {
+      "additionalProperties": false,
+      "properties": {
+        "api": {
+          "description": "Which API (integrations.yaml → apis) to call",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "API"
+        },
+        "endpoint": {
+          "description": "Which endpoint of that API",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Endpoint"
+        },
+        "format": {
+          "default": "json",
+          "description": "How each page is stored",
+          "enum": [
+            "json",
+            "jsonl",
+            "csv",
+            "binary"
+          ],
+          "type": "string",
+          "x-ba-label": "Format"
+        }
+      },
+      "required": [
+        "api",
+        "endpoint"
+      ],
+      "type": "object"
+    },
+    "S3DownloadParams": {
+      "additionalProperties": false,
+      "properties": {
+        "concurrency": {
+          "default": 8,
+          "description": "Objects read in parallel",
+          "maximum": 32,
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Parallel reads"
+        },
+        "verify": {
+          "default": "size_and_etag",
+          "description": "What to check for each object",
+          "enum": [
+            "size",
+            "size_and_etag"
+          ],
+          "type": "string",
+          "x-ba-label": "Verification"
+        }
+      },
+      "type": "object"
+    },
+    "S3ListParams": {
+      "additionalProperties": false,
+      "properties": {
+        "exclude": {
+          "description": "Glob patterns of keys to skip",
+          "items": {
+            "maxLength": 256,
+            "pattern": "^[^\\s\\\\]+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Exclude patterns"
+        },
+        "include": {
+          "description": "Glob patterns of keys to include, relative to the prefix",
+          "items": {
+            "maxLength": 256,
+            "pattern": "^[^\\s\\\\]+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Include patterns"
+        },
+        "max_objects": {
+          "default": 100000,
+          "description": "The run fails above this many objects",
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Maximum number of objects"
+        },
+        "max_total_bytes": {
+          "anyOf": [
+            {
+              "examples": [
+                "10GB",
+                "512MiB"
+              ],
+              "pattern": "^\\d+(\\.\\d+)?\\s?(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The run fails above this total size",
+          "x-ba-label": "Maximum total size"
+        },
+        "recursive": {
+          "default": true,
+          "description": "List objects in sub-folders too",
+          "type": "boolean",
+          "x-ba-label": "Include sub-folders"
+        },
+        "source": {
+          "description": "Which source (integrations.yaml → sources) to list",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Source"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "type": "object"
+    },
+    "StaticPutParams": {
+      "additionalProperties": false,
+      "properties": {
+        "object_name": {
+          "anyOf": [
+            {
+              "maxLength": 63,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Artifact holding the file name",
+          "x-ba-label": "Object name"
+        },
+        "slot": {
+          "description": "A destination slot with a static resolution",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Destination slot"
+        }
+      },
+      "required": [
+        "slot"
+      ],
+      "type": "object"
+    },
+    "TestCase": {
+      "additionalProperties": false,
+      "description": "An example the owner agreed on: given these inputs, expect this outcome.",
+      "properties": {
+        "expect": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "Expected outcome",
+          "type": "object",
+          "x-ba-label": "Expect"
+        },
+        "given": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "Inputs of the example",
+          "type": "object",
+          "x-ba-label": "Given"
+        },
+        "name": {
+          "description": "Short name of the example",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Test name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "TotalSizeParams": {
+      "additionalProperties": false,
+      "properties": {
+        "max": {
+          "anyOf": [
+            {
+              "examples": [
+                "10GB",
+                "512MiB"
+              ],
+              "pattern": "^\\d+(\\.\\d+)?\\s?(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum total size",
+          "x-ba-label": "At most"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "examples": [
+                "10GB",
+                "512MiB"
+              ],
+              "pattern": "^\\d+(\\.\\d+)?\\s?(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum total size",
+          "x-ba-label": "At least"
+        }
+      },
+      "type": "object"
+    },
+    "TransformRule": {
+      "additionalProperties": false,
+      "description": "A rule of category transform.",
+      "properties": {
+        "category": {
+          "const": "transform",
+          "type": "string",
+          "x-ba-label": "Category"
+        },
+        "implementation": {
+          "discriminator": {
+            "mapping": {
+              "builtin": "#/$defs/Planned_transform",
+              "custom": "#/$defs/CustomImpl"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Planned_transform"
+            },
+            {
+              "$ref": "#/$defs/CustomImpl"
+            }
+          ],
+          "x-ba-label": "Implementation"
+        },
+        "inputs": {
+          "description": "Artifacts this rule reads",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Inputs"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/OnFailure",
+          "description": "What happens when the rule fails",
+          "x-ba-label": "On failure"
+        },
+        "outputs": {
+          "description": "Artifacts this rule produces",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Outputs"
+        },
+        "plain_english": {
+          "description": "The business wording, kept for traceability",
+          "maxLength": 2000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "What the rule does (plain English)"
+        },
+        "preconditions": {
+          "description": "CEL checks that must hold before the rule runs",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Preconditions"
+        },
+        "requirements": {
+          "description": "Requirement ids this rule implements",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "rule_id": {
+          "description": "Stable id, e.g. r_zip",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Rule id"
+        },
+        "test_cases": {
+          "description": "Owner-approved examples (the test oracle)",
+          "items": {
+            "$ref": "#/$defs/TestCase"
+          },
+          "type": "array",
+          "x-ba-label": "Examples"
+        }
+      },
+      "required": [
+        "rule_id",
+        "plain_english",
+        "category",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "UploadRule": {
+      "additionalProperties": false,
+      "description": "A rule of category upload.",
+      "properties": {
+        "category": {
+          "const": "upload",
+          "type": "string",
+          "x-ba-label": "Category"
+        },
+        "implementation": {
+          "oneOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "destination.deliver": "#/$defs/Builtin_destination_deliver",
+                  "https.put": "#/$defs/Builtin_https_put",
+                  "s3.copy": "#/$defs/Builtin_s3_copy",
+                  "s3.put": "#/$defs/Builtin_s3_put",
+                  "sftp.put": "#/$defs/Builtin_sftp_put"
+                },
+                "propertyName": "op"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Builtin_destination_deliver"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_https_put"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_s3_copy"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_s3_put"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_sftp_put"
+                }
+              ]
+            },
+            {
+              "$ref": "#/$defs/CustomImpl"
+            }
+          ],
+          "x-ba-label": "Implementation"
+        },
+        "inputs": {
+          "description": "Artifacts this rule reads",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Inputs"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/OnFailure",
+          "description": "What happens when the rule fails",
+          "x-ba-label": "On failure"
+        },
+        "outputs": {
+          "description": "Artifacts this rule produces",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Outputs"
+        },
+        "plain_english": {
+          "description": "The business wording, kept for traceability",
+          "maxLength": 2000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "What the rule does (plain English)"
+        },
+        "preconditions": {
+          "description": "CEL checks that must hold before the rule runs",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Preconditions"
+        },
+        "requirements": {
+          "description": "Requirement ids this rule implements",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "rule_id": {
+          "description": "Stable id, e.g. r_zip",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Rule id"
+        },
+        "test_cases": {
+          "description": "Owner-approved examples (the test oracle)",
+          "items": {
+            "$ref": "#/$defs/TestCase"
+          },
+          "type": "array",
+          "x-ba-label": "Examples"
+        }
+      },
+      "required": [
+        "rule_id",
+        "plain_english",
+        "category",
+        "implementation"
+      ],
+      "type": "object"
+    },
+    "ValidateRule": {
+      "additionalProperties": false,
+      "description": "A rule of category validate.",
+      "properties": {
+        "category": {
+          "const": "validate",
+          "type": "string",
+          "x-ba-label": "Category"
+        },
+        "implementation": {
+          "oneOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "manifest.build": "#/$defs/Builtin_manifest_build",
+                  "validate.checksum_match": "#/$defs/Planned_validate",
+                  "validate.file_count": "#/$defs/Builtin_validate_file_count",
+                  "validate.manifest_match": "#/$defs/Builtin_validate_manifest_match",
+                  "validate.name_pattern": "#/$defs/Planned_validate",
+                  "validate.schema": "#/$defs/Planned_validate",
+                  "validate.total_size": "#/$defs/Builtin_validate_total_size"
+                },
+                "propertyName": "op"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Builtin_manifest_build"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_validate_file_count"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_validate_manifest_match"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_validate_total_size"
+                },
+                {
+                  "$ref": "#/$defs/Planned_validate"
+                }
+              ]
+            },
+            {
+              "$ref": "#/$defs/ExpressionImpl"
+            },
+            {
+              "$ref": "#/$defs/CustomImpl"
+            }
+          ],
+          "x-ba-label": "Implementation"
+        },
+        "inputs": {
+          "description": "Artifacts this rule reads",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Inputs"
+        },
+        "on_failure": {
+          "$ref": "#/$defs/OnFailure",
+          "description": "What happens when the rule fails",
+          "x-ba-label": "On failure"
+        },
+        "outputs": {
+          "description": "Artifacts this rule produces",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Outputs"
+        },
+        "plain_english": {
+          "description": "The business wording, kept for traceability",
+          "maxLength": 2000,
+          "minLength": 10,
+          "type": "string",
+          "x-ba-label": "What the rule does (plain English)"
+        },
+        "preconditions": {
+          "description": "CEL checks that must hold before the rule runs",
+          "items": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Preconditions"
+        },
+        "requirements": {
+          "description": "Requirement ids this rule implements",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+            "type": "string"
+          },
+          "type": "array",
+          "x-ba-label": "Requirements"
+        },
+        "rule_id": {
+          "description": "Stable id, e.g. r_zip",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Rule id"
+        },
+        "test_cases": {
+          "description": "Owner-approved examples (the test oracle)",
+          "items": {
+            "$ref": "#/$defs/TestCase"
+          },
+          "type": "array",
+          "x-ba-label": "Examples"
+        }
+      },
+      "required": [
+        "rule_id",
+        "plain_english",
+        "category",
+        "implementation"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:pipeline-factory:spec:v1:rules",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "rules.yaml: owned by the business owner / BA.",
+  "properties": {
+    "rules": {
+      "description": "Every step of the pipeline, in plain English and structured form",
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "checksum": "#/$defs/ChecksumRule",
+            "encrypt": "#/$defs/EncryptRule",
+            "extract": "#/$defs/ExtractRule",
+            "housekeeping": "#/$defs/HousekeepingRule",
+            "integration": "#/$defs/IntegrationRule",
+            "naming": "#/$defs/NamingRule",
+            "package": "#/$defs/PackageRule",
+            "transform": "#/$defs/TransformRule",
+            "upload": "#/$defs/UploadRule",
+            "validate": "#/$defs/ValidateRule"
+          },
+          "propertyName": "category"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/ExtractRule"
+          },
+          {
+            "$ref": "#/$defs/TransformRule"
+          },
+          {
+            "$ref": "#/$defs/ValidateRule"
+          },
+          {
+            "$ref": "#/$defs/PackageRule"
+          },
+          {
+            "$ref": "#/$defs/EncryptRule"
+          },
+          {
+            "$ref": "#/$defs/ChecksumRule"
+          },
+          {
+            "$ref": "#/$defs/NamingRule"
+          },
+          {
+            "$ref": "#/$defs/UploadRule"
+          },
+          {
+            "$ref": "#/$defs/HousekeepingRule"
+          },
+          {
+            "$ref": "#/$defs/IntegrationRule"
+          }
+        ]
+      },
+      "minItems": 1,
+      "type": "array",
+      "x-ba-label": "Rules"
+    }
+  },
+  "required": [
+    "rules"
+  ],
+  "type": "object",
+  "x-ba-label": "Rules: every step in plain English",
+  "x-hash": "logic",
+  "x-owner-role": "business_owner"
+}

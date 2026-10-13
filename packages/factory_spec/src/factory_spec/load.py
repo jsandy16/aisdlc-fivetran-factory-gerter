@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from factory_core import yamlio
 
-from .codes import issue
+from .codes import CODES, issue
 from .common import REQUIRED
 from .files import SPEC_DIR, SPEC_FILES
 from .spec import PipelineSpec
@@ -143,6 +143,8 @@ def _translate(fname: str, err: Any, raw: Any) -> Issue:
         return issue("template_unquoted", fname, loc, "a template was read as a mapping because it is not quoted")
     if typ == "string_type" and isinstance(inp, int | float) and not isinstance(inp, bool):
         return issue("quote_value", fname, loc, "this must be text; quote the value")
+    if typ in CODES:  # a coded_error raised by a field validator
+        return issue(typ, fname, loc, msg)
     text = msg.removeprefix("Value error, ")
     return issue("invalid_value", fname, loc, text)
 

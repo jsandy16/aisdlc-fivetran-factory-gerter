@@ -1,0 +1,396 @@
+{
+  "$defs": {
+    "BearerAuth": {
+      "additionalProperties": false,
+      "properties": {
+        "token_secret": {
+          "description": "Secret name holding the token",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Token secret"
+        },
+        "type": {
+          "const": "bearer",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "token_secret"
+      ],
+      "type": "object"
+    },
+    "HttpsEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "at_rest_attestation": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z0-9][A-Z0-9-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Evidence id that the server encrypts at rest",
+          "x-ba-label": "At-rest attestation"
+        },
+        "auth": {
+          "description": "Authentication",
+          "discriminator": {
+            "mapping": {
+              "bearer": "#/$defs/BearerAuth",
+              "mtls": "#/$defs/HttpsMtlsAuth"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/BearerAuth"
+            },
+            {
+              "$ref": "#/$defs/HttpsMtlsAuth"
+            }
+          ],
+          "x-ba-label": "Authentication"
+        },
+        "host": {
+          "description": "Server DNS name",
+          "type": "string",
+          "x-ba-label": "Host"
+        },
+        "id": {
+          "description": "Stable id of this allowed destination",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Entry id"
+        },
+        "max_classification": {
+          "description": "Most sensitive data allowed here",
+          "enum": [
+            "public",
+            "internal",
+            "confidential",
+            "restricted"
+          ],
+          "type": "string",
+          "x-ba-label": "Highest classification"
+        },
+        "method": {
+          "default": "PUT",
+          "description": "Upload method",
+          "enum": [
+            "PUT",
+            "POST"
+          ],
+          "type": "string",
+          "x-ba-label": "Method"
+        },
+        "path_pattern": {
+          "description": "e.g. /api/v2/studies/{study_id}/packages/*",
+          "type": "string",
+          "x-ba-label": "Path pattern"
+        },
+        "port": {
+          "default": 443,
+          "description": "Port",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Port"
+        },
+        "slots": {
+          "description": "Destination slots that may use this entry",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Slots"
+        },
+        "type": {
+          "const": "https",
+          "type": "string",
+          "x-ba-label": "Type"
+        },
+        "write_once": {
+          "default": "if_none_match",
+          "description": "Use If-None-Match to never overwrite",
+          "enum": [
+            "if_none_match",
+            "none"
+          ],
+          "type": "string",
+          "x-ba-label": "Write once"
+        }
+      },
+      "required": [
+        "id",
+        "slots",
+        "max_classification",
+        "type",
+        "host",
+        "path_pattern",
+        "auth"
+      ],
+      "type": "object"
+    },
+    "HttpsMtlsAuth": {
+      "additionalProperties": false,
+      "properties": {
+        "cert": {
+          "description": "Client certificate secret",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Client certificate secret"
+        },
+        "key": {
+          "description": "Client key secret",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Client key secret"
+        },
+        "type": {
+          "const": "mtls",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type",
+        "cert",
+        "key"
+      ],
+      "type": "object"
+    },
+    "S3Entry": {
+      "additionalProperties": false,
+      "properties": {
+        "bucket": {
+          "description": "Bucket name",
+          "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+          "type": "string",
+          "x-ba-label": "Bucket"
+        },
+        "id": {
+          "description": "Stable id of this allowed destination",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Entry id"
+        },
+        "kms_key": {
+          "description": "KMS key alias used to encrypt delivered objects",
+          "pattern": "^alias/[A-Za-z0-9/_-]{1,250}$",
+          "type": "string",
+          "x-ba-label": "KMS key"
+        },
+        "max_classification": {
+          "description": "Most sensitive data allowed here",
+          "enum": [
+            "public",
+            "internal",
+            "confidential",
+            "restricted"
+          ],
+          "type": "string",
+          "x-ba-label": "Highest classification"
+        },
+        "placement": {
+          "default": "team",
+          "description": "Account alias owning the bucket",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Placement"
+        },
+        "prefix_pattern": {
+          "description": "e.g. studies/{study_id}/**",
+          "type": "string",
+          "x-ba-label": "Prefix pattern"
+        },
+        "slots": {
+          "description": "Destination slots that may use this entry",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Slots"
+        },
+        "type": {
+          "const": "s3",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "id",
+        "slots",
+        "max_classification",
+        "type",
+        "bucket",
+        "prefix_pattern",
+        "kms_key"
+      ],
+      "type": "object"
+    },
+    "SftpEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "at_rest_attestation": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z0-9][A-Z0-9-]{2,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Evidence id that the server encrypts at rest",
+          "x-ba-label": "At-rest attestation"
+        },
+        "host": {
+          "description": "Server DNS name",
+          "type": "string",
+          "x-ba-label": "Host"
+        },
+        "host_key_fingerprint": {
+          "description": "SHA256 fingerprint; a change needs a reviewed PR",
+          "pattern": "^SHA256:[A-Za-z0-9+/]{43}=?$",
+          "type": "string",
+          "x-ba-label": "Pinned host key"
+        },
+        "id": {
+          "description": "Stable id of this allowed destination",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Entry id"
+        },
+        "max_classification": {
+          "description": "Most sensitive data allowed here",
+          "enum": [
+            "public",
+            "internal",
+            "confidential",
+            "restricted"
+          ],
+          "type": "string",
+          "x-ba-label": "Highest classification"
+        },
+        "path_pattern": {
+          "description": "e.g. /inbound/acme/{study_id}/**",
+          "type": "string",
+          "x-ba-label": "Path pattern"
+        },
+        "port": {
+          "default": 22,
+          "description": "Port",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer",
+          "x-ba-label": "Port"
+        },
+        "private_key_secret": {
+          "description": "Secret name holding the SSH private key",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Private key secret"
+        },
+        "slots": {
+          "description": "Destination slots that may use this entry",
+          "items": {
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "x-ba-label": "Slots"
+        },
+        "type": {
+          "const": "sftp",
+          "type": "string",
+          "x-ba-label": "Type"
+        },
+        "username": {
+          "description": "User name",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$",
+          "type": "string",
+          "x-ba-label": "User name"
+        }
+      },
+      "required": [
+        "id",
+        "slots",
+        "max_classification",
+        "type",
+        "host",
+        "path_pattern",
+        "username",
+        "private_key_secret",
+        "host_key_fingerprint"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:pipeline-factory:spec:v1:destinations",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "destinations.yaml: owned by governance.",
+  "properties": {
+    "destinations": {
+      "description": "Per environment: where data may be delivered",
+      "patternProperties": {
+        "^[a-z][a-z0-9]{1,9}$": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "https": "#/$defs/HttpsEntry",
+                "s3": "#/$defs/S3Entry",
+                "sftp": "#/$defs/SftpEntry"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/S3Entry"
+              },
+              {
+                "$ref": "#/$defs/SftpEntry"
+              },
+              {
+                "$ref": "#/$defs/HttpsEntry"
+              }
+            ]
+          },
+          "type": "array"
+        }
+      },
+      "type": "object",
+      "x-ba-label": "Allowed destinations"
+    }
+  },
+  "required": [
+    "destinations"
+  ],
+  "type": "object",
+  "x-ba-label": "Destinations: approved delivery targets",
+  "x-hash": "binding",
+  "x-owner-role": "governance"
+}

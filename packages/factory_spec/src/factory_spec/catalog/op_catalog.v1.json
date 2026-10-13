@@ -336,6 +336,13 @@
           "streaming": false
         },
         {
+          "kind": "manifest",
+          "min_durability": "local",
+          "port": "manifest",
+          "required": false,
+          "streaming": false
+        },
+        {
           "kind": "value",
           "min_durability": "local",
           "port": "name",
@@ -914,6 +921,13 @@
           "streaming": false
         },
         {
+          "kind": "manifest",
+          "min_durability": "local",
+          "port": "manifest",
+          "required": false,
+          "streaming": false
+        },
+        {
           "kind": "value",
           "min_durability": "local",
           "port": "name",
@@ -997,6 +1011,13 @@
           "min_durability": "local",
           "port": "artifact",
           "required": true,
+          "streaming": false
+        },
+        {
+          "kind": "manifest",
+          "min_durability": "local",
+          "port": "manifest",
+          "required": false,
           "streaming": false
         },
         {

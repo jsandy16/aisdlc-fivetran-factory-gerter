@@ -10,6 +10,7 @@ import jmespath
 from factory_core.templates import TemplateError, parse_template
 from factory_core.uri import valid_hostname
 from pydantic import AfterValidator, BeforeValidator, PlainSerializer, StringConstraints, WithJsonSchema
+from pydantic_core import PydanticCustomError
 
 from factory_core import cel, units
 
@@ -26,6 +27,11 @@ Glob = Annotated[str, StringConstraints(pattern=r"^[^\s\\]+$", max_length=256)]
 ResourceName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")]
 HostKeyFingerprint = Annotated[str, StringConstraints(pattern=r"^SHA256:[A-Za-z0-9+/]{43}=?$")]
 Attestation = Annotated[str, StringConstraints(pattern=r"^[A-Z0-9][A-Z0-9-]{2,63}$")]
+# relative S3 folder, ends with "/", no empty, "." or ".." segments: incoming/ or studies/inbound/
+PrefixRoot = Annotated[str, StringConstraints(pattern=r"^([A-Za-z0-9_][A-Za-z0-9._-]*/)+$", max_length=512)]
+TableName = Annotated[
+    str, StringConstraints(pattern=r"^[A-Za-z_][A-Za-z0-9_$]*\.[A-Za-z_][A-Za-z0-9_$]*$", max_length=255)
+]
 
 
 def _regex(v: str) -> str:
@@ -36,8 +42,16 @@ def _regex(v: str) -> str:
     return v
 
 
+def coded_error(code: str, reason: str) -> PydanticCustomError:
+    """A validation error whose type is a registered issue code; the loader reports it under that code."""
+    return PydanticCustomError(code, "{reason}", {"reason": reason})
+
+
 def _cel(v: str) -> str:
-    cel.parse(v)
+    try:
+        cel.parse(v)
+    except cel.CelSyntaxError as exc:
+        raise coded_error("cel_invalid", str(exc)) from None
     return v
 
 
@@ -45,7 +59,7 @@ def _jmespath(v: str) -> str:
     try:
         jmespath.compile(v)
     except jmespath.exceptions.JMESPathError as exc:
-        raise ValueError(f"not a valid JMESPath expression: {str(exc).splitlines()[0]}") from exc
+        raise coded_error("jmespath_invalid", f"not a valid JMESPath expression: {str(exc).splitlines()[0]}") from None
     return v
 
 
@@ -53,7 +67,7 @@ def _template(v: str) -> str:
     try:
         parse_template(v)
     except TemplateError as exc:
-        raise ValueError(str(exc)) from exc
+        raise coded_error(exc.code, str(exc)) from None
     return v
 
 
