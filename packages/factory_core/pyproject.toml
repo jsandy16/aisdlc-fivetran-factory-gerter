@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "factory-core"
+version = "0.2.0.dev0"
+description = "Pipeline Factory core: error taxonomy, canonical hashing, YAML I/O, envelope, CEL, templates, URI and path matching, units"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.9,<3"]
+
+[project.optional-dependencies]
+yaml = ["ruamel.yaml>=0.18,<0.20"]
+cel = ["cel-python==0.5.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/factory_core"]

@@ -1,0 +1,61 @@
+# Virtual uv workspace root for the Pipeline Factory v2 packages.
+# pf 0.1.0 (repo root, setuptools) is deliberately NOT a member: new code adapts pf code, it never imports it.
+# Always run tools from this directory: `uv sync --locked`, `uv run pytest`, `uv run mypy`, `uv run ruff check .`.
+
+[tool.uv]
+required-version = ">=0.11.32,<0.12"
+
+[tool.uv.workspace]
+members = ["factory_core", "factory_spec", "factory"]   # factory_runtime / factory_airflow join in later phases
+
+[tool.uv.sources]
+factory-core = { workspace = true }
+factory-spec = { workspace = true }
+factory = { workspace = true }
+
+[dependency-groups]
+dev = [
+  "pytest==9.1.1",
+  "hypothesis>=6.100,<7",
+  "mypy==2.4.0",
+  "ruff==0.17.0",
+  "types-jmespath",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["factory_core/tests", "factory_spec/tests", "factory/tests"]
+addopts = "-q --strict-markers"   # default prepend import mode; test file names are unique across packages (test_core_*, test_spec_*, test_cli_*)
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+files = ["factory_core/src", "factory_spec/src", "factory/src"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[[tool.mypy.overrides]]
+module = ["celpy", "celpy.*", "lark", "lark.*", "ruamel", "ruamel.*"]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["factory_spec/tools"]   # one-off generators, run by hand
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "S", "PT", "C4", "DTZ", "T20", "TID", "PERF", "N"]
+ignore = [
+  "RUF001", "RUF002", "RUF003",   # typographic characters in docstrings/messages are intended
+  "TID252",                       # relative imports inside a package are fine; TID is selected for banned-api
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/tests/**" = ["S101", "S603", "S607", "S108", "PT011"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"pf".msg = "adapt pf code into factory_* packages; never import pf"
+"pf_runtime".msg = "adapt pf_runtime code into factory_* packages; never import pf_runtime"
