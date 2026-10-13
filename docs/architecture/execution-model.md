@@ -33,7 +33,7 @@
 
 | Kind | Example | Typical durability |
 |---|---|---|
-| `message_batch` | the SQS message(s) that triggered the run | staged (custody snapshot) |
+| `message_batch` | the SQS message (S3 package metadata: bucket, prefix, …) that triggered the run | staged (custody snapshot) |
 | `portal_snapshot` | portal response for this run | staged, write-once, hashed |
 | `file_set` | downloaded files with relative paths | local or stream |
 | `package` | zip / tar.gz preserving folder structure | stream → staged |
@@ -45,7 +45,7 @@
 **Durability levels:**
 - `stream`: never materialised.
 - `local`: pod or Lambda ephemeral disk.
-- `staged`: `s3://<staging>/<team>/<pipeline>/<run_key>/<artifact>` with SSE-KMS (team key), lifecycle by tag:
+- `staged`: `s3://<staging, team account>/<pipeline>/<run_key>/<artifact>` with SSE-KMS (team key), lifecycle by tag:
   7 days after success, and at least the replay window after a failure.
 - `final`: a declared target.
 
@@ -72,7 +72,7 @@ so they never hold secrets, paths or payloads.
 - **Writes.** Every target write is `PutObject` / `CompleteMultipartUpload` with `If-None-Match: *`. On 412 the
   existing object's checksum is compared:
   - **equal** means success;
-  - **different** on a nondeterministic op (encryption) means *adopt the winner*: downstream steps use the stored
+  - **different** on a nondeterministic op (e.g. encryption, when added) means *adopt the winner*: downstream steps use the stored
     object;
   - any other difference is a `data` error.
 - **Sequence numbers.** `{seq}` is allocated transactionally in run-state: a counter `ADD` plus a conditional put of
@@ -85,15 +85,15 @@ so they never hold secrets, paths or payloads.
 ## 5. Large packages
 
 - **Streaming path.** Source `open_stream()` → deterministic zip writer (sorted entries, fixed timestamps and modes,
-  zip64, data descriptors, `store` for already-compressed members) → AWS Encryption SDK stream → S3 multipart
-  upload.
+  zip64, data descriptors, `store` for already-compressed members) → S3 multipart upload. Package encryption is
+  deferred (D3); when it is added, it becomes one more stream stage.
   - Part size adapts from 64 MiB so that 10,000 parts cover `workload.bytes.max`.
   - Memory ≈ part size × upload concurrency.
-- **Checksums.** MD5 and SHA-256 are computed **while streaming** (plaintext and ciphertext). A separate checksum
+- **Checksums.** MD5 and SHA-256 of the zip are computed **while streaming**. A separate checksum
   step re-reads the **stored** object for an independent check.
   - The S3 ETag is not an MD5 for SSE-KMS or multipart objects.
   - Checksums cannot go into multipart object metadata, so they are written as sidecar objects and into the manifest.
-- **Throughput.** Deflate runs at roughly 50–100 MB/s per core. The planner sizes pods and sets
+- **Size.** Max 10 GB per run (D10). Deflate runs at roughly 50–100 MB/s per core. The planner sizes pods and sets
   `activeDeadlineSeconds` from `workload`.
 - **Fused tasks.** When a split layout would re-download a large package between tasks, the planner suggests one
   fused task. It warns; it never changes task boundaries itself.
@@ -106,7 +106,7 @@ so they never hold secrets, paths or payloads.
 | transient | network reset, throttling, 5xx/429 after retries, Vault unavailable | 75 (EX_TEMPFAIL) | retry per task policy | none until retries are exhausted |
 | data | validation failed, checksum mismatch, empty package, manifest mismatch | 65 (EX_DATAERR) | fail, no retry | data owner (SNS / email / Slack) |
 | config | missing secret, wrong binding, auth refused, schema mismatch from the portal | 78 (EX_CONFIG) | fail, no retry | platform / data engineer |
-| security | bundle hash mismatch, host-key mismatch, path outside `allowed_roots`, untrusted certificate | 77 (EX_NOPERM) | fail, no retry, page | security |
+| security | bundle hash mismatch, host-key mismatch, destination not in the allow-list, untrusted certificate | 77 (EX_NOPERM) | fail, no retry, page | security |
 
 `factory_airflow`'s pod-operator subclass maps exit codes to `AirflowFailException` (no retry) for every class
 except transient. Messages never contain data values or secrets (the pf 0.1.0 convention).

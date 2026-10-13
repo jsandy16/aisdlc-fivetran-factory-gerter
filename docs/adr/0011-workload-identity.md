@@ -1,29 +1,28 @@
-# ADR-0011: EKS Pod Identity (recommended) or IRSA; team roles with ABAC; per-pipeline roles for gxp_direct
+# ADR-0011: EKS Pod Identity by default (IRSA supported); per-pipeline workload roles in team accounts
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
+- **Amended:** per-pipeline roles default (D7, D8).
 
 ## Context
 
-Least privilege per pipeline is required. IAM has an account quota of about 1,000 roles. The brief names IRSA.
+Least privilege per pipeline is required. With an account per team per environment (D7), IAM role quotas (~1,000 per account) apply per team, not per organisation. The user had no preference between Pod Identity and IRSA (D8).
 
 ## Decision
 
-- **Both identity options are generated** (`identity: pod_identity | irsa` in platform settings). **Pod Identity is recommended:**
-  - no per-cluster OIDC trust;
-  - session tags (namespace, service account, pod name);
-  - deterministic pod names that link CloudTrail to runs.
+- **Identity:** `identity.default: pod_identity` in platform settings; `irsa` is also generated.
 - **Roles:**
-  - default: one workload role per team, with ABAC on the `factory/pipeline` principal tag scoping S3 prefixes, DynamoDB leading keys and secret paths;
-  - `gxp_direct`: dedicated per-pipeline roles;
-  - every role has a team permission boundary.
+  - one workload role per pipeline task in the team account, with exactly the actions derived from its ops on declared resources;
+  - Lambda functions use their own per-function roles;
+  - every role has the team permission boundary.
+- **ABAC** on Pod Identity session tags is optional and no longer the default.
 - **CI checks** with IAM Access Analyzer.
 
 ## Consequences
 
-- Pipeline granularity is kept within quotas.
-- The default is decided at the Phase 1 review (Q7).
+- The simplest least-privilege model.
+- CloudTrail attributes actions to pipeline and pod.
 
 ## Alternatives considered
 
-- *A role per pipeline per engine:* rejected, because it exceeds quotas at scale.
+- *Team roles + ABAC:* kept as an option for teams with very many pipelines.

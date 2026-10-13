@@ -2,56 +2,46 @@
 
 Decision record: [ADR-0009](../adr/0009-portal-integration.md).
 
-The self-service portal is a REST API that returns, per entry (a study or a delivery), the **server path**, its path
-type (`absolute` or `recursive`), include/exclude patterns, metadata such as table names, and the **schedule
-frequency** for that entry. It is modelled as a first-class `portal` section in `spec/integrations.yaml`, with
-per-environment `base_url` in `spec/environments.yaml`.
+The self-service portal is a REST API that, per study or package, returns **where the package must be delivered**
+(user decision D2):
+- another S3 bucket/prefix, or
+- an external server (SFTP, HTTPS, more types later).
+
+It can also return metadata and schedule information. It is modelled as a first-class `portal` section in
+`spec/integrations.yaml`, with the per-environment `base_url` in `spec/environments.yaml`. The **destination
+allow-list** that bounds what the portal may choose is in `spec/destinations.yaml`, owned by governance
+([ADR-0024](../adr/0024-portal-resolved-destinations.md)).
+
+Portal changes **take effect immediately** (user decision D4). There is no PR gate on portal data. The safety
+comes from the allow-list, which is a reviewed spec file.
 
 ## 1. Spec
 
 ```yaml
+# spec/integrations.yaml (excerpt; the full file is in examples/team-pipelines/pipelines/study_pkg_delivery)
 portal:
-  auth:                                  # union, all credentials via secret names
-    type: oauth2_client_credentials      # | api_key | mtls
-    token_url_path: /oauth/token
-    client: portal_client                # secrets.portal_client (client_id + client_secret)
-    scopes: [paths.read]
-    # api_key: {secret: portal_api_key, in: header, name: X-Api-Key}
-    # mtls:    {cert: portal_cert, key: portal_key, ca: portal_ca}
+  auth: {type: oauth2_client_credentials, token_path: /oauth2/token, client: portal_client, scopes: [delivery-targets.read]}
+  reliability: {connect_timeout: 5s, read_timeout: 30s, max_attempts: 5, retry_on_status: [429, 500, 502, 503, 504],
+                honour_retry_after: true, circuit_breaker: {failure_threshold: 5, reset_after: 60s}, rate_limit_per_second: 5}
   endpoints:
-    - id: study_paths
+    - id: delivery_targets
       method: GET
-      path: /api/v1/studies/{study_id}/paths      # tokens: an allow-list from trigger/conf/portal snapshot
-      query: {status: active}
-      pagination: {type: cursor, cursor_param: cursor, next: "meta.next_cursor"}   # none | page | cursor | link_header
-      response_schema:                            # → generated Pydantic model; fail fast with a clear error
-        root: object
-        items: "data"
+      path: "/api/v1/studies/{study_id}/delivery-targets"     # tokens: declared variables only
+      pagination: {type: none}                                 # none | page | cursor | link_header
+      response:                                                # → generated Pydantic model, fail fast
+        unknown_fields: ignore
         fields:
-          entry_id: {type: string, required: true}
-          server_path: {type: string, required: true}
-          path_type: {type: "enum[absolute,recursive]", required: true}
-          include: {type: "list[string]", default: ["**/*"]}
-          exclude: {type: "list[string]", default: []}
-          schedule: {type: string, required: false}   # e.g. cron or "every 6h"
-      response_mapping:                           # JMESPath only
-        items: "data"
-        entry_id: "entry_id"
-        path: "server_path"
-        path_type: "path_type"
-        include: "include"
-        exclude: "exclude"
-        schedule: "schedule"
-        metadata: {study_id: "study.id", source_system: "source"}
-  reliability:
-    connect_timeout_s: 5
-    read_timeout_s: 30
-    retries: {max_attempts: 5, base_s: 1, max_s: 30, on: [429, 500, 502, 503, 504], honour_retry_after: true}
-    circuit_breaker: {failure_threshold: 5, reset_after_s: 60}
-    rate_limit: {per_second: 5}
-  snapshot: per_run                       # write-once snapshot; every task in a run uses it
-  allowed_roots: ["/exports/studies/"]    # portal paths must sit under one of these
-  mode: dynamic                           # | materialized (see §4)
+          study_id: {type: string}
+          targets: {type: list, max_items: 10, items: {type: object, fields: {slot: {type: enum, values: [x, y]}, uri: {type: string, max_length: 1024}, active: {type: boolean}}}}
+      mapping:                                                 # JMESPath only
+        destinations:
+          x: "targets[?slot=='x' && active] | [0].uri"
+          y: "targets[?slot=='y' && active] | [0].uri"
+        expect:
+          - {path: study_id, equals: "{study_id}"}              # the answer must be about the study we asked for
+destinations:                                                  # slots; what each may resolve to is in destinations.yaml
+  - {id: x, resolve: {via: portal, endpoint: delivery_targets}, allowed_types: [https, s3, sftp], required: true}
+  - {id: y, resolve: {via: portal, endpoint: delivery_targets}, allowed_types: [s3, sftp], required: true}
 ```
 
 ## 2. Client behaviour (`factory_runtime.portal`, httpx)
@@ -75,11 +65,20 @@ portal:
 **Validation:** each page is checked against the generated model. Any mismatch is a `config` error that names the
 field, without echoing values.
 
-**Mapping:** JMESPath produces typed `PortalEntry` objects. Then:
-- **Path safety.** Paths are canonicalised (POSIX, no `..`, no NUL) and must start with an `allowed_roots` prefix,
-  otherwise it is a `security` error. The **host always comes from the spec binding**, never from the portal, which
-  prevents SSRF and data exfiltration.
-- **Path type.** `recursive` requires include patterns (the validator default is `**/*`, made explicit in the lock).
+**Mapping:** JMESPath produces one destination URI per slot, plus declared values. Then:
+- **Destination safety** ([ADR-0024](../adr/0024-portal-resolved-destinations.md)). Each URI is parsed strictly. It
+  is rejected for:
+  - a scheme other than s3/sftp/https;
+  - non-ASCII characters or any `%`;
+  - userinfo, a query or a fragment;
+  - `.` or `..` segments;
+  - an IP literal.
+
+  The URI must then match **exactly one** allow-list entry of the current environment: same type, host or bucket,
+  and port; a path matching the entry's pattern; and every `{var}` in the pattern equal to the run's own value (so
+  study A can never be routed to study B's folder). Credentials, KMS keys and egress come from the matched entry,
+  never from the portal. No match is a `security` error.
+- **Expect guards** (e.g. `study_id` equals the requested study) reject answers about the wrong entity.
 
 **Reliability:**
 - Full-jitter exponential backoff on 429/5xx, honouring `Retry-After`, with an overall deadline.
@@ -97,28 +96,22 @@ The payload is never logged when classification ≥ `confidential`.
 
 ## 3. Where portal calls run
 
-Portal calls need portal credentials, so they **never run on MWAA**.
+Portal calls need portal credentials, so they **never run on MWAA**. They run in the team account:
+- In a pipeline task, the `portal.lookup` op runs, usually in the first Lambda or pod task. The snapshot is written
+  once and every later task reads it.
+- **Per-entry schedules** from the portal (`trigger.type: portal_schedule`, a later minor version) use a dispatcher
+  Lambda on EventBridge Scheduler in the team account. It:
+  1. snapshots the portal;
+  2. computes the entries that are due, deterministically;
+  3. triggers the worker DAG with `dag_run_id = run_key` through the cross-account trigger role
+     ([ADR-0010](../adr/0010-event-triggers-and-sqs-custody.md)).
 
-| Case | Runs in |
-|---|---|
-| Pipeline triggered by an event or schedule, needing the path | `portal.lookup` op in the first pod or Lambda task |
-| Per-entry schedules from the portal (`trigger.type: portal_schedule`) | a **dispatcher Lambda** on EventBridge Scheduler (e.g. every 15 min) |
+## 4. Governance
 
-**The dispatcher:**
-1. Snapshots the portal and hashes it.
-2. Computes the entries that are due, deterministically, from each entry's schedule and the last-dispatched slot in
-   run-state.
-3. Triggers the worker DAG for each due entry through MWAA `InvokeRestApi` with `dag_run_id = run_key` (entry id +
-   slot) and `conf = {entry_id, snapshot_sha}`. A 409 response means "already triggered".
-
-The worker resolves the actual path from the snapshot, so paths never appear in the Airflow UI.
-
-## 4. Governance mode
-
-| Mode | Effect | Use |
-|---|---|---|
-| `dynamic` | portal changes (new entries, paths, schedules) take effect at run time | non-GxP and `gxp_indirect` (default) |
-| `materialized` | a scheduled drift job compares the portal with the committed entry list and opens a PR; only merged entries run | recommended for `gxp_direct` (open question Q3) |
+- Portal data takes effect at run time (D4). Every resolution is audited: run_id, slot, matched allow-list entry
+  id, URI hash.
+- The **allow-list** (`spec/destinations.yaml`) is the reviewed control. Adding a destination needs a PR approved by
+  governance (CODEOWNERS), which is the Part 11 signature (D5).
 
 ## 5. Testing
 
@@ -130,7 +123,7 @@ The worker resolves the actual path from the snapshot, so paths never appear in 
   - 429 with `Retry-After`;
   - 503 bursts until the breaker opens;
   - schema drift (a missing or extra field);
-  - a path outside `allowed_roots`;
+  - a destination outside the allow-list (other host, other bucket, other study's folder, `..`, `%2e`, IP literal);
   - a pagination loop;
   - token expiry mid-run;
   - an mTLS certificate rejected;

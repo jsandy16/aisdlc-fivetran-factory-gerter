@@ -2,7 +2,7 @@
 
 Decision record: [ADR-0021](../adr/0021-gxp-controls.md).
 
-This is a design intent document, not a validation plan. QA owns the validation approach (open question Q4).
+This is a design intent document, not a validation plan. QA owns the validation approach.
 
 ## 1. ALCOA+ mapping
 
@@ -22,8 +22,8 @@ This is a design intent document, not a validation plan. QA owns the validation 
 
 - **Electronic records:** specs, locks, review packages, manifests and audit events, all immutable once written
   (git history and Object Lock).
-- **Electronic signatures:** the proposed signature is a PR approval by an SSO-backed GitHub identity, plus a
-  digest-bound acceptance record. Whether QA accepts this or needs an eQMS signature is open question Q4.
+- **Electronic signatures:** a PR approval by an SSO-backed GitHub identity (CODEOWNERS), plus a digest-bound
+  acceptance record for custom rules. **QA accepts PR approvals as Part 11 signatures** (decision D5).
 - **Audit trails:** CloudTrail, run audit events, agent decisions and git history. Generated docs link them per
   version.
 - **Access control:** per-team isolation ([security doc](security-network-multiteam.md)); person-only actions are
@@ -48,5 +48,5 @@ This is a design intent document, not a validation plan. QA owns the validation 
 | gxp_tier | Requirements |
 |---|---|
 | `non_gxp` | defaults |
-| `gxp_indirect` | encryption on every target; sha256 in the manifest; audit store; no spot; every custom rule accepted by a person; break-and-verify coverage of every enforced validation |
-| `gxp_direct` | all of the above, plus dedicated per-pipeline roles; portal `materialized` mode (recommended); decrypt-verify step; an optional dedicated MWAA environment; uncovered checks are errors |
+| `gxp_indirect` | SSE-KMS at rest on staging and S3 destinations (package encryption deferred, D3); external destinations carry an at-rest attestation; sha256 in the manifest; audit store; no spot; every custom rule accepted by a person; break-and-verify coverage of every enforced validation |
+| `gxp_direct` | all of the above, plus an optional dedicated MWAA environment; uncovered checks are errors; decrypt-verify once package encryption is added |

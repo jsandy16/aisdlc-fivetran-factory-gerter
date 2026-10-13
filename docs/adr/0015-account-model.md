@@ -1,24 +1,25 @@
-# ADR-0015: AWS account model as a platform setting supporting shared-per-env and account-per-team
+# ADR-0015: Account per team per environment (dev, test, ppt, prod); platform account per environment
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
+- **Amended:** decided: account_per_team, 4 environments (D7).
 
 ## Context
 
-The organisation has not decided the account model.
+The user decided that each team has its own AWS account per environment: dev, test, ppt, prod (D7).
 
 ## Decision
 
-- `platform-settings/<stage>.json` declares `account_model: shared_per_env | account_per_team`, the account map and placement.
-- Generators emit provider aliases, cross-account bucket and KMS key policies, state keys and role ARNs from the settings.
-- Specs never contain account ids. Their `environments.yaml` names placement aliases only.
-- The default is `shared_per_env`. Both models are tested in Phase 5.
+- `platform-settings/<env>.json` declares `account_model: account_per_team`, the platform account, the team accounts, placement aliases, naming patterns for cross-account roles, shared stores and limits.
+- Specs never contain account ids; `environments.yaml` names placement aliases only.
+- The generators emit cross-account roles (launcher, trigger, deploy) and, when a destination lives in another account, bucket and KMS key policies.
+- `shared_per_env` stays representable in the settings model, but is not used.
 
 ## Consequences
 
-- The decision can be made later without changing pipeline specs.
-- The generator is a little more complex.
+- The account boundary is the team isolation boundary.
+- MWAA and the DAG publisher are the only shared components.
 
 ## Alternatives considered
 
-- *Hard-coding one model now:* rejected, because the user has not decided.
+- *Shared accounts per environment:* rejected by the user.

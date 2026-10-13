@@ -5,120 +5,53 @@ exported as JSON Schema for editor autocomplete, and versioned with semver ([ADR
 
 ## 1. Physical layout: owner-scoped files, one model
 
-| File | Sections | Owner (CODEOWNERS, exactly one) | BA touches |
-|---|---|---|---|
-| `spec/pipeline.yaml` | `metadata`, `trigger`, `orchestration`, `reliability`, `observability`, `workload`, `cost`, `lineage`, `documentation` | data engineer | metadata, schedule intent, workload hints |
-| `spec/rules.yaml` | `rules[]` (with `test_cases`), `data_contract` | BA / product owner | `plain_english`, `test_cases`, naming tokens |
-| `spec/integrations.yaml` | `portal`, `sources[]`, `targets[]`, `secrets` | data engineer | — |
-| `spec/security.yaml` | `security_and_access` (gxp tier, classification, retention, KMS, residency, grants) | governance / QA | — |
-| `spec/environments.yaml` | per-environment bindings: placement, portal `base_url`, buckets, Vault mounts and namespaces, queue ARNs, schedule overrides, enabled | platform | — |
+| File | Sections | Owner (CODEOWNERS, exactly one) | Hash | BA touches |
+|---|---|---|---|---|
+| `spec/pipeline.yaml` | `metadata`, `variables`, `trigger`, `orchestration`, `reliability`, `observability`, `workload`, `cost`, `artifacts` (overrides), `open_questions` | data engineer | logic | metadata, schedule intent, workload hints |
+| `spec/rules.yaml` | `rules[]` (with `test_cases`) | BA / product owner | logic | `plain_english`, `test_cases`, naming |
+| `spec/integrations.yaml` | `sources[]`, `portal`, `apis[]`, `destinations[]` (slots), `secrets` | data engineer | logic | — |
+| `spec/security.yaml` | `security_and_access`: gxp tier, **data classification**, at-rest encryption, checksums, audit, retention, residency | governance / QA | logic | — |
+| `spec/environments.yaml` | per environment: placement, queues, source bucket allow-list, portal `base_url`, alert channels, secret mounts | platform | binding | — |
+| `spec/destinations.yaml` | per environment: the **destination allow-list** the portal may choose from ([ADR-0024](../adr/0024-portal-resolved-destinations.md)) | governance | binding | — |
 
-- **One model.** The loader merges the files into one `PipelineSpec`. Every cross-file reference uses a **stable id**
-  (rule_id, task_id, artifact name, secret name, source/target id), never a list index.
-- **The lock.** `spec.lock.json` is the canonical, normalised merge: defaults filled in and short forms expanded.
-  It is generated and committed.
-- **Logic vs bindings.** Logic (everything except `environments.yaml`) hashes to `logic_sha`, which is the same in
-  dev, test and prod. Each environment has a `binding_sha`. The pair is the GxP evidence that what was tested is
-  what runs.
-- **Derived, not authored.**
-  - `infrastructure` comes from `platform-settings` plus the spec.
-  - `artifacts` are inferred from rule inputs and outputs, and can be overridden.
-  - `documentation` output is generated.
-  - `changelog` is generated from `changes/`.
-- **Gate.** `open_questions[]` lives in `pipeline.yaml` and must be empty before generation.
+- **One model.** The loader merges the six files into one `PipelineSpec`. Every cross-file reference uses a **stable
+  id** (rule_id, task_id, artifact, variable, secret, source, slot, endpoint, queue, allow-list entry id).
+- **Environments** come from the team repo's `factory.toml` (`environments = ["dev","test","ppt","prod"]`), and
+  every one must be bound.
+- **The lock.** `spec.lock.json` is the canonical, normalised merge: defaults filled in, set-like lists sorted,
+  id-keyed lists sorted by id. It is generated and committed (`factory lock`, `factory lock --check` in CI).
+- **Logic vs bindings.**
+  - `logic_sha` covers `pipeline`, `rules`, `integrations` and `security`, excluding cosmetic metadata (name,
+    description, owners, tags, labels, spec_version). It is the same in dev, test, ppt and prod.
+  - `binding_sha[env]` covers that environment's slice of `environments.yaml` and `destinations.yaml`.
+- **Gate.** `open_questions[]` must be empty before generation.
 
-## 2. Sections and key fields
+## 2. Key concepts
 
-```yaml
-# spec/pipeline.yaml
-api_version: factory/v1
-kind: Pipeline
-schema_version: 1.0.0              # semver of the schema; migrations are chained (factory migrate)
-metadata:
-  pipeline_id: study_pkg_delivery  # = DAG id stem, role and namespace label; never changes
-  name: "Study package delivery"
-  team: clinops_data
-  owners: {business_owner: "@alice", data_engineer: "@bob", governance: "@carol", quality: "@dan"}
-  data_classification: restricted  # public < internal < confidential < restricted
-  spec_version: 0.1.0              # semver of this pipeline
-  requirements: [REQ-001]          # traceability ids
-  tags: {cost_centre: CC1234}
-trigger:                           # union: schedule | portal_schedule | s3_event | sqs | manual | upstream
-  type: sqs
-  queue: delivery_requests         # resolved per environment in environments.yaml
-orchestration:
-  dag: {catchup: false, max_active_runs: 4, dagrun_timeout_minutes: 240}
-  pool: clinops_data
-  tasks:
-    - {task_id: t1_collect, rules: [r_read_request, r_portal_lookup, r_download, r_zip, r_manifest], engine: auto}
-    - {task_id: t2_encrypt, rules: [r_encrypt], depends_on: [t1_collect], engine: auto}
-    - {task_id: t3_checksum, rules: [r_md5], depends_on: [t2_encrypt], engine: auto}
-    - {task_id: t4_upload, rules: [r_upload_x, r_upload_y], depends_on: [t3_checksum], engine: auto}
-reliability:
-  run_key: "{trigger.message.request_id}"    # deterministic per run
-  retry: {max_attempts: 3, backoff: exponential_jitter, base_seconds: 10, max_seconds: 300}
-  dlq: true
-  replay_window_days: 30
-observability:
-  alerts: {transient: none, data: "sns:clinops-data", config: "sns:platform", security: "sns:security"}
-  sla_minutes: 180
-workload:                          # sizing hints for the engine planner and cost model
-  bytes_per_run: {p50: 2GB, p95: 20GB, max: 50GB}
-  files_per_run: {p50: 2000, max: 20000}
-  runs_per_day: 4
-cost: {budget_per_run_usd: 5, budget_per_month_usd: 600}
-open_questions: []
-```
+- **`variables`:** the only names that templates, path patterns and CEL `vars` may use, e.g.
+  `study_id: trigger.message.study_id`. A variable used in a path must come from a field with a `pattern`.
+- **Trigger:** a union of `schedule | sqs | s3_event | manual`. `portal_schedule` and `upstream` come in a later
+  minor version.
+  - The SQS trigger declares its `message` fields (type, pattern, bounds) and `mode: dispatch | in_task`.
+  - `reliability.run_key` may use only trigger-sourced variables.
+- **Portal:** auth, endpoints, pagination, `response` field specs (→ generated model), JMESPath `mapping`
+  (destinations per slot, values, `expect` guards) ([portal-integration.md](portal-integration.md)).
+- **Destinations:**
+  - slots in `integrations.yaml` resolve via the portal or statically;
+  - `destinations.yaml` lists the allowed `s3` / `sftp` / `https` entries per environment;
+  - credentials, KMS keys and egress come from the matched entry.
+- **Units:** sizes like `10GB` / `512MiB` (case-sensitive, integer bytes), durations like `15m` / `4h` (integer
+  seconds), money as `"2.00"`. No floats in hashed data.
 
-```yaml
-# spec/rules.yaml (one rule shown)
-rules:
-  - rule_id: r_encrypt
-    category: encrypt              # discriminator → per-category model
-    plain_english: "Read the encryption key from the vault entry and encrypt the package."
-    implementation:                # union: builtin | expression | custom
-      kind: builtin
-      op: crypto.encrypt           # discriminator → per-op params model
-      params: {format: aws_esdk, key_source: vault_kv, key_secret: package_key, frame_bytes: 1048576}
-    inputs: [package]
-    outputs: [package_encrypted]
-    preconditions: ["artifacts.package.size > 0"]   # CEL
-    on_failure: {action: fail, error_class: data}
-    side_effects: []               # builtin ops declare theirs in the op catalog
-    test_cases:
-      - {name: encrypts_and_decrypts, given: {package: fixture://small.zip}, expect: {decrypts_to: fixture://small.zip}}
-```
-
-```yaml
-# spec/integrations.yaml (abridged)
-portal:
-  auth: {type: oauth2_client_credentials, token_url_path: /oauth/token, client: portal_client}   # secret names
-  endpoints:
-    - id: study_paths
-      method: GET
-      path: /api/v1/studies/{study_id}/paths
-      pagination: {type: cursor, cursor_field: next}
-      response_schema: {items: "data[]", fields: {server_path: string, path_type: "enum[absolute,recursive]", include: "list[string]"}}
-      response_mapping: {items: "data", path: "server_path", path_type: "path_type", include: "include", exclude: "exclude"}
-  snapshot: per_run
-  allowed_roots: ["/exports/studies/"]
-sources:
-  - {id: study_server, type: sftp, host_ref: study_sftp_host, host_key_ref: study_sftp_host_key, auth: {private_key: study_sftp_key}, path_from: portal.study_paths}
-targets:
-  - {id: x, type: s3, bucket_ref: delivery_bucket, prefix: "x/{study_id}/{run_date}/", kms_key_ref: delivery_kms, write_mode: write_once}
-  - {id: y, type: s3, bucket_ref: archive_bucket, prefix: "y/{study_id}/", kms_key_ref: archive_kms, write_mode: write_once}
-secrets:
-  package_key: {provider: vault, path: "secret/data/{env}/clinops/package", key: aes256, kind: aes_key}
-  portal_client: {provider: aws_secrets_manager, path: "{env}/clinops/portal-client", key: client_secret, kind: oauth_client}
-  study_sftp_key: {provider: aws_secrets_manager, path: "{env}/clinops/sftp", key: private_key, kind: ssh_private_key}
-```
+The complete worked example lives in
+`examples/team-pipelines/pipelines/study_pkg_delivery/spec/` (§8) and is validated in CI.
 
 ## 3. Rules
 
 - **Fields:** every rule has `rule_id`, `category`, `plain_english`, `implementation`, `inputs`, `outputs`,
   `preconditions`, `on_failure`, `side_effects` and `test_cases`.
-- **Categories:** extract, transform, validate, package, encrypt, checksum, naming, upload, housekeeping,
-  integration. The category is a discriminator: each category allows a fixed set of ops and its own fields.
+- **Categories:** extract, transform, validate, package, encrypt (*planned*: package encryption is deferred, D3),
+  checksum, naming, upload, housekeeping, integration. The category is a discriminator: each category allows a fixed set of ops and its own fields.
 - **Implementations:**
   - `builtin{op, params}`: an op from the [catalog](op-catalog.md), with params validated by the op's model;
   - `expression{cel}`: validation predicates and naming rules;
@@ -127,19 +60,19 @@ secrets:
 - **Composition:** tasks list rules in order. Tasks compose through `depends_on`, `branch` (a CEL condition) and
   `parallel_group`.
 
-## 4. Cross-field validation (examples, Phase 2 builds the full set)
+## 4. Cross-field validation (selection; the full list with codes is in [phase-2-design.md](phase-2-design.md) §D)
 
-| Rule | Error |
+| Rule | Error code |
 |---|---|
-| `encrypt` needs `key_secret` (vault/aws_sm) or `kms_key_ref` | `encrypt_without_key` |
-| `trigger.type` `sqs` or `s3_event` needs a queue binding in every enabled environment | `event_trigger_without_queue` |
-| Recursive discovery needs at least one `include` pattern | `recursive_without_include` |
-| `gxp_tier ≠ non_gxp` needs encryption on every target, an audit trail, sha256 in the manifest, and on-demand engines only | `gxp_controls_missing` |
-| An explicit `engine: lambda` must pass the feasibility check against `workload.max` | `engine_infeasible` |
-| Every secret, artifact, rule and source/target reference resolves; every input has an upstream producer; cross-task artefacts are staged | `unresolved_reference`, `dataflow_gap` |
-| Portal-returned paths are constrained by `allowed_roots`; source hosts come from the spec | `portal_unconstrained` |
-| A classification above the target's allowed level | `classification_target_mismatch` |
-| A `custom` rule needs `test_cases`, a review record and an acceptance digest matching `code_sha256` | `custom_rule_unreviewed` |
+| An `encrypt` rule or `crypto.*` op is used while package encryption is deferred | `op_not_available` |
+| `trigger.type` `sqs` or `s3_event` needs a queue binding in every environment | `event_trigger_without_queue` |
+| Recursive listing (`s3.list` / `discover.list` with `recursive: true`) needs at least one `include` pattern | `recursive_without_include` |
+| `gxp_tier ≠ non_gxp` needs SSE-KMS at rest, an audit trail, sha256 in the manifest, no spot, and an at-rest attestation on external destinations | `gxp_encryption_at_rest_missing`, `gxp_audit_missing`, `gxp_sha256_missing`, `gxp_spot_forbidden`, `gxp_external_destination_unattested` |
+| An explicit `engine: lambda` must pass the feasibility check against `workload.max`, using the union of all environments' destination types | `engine_infeasible` (error), `engine_marginal` (warning) |
+| Every secret, artifact, rule, variable, slot and endpoint reference resolves; every input has exactly one upstream producer; cross-task artefacts are staged | `unresolved_reference`, `dataflow_gap`, `dataflow_not_staged` |
+| Every portal-resolved slot has at least one allow-list entry per environment; patterns are not too broad and do not overlap | `destination_slot_unbound`, `destination_pattern_too_broad`, `destination_ambiguous` |
+| A secret value pasted into a spec | `secret_in_spec` |
+| Package size limit (10 GB) | `workload_exceeds_limit` |
 
 ## 5. BA-friendliness
 
@@ -162,33 +95,36 @@ secrets:
 
 ## 7. Starter templates (Phase 2)
 
-| Starter | Trigger | Engines |
+| Starter | Trigger | Shape |
 |---|---|---|
-| `portal_zip_encrypt_s3` (the worked example) | sqs / portal_schedule | eks_pod (collect, encrypt), lambda (checksum, copy) |
-| `s3_to_s3_event` | s3_event → Lambda | lambda, or eks_pod for large objects |
-| `table_to_s3_fivetran` | schedule | fivetran_native, or fivetran_sdk when row rules are needed |
-| `rest_to_s3` | schedule | lambda or eks_pod by volume |
+| `s3_package_deliver` (the worked example) | sqs (S3 package metadata) | collect + zip → checksum → deliver to portal-resolved destinations |
+| `s3_to_s3_event` | s3_event | server-side copy to a static destination slot |
+| `rest_to_s3` | schedule | `rest.fetch` (paginated API) → `s3.put` to a static slot |
+| `table_to_s3_fivetran` | schedule | `fivetran.sync` on `fivetran_native` (model only; REST provisioning in Phase 5) |
 
-## 8. Worked example outline (the full spec is built in Phase 2)
+## 8. Worked example (complete spec in `examples/team-pipelines/pipelines/study_pkg_delivery/spec/`)
 
-> "Read the server path from the self-service portal and download all objects, then package them. Create a DAG with
-> 4 sequential tasks: Task 1 reads the SQS queue, downloads all objects and prepares a zip. Task 2 reads the
-> encryption key from the vault entry and encrypts the package. Task 3 creates an MD5 checksum. Task 4 uploads to
-> the S3 bucket at the `<x>` and `<y>` prefixes."
+The requirement, as clarified by the user (D1–D3):
+
+> A package is uploaded to S3, and an SQS message carries its metadata (bucket, prefix, …). Download all objects
+> under that prefix and zip them, keeping the folder structure. Create an MD5 checksum. Upload to destinations
+> `<x>` and `<y>`, which the self-service portal names (another S3 bucket/prefix or an external server). Encryption
+> is done outside the pipeline for now.
 
 | Task | Rule | Category | Implementation | Output |
 |---|---|---|---|---|
-| t1_collect | r_read_request | integration | `sqs.read` (dispatch mode: reads the custody snapshot) | `message_batch` |
-| | r_portal_lookup | integration | `portal.lookup` (endpoint `study_paths`, snapshot) | `portal_snapshot` |
-| | r_list | extract | `discover.list` (path from snapshot, recursive, include/exclude, `allowed_roots`) | `file_set` (listing) |
-| | r_download | extract | `transfer.download` (streaming) | `file_set` |
-| | r_zip | package | `package.zip` (preserve structure under the portal path, deterministic) | `package` (staged) |
-| | r_manifest | package | `manifest.build` (path, size, sha256 per file) | `manifest` (staged) |
-| t2_encrypt | r_encrypt | encrypt | `crypto.encrypt` (`aws_esdk`, `key_source: vault_kv` per the brief; KMS recommended, Q2) | `package_encrypted` (staged) |
-| t3_checksum | r_md5 | checksum | `checksum.compute` (md5 of the stored encrypted object; sha256 too) | `checksum` + sidecar |
-| t4_upload | r_name | naming | `naming.render` (`{study_id}_{run_date}_{seq}.zip.enc`) | `value` |
-| | r_upload_x | upload | `s3.copy` → target `x` (write-once, SSE-KMS, tags) | final object + sidecar |
-| | r_upload_y | upload | `s3.copy` → target `y` | final object + sidecar |
+| t1_collect | r_read_request | integration | `sqs.read` (custody snapshot of the message) | `request` (message) |
+| | r_portal_lookup | integration | `portal.lookup` (`delivery_targets`, with the study_id `expect` guard) | `portal_answer` (snapshot) |
+| | r_resolve_destinations | integration | `destination.resolve` (slots x, y against the allow-list) | `destinations` |
+| | r_list_objects | extract | `s3.list` (bucket/prefix from the message, recursive, include `**/*`, ≤ 20k objects, ≤ 10GB) | `listing` |
+| | r_check_listing | validate | CEL: count and bytes equal the message | — |
+| | r_download | extract | `s3.download` (streaming, size + ETag verified) | `files` |
+| | r_zip | package | `package.zip` (deterministic, paths relative to the prefix) | `package` (staged) |
+| | r_manifest | package | `manifest.build` (per-file sha256; zip md5 + sha256) | `manifest` (staged) |
+| t2_checksum | r_checksum | checksum | `checksum.compute` (re-read the stored zip; md5 + sha256 equal the manifest) | `package_checksum` |
+| t3_upload | r_package_name | naming | `naming.render` (`{study_id}_{package_id}.zip`) | `package_name` |
+| | r_upload_x | upload | `destination.deliver` (slot x; write-once; manifest + md5/sha256 sidecars; verify) | receipt |
+| | r_upload_y | upload | `destination.deliver` (slot y) | receipt |
 
 Trigger: `sqs` in `dispatch` mode ([ADR-0010](../adr/0010-event-triggers-and-sqs-custody.md)). Engines per the
 planner ([engine-selection.md §3](engine-selection.md)).

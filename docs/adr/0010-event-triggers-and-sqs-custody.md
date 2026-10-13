@@ -1,24 +1,29 @@
-# ADR-0010: Events via Lambda dispatch or in-task custody transfer; no AssetWatcher for GxP custody
+# ADR-0010: S3 event → SQS → dispatch Lambda (team account) → cross-account InvokeRestApi; custody snapshot; no AssetWatcher for GxP custody
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
+- **Amended:** cross-account trigger path (D7); message = S3 package metadata (D1).
 
 ## Context
 
-S3 notifications only target standard SQS queues, so messages can be duplicated and arrive out of order. Airflow's AssetWatcher with `MessageQueueTrigger` deletes the message when it fires and may merge events into one run.
+A package is uploaded to S3 in the team account, and its metadata (bucket, prefix, …) arrives on SQS (D1). S3 notifications only target standard queues, so messages can be duplicated and arrive out of order. Airflow's AssetWatcher deletes the message when it fires and may merge events.
 
 ## Decision
 
-- **`trigger.type: sqs | s3_event` supports two modes:**
-  - **`dispatch` (default):** a Lambda event source mapping (partial batch response, DLQ, `maxReceiveCount`) writes a write-once message snapshot to staging, records a dedupe key in run-state, and calls MWAA `InvokeRestApi` with `dag_run_id = run_key`. A 409 means a duplicate. Task 1's `sqs.read` reads the snapshot.
-  - **`in_task`:** the DAG is scheduled. `sqs.read` receives with a visibility timeout longer than the task (or extends it), snapshots write-once, writes the dedupe record, and then deletes. Retries read the snapshot, never the queue.
-- **EventBridge** is used where fan-out to several consumers is needed.
+- **`trigger.type: sqs`, `mode: dispatch` (default):**
+  - A Lambda event source mapping in the team account (partial batch response, DLQ, `maxReceiveCount`) validates the message against the spec's message schema.
+  - It writes a write-once message snapshot to staging and records a dedupe key in run-state.
+  - It assumes `factory-trigger-<team>` in the platform account and calls MWAA `InvokeRestApi` as the team's Airflow RBAC role with `dag_run_id = run_key`. A 409 means a duplicate.
+  - Task 1's `sqs.read` reads the snapshot.
+- **`mode: in_task`:** the DAG is scheduled; `sqs.read` receives, snapshots, dedupes, then deletes.
+- **EventBridge** is used for fan-out to several consumers.
 
 ## Consequences
 
 - No message is lost or processed twice.
-- Event-driven by default, without polling sensors.
+- Event-driven by default.
+- The cross-account trigger path is validated in Phase 8 (spike S3).
 
 ## Alternatives considered
 
-- *AssetWatcher SQS scheduling:* allowed only for non-GxP pipelines that accept its semantics.
+- *AssetWatcher SQS scheduling:* only for non-GxP pipelines that accept its semantics.

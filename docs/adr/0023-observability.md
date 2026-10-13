@@ -1,6 +1,6 @@
 # ADR-0023: JSON logs with correlation ids, embedded metrics, error-class alert routing
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

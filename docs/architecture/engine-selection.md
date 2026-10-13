@@ -47,11 +47,18 @@ anything heavy. The planner compares estimates rather than relying on a fixed or
 
 ## 3. The worked example under the planner
 
-Workload `bytes max = 50 GB`, `p95 = 20 GB`, 4 runs/day, `gxp_tier: gxp_indirect`:
+Workload `bytes max = 10 GB` (D10), `p95 = 6 GB`, 6 runs/day, `gxp_indirect` (no spot). Resource-model constants are
+placeholders until spike S6 (Phase 8):
+- Lambda S3 read ~90 MB/s;
+- deflate ~60 MB/s per core;
+- sftp put ~25 MB/s;
+- https put ~40 MB/s.
 
 | Task | Ops | Planner result | Why |
 |---|---|---|---|
-| t1_collect | sqs.read, portal.lookup, discover.list, transfer.download, package.zip, manifest.build | `eks_pod` on-demand | 50 GB is too much for Lambda's /tmp and time; GxP excludes spot |
-| t2_encrypt | crypto.encrypt | `eks_pod` on-demand + warning `fuse_recommended` (re-reads 50 GB from staging) | streaming encryption of 50 GB takes about 10–20 min |
-| t3_checksum | checksum.compute (md5) | `eks_pod` | Lambda's single-stream S3 read is about 90 MB/s (resource-model value, measured in spike S6), so 50 GB takes about 555 s. With the 2× margin that is ~1,110 s, over the 900 s limit. Lambda becomes feasible if `max` is ≤ ~40 GB. |
-| t4_upload | s3.copy ×2 (server-side) | `lambda` | server-side copy moves no bytes through the function |
+| t1_collect | sqs.read, portal.lookup, destination.resolve, s3.list, s3.download (stream), package.zip (stream), manifest.build | `lambda` | streaming means no /tmp limit; ≈ 175 s at 10 GB; ×2 margin = 350 s ≤ 900 |
+| t2_checksum | checksum.compute (md5 + sha256 of the stored zip) | `lambda` (explicit in the spec, passes feasibility) | 10 GB / 90 MB/s ≈ 111 s + overhead; ×2 ≈ 242 s ≤ 900 |
+| t3_upload | naming.render, destination.deliver ×2 (x, y) | `lambda` or `eks_pod` | the worst case over all environments' allow-listed types (union, so the choice is the same in every env) is two SFTP uploads ≈ 820 s; ×2 = 1,640 s > 900, so `engine_marginal` → planner picks `eks_pod`. If destinations are S3 only, server-side copy makes Lambda trivial. |
+
+At 10 GB the team account needs an EKS cluster only if some task's destination set includes slow external
+protocols. Otherwise the whole pipeline is Lambda-only and no cluster is created.

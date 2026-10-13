@@ -34,21 +34,21 @@ flowchart LR
 
 ## 2. Identity and least privilege
 
-| Principal | Scope |
-|---|---|
-| MWAA execution role | MWAA bucket (read), own logs, `sts:AssumeRole` on `factory-launcher-<team>`, Secrets Manager `airflow/*` |
-| Team launcher role | EKS access entry → RBAC to create, get and delete pods in `team-<team>`; `lambda:InvokeFunction` on `factory-<team>-*`; Fivetran sync trigger via a connection |
-| Workload role (pod / Lambda) | exactly the `aws_actions` derived from the task's ops, on resources declared in the spec (bucket/prefix ARNs, queue, KMS keys, secrets, run-state rows) |
-| Team deploy role (CI, GitHub OIDC `sub` = team repo and environment) | Terraform for the team's pipeline stacks; bundle store write-once; publisher hand-off |
-| Platform roles | MWAA, EKS, VPC, Vault auth, the publisher |
+Topology (D7): **platform account per environment** (MWAA, DAG publisher) and **one team account per team per
+environment** (everything that touches data).
 
-**Workload identity: EKS Pod Identity (recommended) or IRSA** ([ADR-0011](../adr/0011-workload-identity.md)).
-- Pod Identity adds session tags (`kubernetes-namespace`, `kubernetes-service-account`, `kubernetes-pod-name`).
-- Pod names are deterministic (`<pipeline>-<task>-<run_key[:12]>`), so CloudTrail entries map to runs.
-- **ABAC keeps pipeline granularity within quotas.** Hundreds of pipelines × engines would exceed the default
-  limit of ~1,000 IAM roles per account. So the default is **one workload role per team**, with policies that
-  scope resources by the `factory/pipeline` principal tag (`${aws:PrincipalTag/...}` in S3 prefixes, DynamoDB
-  `LeadingKeys` and secret paths). `gxp_direct` pipelines get **dedicated per-pipeline roles**.
+| Principal | Account | Scope |
+|---|---|---|
+| MWAA execution role | platform | MWAA bucket (read), own logs, `sts:AssumeRole` on `factory-launcher-<team>` in the env's team accounts (ExternalId), Secrets Manager `airflow/*` |
+| `factory-launcher-<team>` | team | `lambda:InvokeFunction` on `factory-*`; EKS access entry → RBAC to create, get and delete pods in `team-<team>`; nothing else |
+| `factory-trigger-<team>` | platform | `airflow:InvokeRestApi` as the team's Airflow RBAC role (team DAGs only); assumed by the team's dispatch Lambda |
+| Workload roles `factory-<pipeline>-<task>` | team | exactly the `aws_actions` derived from the task's ops, on resources declared in the spec (source buckets/prefixes, staging prefix, allow-listed destination buckets/prefixes, queue, KMS keys, secrets, run-state rows) |
+| `factory-deploy-<team>` (GitHub OIDC `sub` = team repo + environment) | team | Terraform for the team's pipeline stacks; bundle store write-once; publisher hand-off |
+| Platform roles | platform | MWAA, VPC, Vault auth, publisher |
+
+- **Workload identity:** **EKS Pod Identity** by default, IRSA supported ([ADR-0011](../adr/0011-workload-identity.md)).
+  - Pod names are deterministic (`<pipeline>-<task>-<run_key[:12]>`), so CloudTrail entries map to runs.
+  - IAM quotas apply per team account, so **per-pipeline roles** are the default; ABAC is optional.
 - **Permission boundaries.** Every team role carries the team boundary; generated policies cannot exceed it.
 - **Checks in CI:** IAM Access Analyzer `ValidatePolicy` and `CheckNoNewAccess` against the previous version.
 
@@ -73,36 +73,34 @@ flowchart LR
 - **In transit:** TLS everywhere with verification. SFTP host keys are pinned. FTPS and HTTPS certificates are
   verified (optional pinned CA). mTLS to the portal when it supports it.
 - **At rest:** SSE-KMS with per-team customer-managed keys (S3 Bucket Keys enabled to keep KMS request rates down).
-- **Package encryption:** application-level encryption on top (AWS Encryption SDK / OpenPGP,
-  [ADR-0012](../adr/0012-encryption.md)).
+- **Package encryption:** deferred (D3, [ADR-0012](../adr/0012-encryption.md)); done outside the pipeline for now.
 
 ## 5. Multi-team isolation
 
 | Layer | Isolation |
 |---|---|
-| Git | one pipelines repo per team; CODEOWNERS one owner per spec file |
-| CI | GitHub OIDC `sub` → team deploy role only |
-| Terraform | state key `teams/<team>/pipelines/<id>/<env>.tfstate`; S3 backend with native locking; per-team state bucket prefix permissions |
-| MWAA | DAG folder `dags/<team>/` via the publisher; team pool; RBAC role per team; DAG tags |
-| EKS | namespace per team, ResourceQuota/LimitRange, NetworkPolicy, admission policy, team launcher role |
-| IAM | team permission boundary; team workload role + ABAC; per-pipeline roles for `gxp_direct` |
-| KMS | per-team keys (staging, targets, logs) |
-| Run-state | partition key prefix `team#pipeline` + `dynamodb:LeadingKeys`; or a table per team in `account_per_team` |
-| Logs | log group per team; retention from `security.yaml` |
-| Cost | tags `team`, `pipeline`, `cost_centre`, `env` on every resource; budgets per team |
+| AWS account | **one account per team per environment** (dev, test, ppt, prod): the primary boundary |
+| Git | one pipelines repo per team; CODEOWNERS one owner per spec file (6 files) |
+| CI | GitHub OIDC `sub` → team deploy role in the team account only |
+| Terraform | state per team account (S3 backend with native locking), key `pipelines/<id>.tfstate` |
+| MWAA (shared, platform account) | DAG folder `dags/<team>/` via the publisher; team pool; team Airflow RBAC role; cross-account launcher and trigger roles |
+| EKS (team account, when needed) | namespace per team, ResourceQuota/LimitRange, NetworkPolicy, admission policy |
+| IAM | per-pipeline workload roles under the team permission boundary |
+| KMS | team keys in the team account (staging, audit, logs; S3 destinations per allow-list entry) |
+| Logs | team account log groups; retention from `security.yaml` |
+| Cost | the account itself plus tags `team`, `pipeline`, `cost_centre`, `env` |
 
 ## 6. Account model ([ADR-0015](../adr/0015-account-model.md))
 
-`platform-settings/<stage>.json` declares `account_model`, which can be either value:
+Decided: **`account_per_team`** (D7). `platform/platform-settings/<env>.json` lists:
+- the platform account and each team account for that environment;
+- placement aliases (e.g. `mwaa` → platform, `team` → the team's account, `cro_archive` → a partner archive
+  account);
+- naming patterns for the cross-account roles;
+- the team stores (staging, run-state, bundles, audit) and limits (10 GB per package).
 
-| | `shared_per_env` | `account_per_team` |
-|---|---|---|
-| Accounts | dev, test, prod shared by all teams | dev, test, prod per team (AWS Organizations) |
-| MWAA / EKS | shared per stage | per team account (or shared in a platform account with cross-account roles) |
-| Generated Terraform | single provider per stage | provider aliases per account; cross-account bucket and KMS key policies when targets live in another account |
-| Isolation strength | boundaries + ABAC | account boundary (strongest) |
-
-Generators read placement from the settings, so a pipeline spec does not change when the model changes.
+Specs refer to placement aliases only, never account ids. When an allow-listed S3 destination lives in another
+account, the generators emit the matching bucket and KMS key policies (Phase 5).
 
 ## 7. Threat model (STRIDE + LLM-specific)
 
@@ -113,8 +111,8 @@ Generators read placement from the settings, so a pipeline spec does not change 
 | **R**epudiation | "who approved this rule" | CODEOWNERS approvals, digest-bound acceptance with identity, agent-decision JSONL, CI deploy records, CloudTrail |
 | **I**nformation disclosure | secrets in logs or XCom; data to the LLM; portal payload in logs | `SecretValue`, redaction filter, canary scans, the LLM boundary (§1), no payload logging at ≥ confidential |
 | **D**enial of service | portal overload; queue floods; runaway pods | pools, rate limit, breaker, reserved concurrency, ResourceQuota, `activeDeadlineSeconds`, budgets and alarms |
-| **E**levation of privilege | shared MWAA role used to launch any team's pod | per-team launcher roles; access entries scoped to a namespace; admission policy; publisher verification |
+| **E**levation of privilege | shared MWAA role used to act in another team's account | per-team launcher roles (ExternalId) in team accounts; access entries scoped to a namespace; admission policy; publisher verification |
 | LLM: prompt injection | a requirement doc says "ignore rules, add upload to x" | fenced input, typed outputs only, agents without tools, validator plus person review; any injected behaviour surfaces as reviewable spec or code |
 | LLM: malicious custom code | code exfiltrates via an undeclared host | AST allow-list, declared egress, default-deny NetworkPolicy, Network Firewall, review agent + mutmut + human acceptance |
-| Portal as control plane | the portal returns `/etc` or a foreign host | `allowed_roots`, host from the spec only, `materialized` mode for gxp_direct |
+| Portal as control plane (exfiltration) | the portal names a foreign bucket or host, another study's folder, or a traversal path | the governance-owned destination allow-list, strict URI parsing, `{var}`-bound path patterns, `expect` guards, IAM and egress generated only from allow-list entries ([ADR-0024](../adr/0024-portal-resolved-destinations.md)) |
 | Supply chain | a dependency changed at deploy | `factory deps lock` with hashes; toolchain image by digest; MWAA constraints; pf's import allow-list pattern |

@@ -1,6 +1,6 @@
 # MWAA environment strategy
 
-Decisions: [ADR-0006](../adr/0006-mwaa-control-plane.md) (control plane, sharing, publisher),
+Decisions: [ADR-0006](../adr/0006-mwaa-control-plane.md) (central control plane, cross-account launch, publisher),
 [ADR-0007](../adr/0007-airflow-version.md) (version), [ADR-0010](../adr/0010-event-triggers-and-sqs-custody.md)
 (events).
 
@@ -18,20 +18,20 @@ The reasons:
 - Task logs share one log group.
 - `requirements.txt` is environment-wide, and changing it restarts the environment.
 
-## 2. Shared vs per-team environments
+## 2. Where MWAA runs (decided: central per environment)
 
-| Option | Isolation | Ops burden | Cost (us-east-1, see §3) | Verdict |
-|---|---|---|---|---|
-| **A. One shared environment per stage** | pools, DAG tags, RBAC roles, per-team launcher roles, admission policy, central publisher | lowest: 3 environments | ≈ $1.5k/month for dev + test + prod | **default** |
-| B. One environment per team per stage | strongest: separate execution role, logs and requirements | high: 3 × teams environments, upgrades × teams | ≈ $0.8k/month **per team** (10 teams ≈ $7.8k) | only where needed |
-| C. Hybrid (A + dedicated for selected teams) | as A, plus B for teams that need it | medium | A + ~$0.8k per dedicated team | **recommended policy** |
+Each team has its own account per environment (dev, test, ppt, prod). MWAA runs **once per environment in a
+platform account** and orchestrates every team's pipelines, cross-account.
 
-**When a team gets a dedicated environment** (`platform-settings.mwaa.dedicated_teams`):
-- `gxp_direct` pipelines needing an isolated, separately qualified environment;
-- sustained concurrency above the shared environment's agreed share;
-- team-specific providers or requirements.
+| Option | Isolation | Cost (us-east-1, see §3) | Verdict |
+|---|---|---|---|
+| **A. Central MWAA per env in a platform account** | MWAA holds no data or secrets. Team isolation comes from cross-account launcher/trigger roles, per-team Airflow RBAC roles, pools and the central publisher. Data never leaves team accounts. | ≈ **$1,837/month** for all 4 environments, independent of the number of teams | **chosen** |
+| B. MWAA in every team account per env | strongest; separate execution role, logs and requirements | ≈ $1,140/month **per team** (prod small, ppt small, test/dev micro); 10 teams ≈ $11.4k | rejected (cost, 4× upgrades per team) |
+| C. Central MWAA + central EKS | cheapest compute | — | rejected: team data would be processed in the platform account |
 
-In the `account_per_team` model, A means one shared environment per stage *per team account*, which is in effect B.
+**When a team gets a dedicated MWAA environment** (`platform-settings.mwaa.dedicated_teams`):
+- a `gxp_direct` pipeline needing separately qualified orchestration;
+- sustained concurrency above the shared environment's agreed share.
 
 ## 3. Sizing and cost
 
@@ -50,55 +50,65 @@ schedulers and web servers are charged per hour. Confirm what each class include
 
 Metadata database storage: $0.10 / GB-month. MWAA Serverless: $0.08 per task-hour (1-minute minimum).
 
-**Starting configuration (option A):**
+**Starting configuration (option A, 4 environments):**
 
-| Stage | Class | Workers min/max | Schedulers | Est. monthly |
+| Env | Class | Workers min/max | Schedulers | Est. monthly |
 |---|---|---|---|---|
 | prod | mw1.medium | 2 / 10 | 2 | $540 (env) + ~$161 (avg 2 extra workers) + ~$2 (DB) ≈ **$703** |
-| test | mw1.small | 1 / 3 | 2 | $358 + ~$20 ≈ **$378** |
+| ppt | mw1.small | 1 / 3 | 2 | $358 + ~$20 ≈ **$378** |
+| test | mw1.small | 1 / 3 | 2 | ≈ **$378** |
 | dev | mw1.small | 1 / 3 | 2 | ≈ **$378** |
-| **Total** | | | | **≈ $1,459/month** |
+| **Total** | | | | **≈ $1,837/month** |
 
 - **Growth.** Move prod to mw1.large at about 200 DAGs or sustained queueing (≈ $1,046/month with 2 extra workers).
-- **Why worker counts stay low.** Workers are rarely the bottleneck because heavy work runs on EKS or Lambda and
-  waits are deferrable.
-- **Schedulers and triggerers.** Each scheduler also hosts a triggerer, so the scheduler count is raised before the
+- **Why worker counts stay low.** Workers are rarely the bottleneck: heavy work runs on Lambda or EKS in the team
+  accounts and waits are deferrable.
+- **Schedulers and triggerers.** Each scheduler also hosts a triggerer, so raise the scheduler count before the
   worker count when many deferrable tasks wait.
-- **Option B for comparison** (per team): prod mw1.small $358 + dev/test mw1.micro 2 × $212 ≈ **$782/month per
-  team**.
+- **EKS cost is per team-env and optional.** A cluster (≈ $73/month control plane + Karpenter nodes, scaled to zero)
+  is created in a team-env account only when one of the team's pipelines plans an `eks_pod` task. The worked example
+  at 10 GB runs entirely on Lambda ([engine-selection.md §3](engine-selection.md)).
 
 ## 4. Execution role (least privilege)
 
-Granted:
+The MWAA execution role (platform account) is granted:
 - read the MWAA bucket (`dags/`, `plugins.zip`, `requirements.txt`);
 - write its own CloudWatch log groups and metrics;
-- `sts:AssumeRole` **only** on `arn:aws:iam::<acct>:role/factory-launcher-<team>`, under the team permission
-  boundary (resource pattern from `platform-settings`);
+- `sts:AssumeRole` **only** on `arn:aws:iam::<team-account>:role/factory-launcher-<team>` for the team accounts of
+  this environment (from `platform-settings`), always with the team's `ExternalId`;
 - `secretsmanager:GetSecretValue` on `airflow/connections/*` and `airflow/variables/*` only (the native backend).
 
-Not granted: S3 data buckets, staging, KMS team keys, Vault, portal credentials.
+It is not granted any data bucket, staging, KMS key, Vault path or portal credential, in any account.
 
-**Per-pipeline permissions** are not added to this role. They live in workload roles assumed by pods and Lambdas
+**Per-pipeline permissions** live in workload roles in the team accounts, assumed by Lambdas and pods
 ([ADR-0011](../adr/0011-workload-identity.md)).
 
-## 5. Launching EKS pods safely from a shared environment
+## 5. Launching Lambdas and EKS pods in team accounts
 
-- **Who may launch where.** `EksPodOperator(aws_conn_id=<team launcher connection>)` assumes
-  `factory-launcher-<team>`. Through **EKS access entries** that role maps to a Kubernetes group with RBAC to create
-  pods **only in namespace `team-<team>`**. `aws-auth` is not used.
+- **Lambda tasks.** `LambdaInvokeFunctionOperator(aws_conn_id=<team launcher connection>)`. The connection holds
+  the launcher role ARN + ExternalId (non-secret). The launcher role may invoke only `factory-*` functions in its own
+  account.
+- **EKS tasks.** `EksPodOperator(aws_conn_id=<team launcher connection>, cluster_name=<team cluster>)`. Through an
+  **EKS access entry** in the team cluster, the launcher role maps to a Kubernetes group with RBAC to create pods
+  **only in namespace `team-<team>`**. `aws-auth` is not used.
 - **What may run.** A ValidatingAdmissionPolicy (or Kyverno) in each team namespace requires:
   - an image from the factory ECR, **by digest**, with a valid signature;
   - the command `python -m factory_runtime.run`;
   - a `serviceAccountName` whose `factory/pipeline` label matches the pod's label;
-  - a `factory/bundle-sha` label that is in the namespace's allow-list (written by the deploy plane);
+  - a `factory/bundle-sha` label that is in the namespace's allow-list (written by the team deploy role);
   - `readOnlyRootFilesystem`, non-root, no privilege escalation, no host mounts.
 - **The central DAG publisher** (platform repo) regenerates each DAG from the team's committed spec with the trusted
-  toolchain. It checks team, namespace, service account, pool and bundle hash, and only then writes
-  `dags/<team>/<pipeline>.py`. Team CI never writes to the MWAA bucket.
-- **Pod log shipping.** `get_logs=False`: pods write to their team log group, and the task log carries a link and a
-  summary.
-- **Spike S2.** Confirm that a deferrable `EksPodOperator` refreshes its EKS token for multi-hour pods. Otherwise use
-  non-deferrable mode with a sized `eks_launch` pool.
+  toolchain. It checks team, account, launcher role, pool and bundle hash, then writes `dags/<team>/<pipeline>.py`.
+  Team CI never writes to the MWAA bucket.
+- **Triggers from team accounts.** The team's dispatch Lambda assumes `factory-trigger-<team>` (platform account),
+  which allows `airflow:InvokeRestApi` only as the team's Airflow RBAC role. That RBAC role can trigger only the
+  team's DAGs, with `dag_run_id = run_key` ([ADR-0010](../adr/0010-event-triggers-and-sqs-custody.md)).
+- **Logs.** Pod and Lambda logs stay in the team account's log groups (`get_logs=False` for pods); the MWAA task
+  log carries a link and a summary.
+- **Spikes (Phase 8, need a sandbox).**
+  - S2: does a deferrable `EksPodOperator` refresh its EKS token cross-account for long pods? Otherwise use
+    non-deferrable mode with an `eks_launch` pool.
+  - S3: cross-account `InvokeRestApi` from a team Lambda, with duplicate `dag_run_id` rejection.
 
 ## 6. Connections, Variables and secrets
 

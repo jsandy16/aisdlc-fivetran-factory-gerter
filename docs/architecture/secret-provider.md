@@ -52,23 +52,17 @@ which masks the whole value and each line of multi-line PEM values (the pf `_mas
 
 | Consumer | Resolves | Identity |
 |---|---|---|
-| EKS pod | source credentials, encryption keys, portal credentials | pipeline workload role (Pod Identity session tags or IRSA) |
-| Lambda | dispatcher's portal credentials; small-op credentials | function role |
+| EKS pod (team account) | source and destination credentials, portal credentials | pipeline workload role (Pod Identity session tags or IRSA) |
+| Lambda (team account) | portal credentials, destination credentials (SFTP keys, HTTPS tokens) | function role |
 | MWAA | **only** Airflow Connections and Variables through the native Secrets Manager backend (`airflow/connections/*`) | execution role |
 | CI (deploy) | Fivetran API key; Fivetran connector credentials, pushed via REST with `ignore_changes` in Terraform | team deploy role (GitHub OIDC) |
 
-## 5. Encryption keys (summary of ADR-0012)
+## 5. Encryption keys
 
-| `key_source` | Material | Recommended for |
-|---|---|---|
-| `kms` (default) | AWS Encryption SDK with a KMS keyring. The data key is generated per package; the plaintext key never leaves the process. | everything, unless consumers need another format |
-| `vault_transit` | ESDK raw-AES keyring with the data key wrapped by Vault Transit. The master key never leaves Vault. | when Vault is mandated |
-| `vault_kv` | Raw AES-256 key read from Vault KV (the brief's example). The key version is recorded in the manifest. | only when the consumer holds the same key; GxP warning |
-
-- **Algorithm:** AES-256-GCM through the ESDK's committing algorithm suite (HKDF, key commitment), frame size
-  ≥ 1 MiB. The unsigned suite is the default because integrity also comes from the checksum and Object Lock. The
-  signed suite is available. The algorithm is declared in the spec and documented per pipeline.
-- **OpenPGP** is available as an alternative `format` when the consumer requires it.
+Package encryption is **deferred** (decision D3, [ADR-0012](../adr/0012-encryption.md)). Data at rest is
+encrypted with SSE-KMS (team keys in team accounts), and transit uses TLS. When package encryption is added, keys
+follow the same rules: references only, resolved in the workload, audited by reference. The kinds `aes_key` and
+Vault Transit support are already in the `SecretRef` model.
 
 ## 6. Pod hardening for secrets
 

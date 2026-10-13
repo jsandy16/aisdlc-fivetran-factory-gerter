@@ -1,33 +1,31 @@
-# ADR-0009: Portal as a first-class spec section; JMESPath; untrusted paths; dispatcher Lambda; dynamic or materialized mode
+# ADR-0009: Portal as a first-class spec section; JMESPath; runtime-effective; returns destinations bounded by an allow-list
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
+- **Amended:** dynamic only (D4); the portal returns destinations (D2).
 
 ## Context
 
-The portal returns server paths, path types, include/exclude patterns, metadata and per-entry schedules. It is a runtime control input that could redirect downloads if trusted blindly.
+The portal returns, per study or package, where the package must be delivered: another S3 bucket/prefix or an external server (D2). Portal changes take effect immediately (D4).
 
 ## Decision
 
 - **Spec section `portal`:**
-  - auth: OAuth2 client credentials / API key / mTLS via secret refs;
-  - endpoints with templating from an allow-listed token set, plus pagination (none/page/cursor/link-header);
-  - a `response_schema` that becomes a generated Pydantic model (fail fast);
-  - `response_mapping` in **JMESPath only**;
+  - auth: oauth2 client credentials / API key / mTLS via secret refs;
+  - endpoints with templated paths (declared variables only) and pagination (none/page/cursor/link-header);
+  - `response` field specs, from which a deterministic Pydantic model is generated (fail fast);
+  - `mapping` in **JMESPath only** (destinations per slot, values, `expect` guards);
   - reliability (timeouts, full-jitter backoff honouring `Retry-After`, a per-process breaker and rate limit, a portal pool);
   - a write-once snapshot per run.
-- **Paths are untrusted.** They are canonicalised and must sit under `allowed_roots`. The host always comes from the spec.
-- **Portal calls never run on MWAA.** Per-entry schedules use a dispatcher Lambda: snapshot → due entries → `InvokeRestApi` with `dag_run_id = run_key`.
-- **Modes:** `dynamic`, or `materialized` (changes go through a PR), recommended for gxp_direct.
+- **Portal output takes effect at run time.** It is bounded by the destination allow-list ([ADR-0024](0024-portal-resolved-destinations.md)).
+- **Portal calls run in team-account Lambdas or pods**, never on MWAA.
 
 ## Consequences
 
-- Portal changes cannot cause downloads from unexpected hosts or paths.
+- Portal changes need no PR, but cannot send data anywhere that governance has not approved.
 - Retries see the same input.
-- The mock portal is generated from the schema.
 
 ## Alternatives considered
 
-- *JSONPath:* rejected, because implementations differ.
-- *A distributed DynamoDB rate limiter:* rejected, because of hot keys.
-- *Calling the portal from MWAA:* rejected, because of credentials on the shared role.
+- *A PR-gated ("materialized") portal:* dropped by user decision D4.
+- *JSONPath:* implementations differ.

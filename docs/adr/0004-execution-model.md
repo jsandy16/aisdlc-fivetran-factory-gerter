@@ -1,6 +1,6 @@
 # ADR-0004: Tasks are ordered rule lists run by one engine; a framework image plus a per-pipeline bundle verified by hash; run pinning; typed staged artefacts
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

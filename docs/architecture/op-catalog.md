@@ -30,26 +30,27 @@ contract is the spine of the framework, because one declaration drives:
 
 ## 2. Built-in ops (v1)
 
-| Op | Category | Summary | Engines | Notes |
+The machine-readable catalog is `packages/factory_spec/src/factory_spec/catalog/op_catalog.v1.json`, validated by
+`OpContract`. Ops marked *planned* are in the schema but not yet implementable: using one gives
+`op_not_available`.
+
+| Op | Category | In → Out | Engines | Notes |
 |---|---|---|---|---|
-| `portal.lookup` | integration | Call a portal endpoint, validate it against `response_schema`, map it with JMESPath, snapshot write-once | lambda, eks_pod | never on MWAA (portal credentials) |
-| `sqs.read` | integration | Read the trigger's message batch (snapshot) or, in `in_task` mode, receive → snapshot → dedupe → delete (custody transfer) | lambda, eks_pod | [ADR-0010](../adr/0010-event-triggers-and-sqs-custody.md) |
-| `sqs.ack` | integration | Delete or acknowledge messages after custody | lambda, eks_pod | |
-| `secret.read` | integration | Resolve a `SecretRef` to a handle for later rules (value never leaves the process) | lambda, eks_pod | |
-| `rest.call` | extract / integration | Generic HTTPS call (auth, pagination, reliability as for the portal) | lambda, eks_pod | |
-| `discover.list` | extract | List a source (absolute path or recursive) with include/exclude globs, readiness, `allowed_roots` | lambda, eks_pod | |
-| `transfer.download` | extract | Download a `file_set` (or stream it) with size verification and retries | eks_pod (lambda if small) | reuses pf session code |
-| `s3.list` / `s3.get` | extract | S3 sources, including versioned keys | lambda, eks_pod | |
-| `package.zip` / `package.tar` | package | Deterministic archive preserving folder structure under a declared root; streaming; zip64 | eks_pod (lambda if small) | |
-| `package.unzip` | transform | Safe extract (zip-slip, bomb, symlink, duplicate, encrypted defences from pf) | eks_pod, lambda | |
-| `manifest.build` | package / validate | Manifest of path, size, sha256 (md5 optional), source mtime and package checksums; canonical JSON | any data engine | |
-| `crypto.encrypt` / `crypto.decrypt` | encrypt | ESDK (KMS, raw AES from Vault KV, Vault Transit) or OpenPGP; streaming | eks_pod (lambda if small) | [ADR-0012](../adr/0012-encryption.md) |
-| `checksum.compute` | checksum | md5 / sha256 / sha512 of a stored object; writes a sidecar | lambda (if feasible), eks_pod | [ADR-0013](../adr/0013-checksums-and-large-packages.md) |
-| `validate.*` | validate | `file_count`, `total_size`, `manifest_match`, `name_pattern`, `checksum_match`, `schema` (CSV/JSON header), `expression` (CEL) | any data engine | severity + action (fail / quarantine / warn) |
-| `naming.render` | naming | Render a name from a restricted token template (`{study_id}`, `{run_date}`, `{seq}`, `{source_system}`, `{rev}`) or a CEL naming rule | any | tokens are a fixed allow-list; no runtime Jinja |
-| `s3.upload` | upload | Multipart, SSE-KMS, tags, `If-None-Match` write-once, checksum headers | lambda, eks_pod | |
-| `s3.copy` / `s3.move` / `s3.rename` | upload / housekeeping | Server-side copy (UploadPartCopy above 5 GB), re-encrypts with the target key; move = copy + verify + delete (when allowed) | lambda, eks_pod | |
-| `housekeeping.retention` | housekeeping | Tag or expire staging objects; never touches Object Lock targets | lambda | |
+| `sqs.read` | integration | – → message | lambda, eks_pod | dispatch mode reads the custody snapshot; in_task mode receives → snapshots → dedupes → deletes ([ADR-0010](../adr/0010-event-triggers-and-sqs-custody.md)) |
+| `portal.lookup` | integration | message? → portal_snapshot | lambda, eks_pod | validates against the generated response model; JMESPath mapping; `expect` guards; write-once snapshot; never on MWAA |
+| `destination.resolve` | integration | portal_snapshot, message → destination_set | lambda, eks_pod | matches each slot's URI against the governance allow-list ([ADR-0024](../adr/0024-portal-resolved-destinations.md)) |
+| `s3.list` | extract | message? → object_listing | lambda, eks_pod | bucket/prefix from the message, constrained by the source allow-list; recursive + include/exclude; limits |
+| `s3.download` | extract | object_listing → file_set (stream) | lambda, eks_pod | streaming; size + ETag verified |
+| `rest.fetch` | extract | message? → file_set | lambda, eks_pod | paginated HTTPS API (auth and reliability as for the portal) |
+| `package.zip` | package | file_set → package | lambda, eks_pod | deterministic, streaming, zip64, folder structure relative to the prefix |
+| `manifest.build` | package, validate | package, object_listing? → manifest | lambda, eks_pod | path, size, sha256 per file; package md5/sha256 |
+| `checksum.compute` | checksum | package, manifest? → checksum | lambda, eks_pod | re-reads the stored object; compares with the manifest; writes sidecars |
+| `validate.file_count` / `validate.total_size` / `validate.manifest_match` | validate | listing/manifest → report | lambda, eks_pod | severity + action (fail / quarantine / warn) |
+| `naming.render` | naming | – → value | any data engine | restricted token template; `{seq}` allocated transactionally |
+| `destination.deliver` | upload | package, manifest?, checksum?, value, destination_set → receipt | lambda, eks_pod | per matched entry: S3 (`If-None-Match`, SSE-KMS), SFTP (pinned host key, temp name + no-clobber rename), HTTPS (`write_once`); verify after write |
+| `s3.put` / `s3.copy` / `sftp.put` / `https.put` | upload (copy also housekeeping) | artifact → receipt | lambda, eks_pod | static slots |
+| `fivetran.sync` | integration | – → report | mwaa | triggers a Fivetran sync (REST API, D9) |
+| *planned:* `crypto.encrypt`, `crypto.decrypt`, `package.tar`, `package.unzip`, `s3.move`, `s3.rename`, `sqs.ack`, `secret.read`, `housekeeping.retention`, `validate.schema`, `validate.name_pattern`, `validate.checksum_match`, `discover.list`, `transfer.download` | — | — | — | — |
 
 ## 3. Custom-rule plugin interface ([ADR-0020](../adr/0020-custom-rule-plugins.md))
 

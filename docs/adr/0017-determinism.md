@@ -1,6 +1,6 @@
 # ADR-0017: Byte-identical generation: canonical lock, toolchain image, no per-file stamps, .tf.json, deps lock separate
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

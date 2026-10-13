@@ -1,14 +1,23 @@
 # Open questions
 
-None of these blocks Phase 1. Each has a **fallback** that the design uses until it is answered.
+## Answered (user, 2026-10-13)
 
-| # | Question | Why it matters | Fallback |
+| # | Question | Answer | Recorded as |
 |---|---|---|---|
-| Q1 | **Worked example inputs:** what does the SQS message contain and who produces it (study id, portal entry id, S3 event)? One message per run, or does Task 1 drain the queue? Realistic max package size and file count? Are `<x>` and `<y>` in the same account and KMS key, and must both copies succeed together? | run_key, trigger mode, engine sizing, all-or-nothing delivery | one message per run (`request_id` → run_key), ≤ 50 GB / 20k files, same account and key, both prefixes required (the run fails if either fails; delivered copies stay, written once) |
-| Q2 | **Encryption:** who decrypts the package and with what tool (AWS Encryption SDK, OpenPGP, raw AES-GCM)? Key source: KMS, Vault Transit or Vault KV? Is the MD5 over the ciphertext, the plaintext or both? | format and key custody; checksum semantics | ESDK + KMS; MD5 over the ciphertext (what is delivered); plaintext sha256 recorded in the manifest |
-| Q3 | **Portal under GxP:** may portal path or schedule changes take effect at run time (`dynamic`), or must they go through a reviewed PR (`materialized`)? Who owns and versions the portal API contract? | governance of a runtime control plane | `dynamic` for non-GxP and gxp_indirect; `materialized` for gxp_direct |
-| Q4 | **Part 11:** does QA accept SSO-backed GitHub PR approvals plus a digest-bound acceptance as electronic signatures? CSA or IQ/OQ/PQ? | signature mechanism; validation deliverables | PR approval + acceptance record; CSA-style framework validation |
-| Q5 | **Sandbox:** is a dev AWS account available with MWAA 3.3.1, EKS, VPC endpoints and a reachable Vault? Which Vault (HCP or self-managed, Enterprise namespaces)? | AWS spikes S2, S3, S5, S9, S10; the Phase 7 real-run demo | everything mocked; AWS spikes deferred; Phase 7 demo runs locally |
-| Q6 | **Account model:** `shared_per_env` or `account_per_team`? | placement, isolation strength, MWAA count | `shared_per_env` default; both generated |
-| Q7 | **Workload identity default:** Pod Identity (recommended) or IRSA (named in the brief)? | IAM generation, ABAC | Pod Identity, with IRSA supported |
-| Q8 | **Fivetran:** which plan tier, and is the Terraform provider allowed in the platform account? | `fivetran_native` engine path | `fivetran_sdk` (pf) path for governed sources; native connectors via the Terraform provider once allowed |
+| Q1 | Worked example inputs | The SQS message contains metadata about a package uploaded to S3 (bucket, prefix, …). The portal path is the destination: another S3 bucket or an external server (HTTPS, …). Max package 10 GB. | D1, D2, D10 |
+| Q2 | Encryption | Done outside the pipeline for now; added later. | D3, ADR-0012 (deferred) |
+| Q3 | Portal under GxP | Changes take effect immediately. | D4, ADR-0009 |
+| Q4 | Part 11 | GitHub PR approvals are accepted as e-signatures. | D5, ADR-0021 |
+| Q5 | Sandbox | Not now; available when the framework is complete. | D6, Phase 8 |
+| Q6 | Account model | One account per team per environment (dev, test, ppt, prod). MWAA central; EKS and data in team accounts. | D7, ADR-0015, ADR-0006 |
+| Q7 | Workload identity | User unsure; we chose Pod Identity (IRSA supported). | D8, ADR-0011 |
+| Q8 | Fivetran | SaaS. | D9 (REST API; Terraform provider optional) |
+
+## Still open (each has a fallback the design uses)
+
+| # | Question | Fallback |
+|---|---|---|
+| Q9 | Must the `<x>` and `<y>` deliveries succeed together (all-or-nothing)? | Both are required. The run fails if either fails; delivered copies stay (write-once), and a retry completes the missing one idempotently. |
+| Q10 | May the Fivetran Terraform provider be used for native connectors? | REST API through the pf `fivetran_api` pattern. |
+| Q11 | Which other destination types beyond S3, SFTP and HTTPS ("any other destination")? | S3, SFTP and HTTPS in v1; the allow-list union is extensible (FTPS, SMB, … later). |
+| Q12 | Does the portal API publish an OpenAPI/JSON Schema contract? | The contract is captured as `response` field specs in the spec; the mock is generated from it. |

@@ -1,27 +1,27 @@
-# ADR-0012: AWS Encryption SDK with KMS by default; Vault Transit or Vault KV keys and OpenPGP as explicit options
+# ADR-0012: Package encryption: deferred (done outside the pipeline); design kept for later
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Deferred
 - **Date:** 2026-10-13
+- **Amended:** deferred by user decision D3.
 
 ## Context
 
-The worked example reads an encryption key from a Vault entry. Envelope encryption with KMS is preferred. Packages can be very large, and the decryptor's tooling is unknown (Q2).
+The user decided that package encryption is done outside the pipeline for now and will be added later (D3).
 
 ## Decision
 
-- **`crypto.encrypt` parameters:** `format: aws_esdk | openpgp` and `key_source: kms | vault_transit | vault_kv`.
-- **Default** is the ESDK with a KMS keyring: AES-256-GCM committing suite, HKDF, frames ≥ 1 MiB, unsigned by default with signing optional, streaming.
-- **`vault_kv`** uses a raw AES keyring; the key version is recorded in the manifest. It triggers a warning under GxP.
-- **`vault_transit`** wraps the data key so the key never leaves Vault.
-- **Retries.** Encryption is nondeterministic, so targets are written once and later steps "adopt the winner".
-- **gxp_direct** can add a decrypt-verify step.
+- The `encrypt` rule category and the ops `crypto.encrypt` / `crypto.decrypt` stay in the schema with `status: planned`. Using them gives `op_not_available`.
+- `security.package_encryption` accepts only `none` for now.
+- **Data at rest is still encrypted:** SSE-KMS on staging, audit and S3 destinations (the GxP validator requires it). Transit is TLS.
+- **When it is re-opened**, the earlier proposal is the starting point:
+  - AWS Encryption SDK with a KMS keyring (or Vault Transit / Vault KV raw keys), streaming, frames ≥ 1 MiB;
+  - OpenPGP as an alternative format;
+  - a decrypt-verify step for gxp_direct.
 
 ## Consequences
 
-- The algorithm is declared and documented.
-- Large files are supported by streaming.
-- The consumer must be able to decrypt the ESDK format (or choose OpenPGP).
+- The worked example has 3 tasks; adding encryption later is an incremental change (new rule + task), handled by the change engine.
 
 ## Alternatives considered
 
-- *Raw AES-GCM over the whole file:* rejected, because of message-size limits and no framing.
+- *Building encryption now:* not needed (D3).

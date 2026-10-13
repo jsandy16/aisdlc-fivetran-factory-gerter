@@ -13,8 +13,8 @@ marked *verify*.
 | Component | Proposed pin | Notes |
 |---|---|---|
 | Python | **3.12** | One minor version everywhere: toolchain, pod image, Lambda image, MWAA. MWAA's Python version for Airflow 3.3.1 is confirmed in spike S1. pf 0.1.0 declares `>=3.10` but needs 3.11 (`tomllib`); fixed in Phase 2. |
-| Packaging / workspace | uv 0.13.x | uv workspace for `packages/*`; `pf` stays a setuptools project in `src/`. |
-| Pydantic | 2.13.x (2.14.1 latest) | Pinned to the version in the MWAA constraints for code shared with Airflow. JSON Schema output changes between minors, so the pin is part of the build hash. |
+| Packaging / workspace | uv 0.11.32 (pinned in CI) | uv workspace with a **virtual root at `packages/pyproject.toml`** (members factory_core, factory_spec, factory); `uv.lock` committed. `pf` stays a separate setuptools project at the repo root. |
+| Pydantic | **2.14.1 exact** in factory_spec (JSON Schema bytes depend on it); MWAA constraints carry 2.13.4 for `factory_airflow` | The pin is part of the build hash. |
 | Claude Agent SDK (Python) | 0.2.165 | Same as pf 0.1.0; upgraded deliberately with re-recorded fixtures. |
 | Jinja2 | 3.1.6 | `StrictUndefined`, no autoescape, `keep_trailing_newline`. |
 | ruamel.yaml | 0.18.x / 0.19.1 | Round-trip with comments, as in pf. Aliases are rejected. |

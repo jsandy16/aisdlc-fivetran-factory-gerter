@@ -1,6 +1,6 @@
 # ADR-0005: Spec-driven engine selection by a deterministic planner
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

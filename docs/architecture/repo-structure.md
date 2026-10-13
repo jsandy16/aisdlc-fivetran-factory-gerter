@@ -8,7 +8,7 @@ aisdlc-fivetran-factory-gerter/
   plugin/, steps-plugin/            # pf 0.1.0 Claude Code plugin and headless steps plugin (kept)
   examples/pipelines/…              # pf 0.1.0 examples (kept; CI keeps them green)
   dryrun/                           # pf 0.1.0 dry-run harness (kept; reused by testing/)
-  packages/                         # NEW (uv workspace)
+  packages/                         # NEW: uv workspace, virtual root packages/pyproject.toml (pf is not a member)
     factory_core/                   # stdlib + pydantic only: errors, retry, canonical json/sha, cel, yamlio, jsonlog+redaction
     factory_spec/                   # spec v1 models, per-category and per-op unions, schema export, migrate/
     factory_runtime/                # run.py, lambda_handler.py, context.py, plugin_api.py
@@ -40,13 +40,14 @@ inventory in [reuse.md](reuse.md).
 
 ```
 <team>-pipelines/
-  factory.toml                       # framework version, toolchain image digest, platform-settings reference
+  factory.toml                       # framework version, environments [dev,test,ppt,prod], team, platform-settings path
   pipelines/<pipeline_id>/
     spec/pipeline.yaml               # data engineer
     spec/rules.yaml                  # BA / product owner
     spec/integrations.yaml           # data engineer
     spec/security.yaml               # governance / QA
     spec/environments.yaml           # platform
+    spec/destinations.yaml           # governance (destination allow-list per environment)
     spec.lock.json                   # canonical merged spec (generated, committed)
     rules/<rule_id>/impl.py          # custom rule code (agent-authored, reviewed, committed)
     rules/<rule_id>/test_impl.py

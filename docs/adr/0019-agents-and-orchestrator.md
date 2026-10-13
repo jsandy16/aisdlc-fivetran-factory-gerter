@@ -1,6 +1,6 @@
 # ADR-0019: LLM agents author; deterministic code decides; orchestrator is a state machine with gates
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

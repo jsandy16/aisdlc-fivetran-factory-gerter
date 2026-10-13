@@ -1,6 +1,6 @@
 # ADR-0022: No real data reaches an LLM; configurable model provider
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

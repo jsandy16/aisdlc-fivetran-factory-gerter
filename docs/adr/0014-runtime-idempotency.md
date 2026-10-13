@@ -1,6 +1,6 @@
 # ADR-0014: Deterministic run keys, write-once targets, transactional sequence numbers, revisions for forced reruns
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

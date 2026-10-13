@@ -1,6 +1,6 @@
 # ADR-0020: Custom rules: typed contract, enforced boundaries, review and person acceptance
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

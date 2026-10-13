@@ -1,8 +1,8 @@
 # Pipeline Factory v2: architecture overview
 
-Status: **Phase 1 (proposed for review)**. This set of documents is the architecture for extending pipeline-factory 0.1.0
+Status: **Accepted** (Phase 1 review, amended 2026-10-13). This set of documents is the architecture for extending pipeline-factory 0.1.0
 (the Fivetran Connector SDK factory in `src/pf`) into a multi-engine Pipeline Factory. Decisions are recorded as ADRs in
-[`../adr/`](../adr/README.md). Phase 1 contains no product code.
+[`../adr/`](../adr/README.md). Phase 1 (amended with the user decisions of 2026-10-13) contains no product code; Phase 2 adds the spec packages.
 
 ## 1. What Pipeline Factory does
 
@@ -31,54 +31,67 @@ flowchart LR
   CI --> RUN["AWS run-time plane"]
 ```
 
-## 2. Three planes
+## 2. Three planes and the account topology
+
+**Account model** (user decision D7, [ADR-0015](../adr/0015-account-model.md)):
+- Each team has **its own AWS account per environment: dev, test, ppt, prod**.
+- A **platform account per environment** hosts the central MWAA (control plane only) and the DAG publisher.
+- All data and data-plane compute stay in the team accounts: Lambda, EKS (only when needed), SQS, staging,
+  run-state, bundles, secrets, KMS and targets.
 
 | Plane | Where | Runs | Never has |
 |---|---|---|---|
 | **Build-time** | laptop / CI, in a toolchain image pinned by digest | `factory` CLI, spec models, validator, planners, generators, agents, orchestrator gates, `factory verify` | real data, AWS data-plane credentials |
-| **Deploy** | CI (GitHub Actions, OIDC, per-team roles) | Terraform plan (PR) / apply (merge + approval); write-once bundle and Lambda zip; Fivetran via Terraform provider or `pf deploy`; hand-off to the **central DAG publisher** | write access to the MWAA bucket (only the publisher has it) |
-| **Run-time** | private VPC per stage | MWAA (control only), EKS pods (heavy), Lambda (light, dispatch), SQS/EventBridge, staging bucket, run-state table, bundle store, audit store | LLM access; public endpoints |
+| **Deploy** | CI (GitHub Actions, OIDC → per team-account deploy role) | Terraform plan (PR) / apply (merge + approval) into the team account; write-once bundle and Lambda zip; Fivetran via its REST API or `pf deploy`; hand-off to the **central DAG publisher** | write access to the MWAA bucket (only the publisher has it) |
+| **Run-time** | platform account per env (MWAA) + team account per env (everything else), private networking | MWAA (control only); Lambda (light work, dispatch); EKS pods (heavy work, when needed); SQS; staging bucket; run-state table; bundle store; audit store | LLM access; public endpoints; team data in the platform account |
 
 ```mermaid
 flowchart TB
-  subgraph RT["Run-time plane (private VPC, per stage)"]
-    DISP["Dispatcher Lambda<br/>(portal snapshot, due entries)"]
+  subgraph PA["Platform account (one per env: dev / test / ppt / prod)"]
     MWAA["MWAA (Airflow 3.3.1)<br/>control plane only"]
-    EKS["EKS pods<br/>factory_runtime image (by digest)"]
+    PUB["DAG publisher"]
+  end
+  subgraph TA["Team account (one per team per env)"]
+    SQS["SQS<br/>(S3 event notifications)"]
+    DISP["Dispatch Lambda<br/>(message snapshot, dedupe)"]
     LAM["Lambda functions<br/>factory_runtime"]
-    SQS["SQS / EventBridge"]
+    EKS["EKS pods (only if needed)<br/>factory_runtime image by digest"]
+    SRC[("Landing bucket<br/>(uploaded packages)")]
     STG[("Staging bucket<br/>per-run prefix, team KMS")]
-    RS[("Run-state DynamoDB<br/>pins, checkpoints, dedupe, seq")]
+    RS[("Run-state DynamoDB")]
     BUN[("Bundle store<br/>write-once, by sha256")]
     AUD[("Audit store<br/>Object Lock")]
-    TGT[("Target buckets<br/>SSE-KMS, write-once")]
-    SEC["Secret provider<br/>Vault | Secrets Manager"]
+    SEC["Secrets Manager / Vault auth"]
+    TGT[("S3 destinations<br/>(allow-listed)")]
   end
-  PORTAL["Self-service portal<br/>(REST)"]
-  SRC["Sources: on-prem servers (TGW/DX),<br/>partner servers (egress allow-list), S3, DB, APIs"]
-  FT["Fivetran"]
-  SQS --> LAM
-  DISP --> PORTAL
-  DISP -->|InvokeRestApi dag_run_id=run_key| MWAA
-  LAM -->|InvokeRestApi| MWAA
-  MWAA -->|EksPodOperator via team launcher role| EKS
-  MWAA -->|LambdaInvoke| LAM
-  MWAA -->|trigger sync| FT
-  EKS --> SRC
+  PORTAL["Self-service portal (REST)<br/>returns destinations"]
+  EXT["External destinations<br/>(SFTP / HTTPS, allow-listed)"]
+  SRC -->|S3 event| SQS --> DISP
+  DISP -->|assume factory-trigger-team, InvokeRestApi dag_run_id=run_key| MWAA
+  PUB -->|dags/team/| MWAA
+  MWAA -->|assume factory-launcher-team| LAM
+  MWAA -->|assume factory-launcher-team, EKS access entry| EKS
+  LAM --> PORTAL
+  LAM --> SRC
+  LAM --> STG
+  LAM --> RS
+  LAM -->|verify sha256| BUN
+  LAM --> SEC
+  LAM --> AUD
+  LAM --> TGT
+  LAM -->|NAT + Network Firewall allow-list| EXT
   EKS --> STG
   EKS --> TGT
-  LAM --> STG
-  LAM --> TGT
-  EKS --> SEC
-  LAM --> SEC
-  EKS --> RS
-  LAM --> RS
-  EKS -->|verify sha256| BUN
-  LAM -->|verify sha256| BUN
-  EKS --> AUD
-  LAM --> AUD
-  FT --> TGT
 ```
+
+Cross-account roles ([ADR-0006](../adr/0006-mwaa-control-plane.md), [ADR-0010](../adr/0010-event-triggers-and-sqs-custody.md)):
+
+| Role | Lives in | Assumed by | Can |
+|---|---|---|---|
+| `factory-launcher-<team>` | team account | platform MWAA execution role (trust + ExternalId) | invoke the team's `factory-*` Lambdas; create pods in the team EKS namespace (access entry) |
+| `factory-trigger-<team>` | platform account | the team's dispatch Lambda role | `airflow:InvokeRestApi` as the team's Airflow RBAC role (team DAGs only) |
+| `factory-<pipeline>-<task>` workload roles | team account | Lambda / EKS Pod Identity | exactly the actions derived from the task's ops on declared resources |
+| `factory-deploy-<team>` | team account | GitHub OIDC (team repo + environment) | Terraform for the team's pipeline stacks; write-once bundles |
 
 ## 3. Repositories
 
@@ -103,43 +116,64 @@ Until org repositories exist, the team and platform content are kept as examples
 | Engine selection | [engine-selection.md](engine-selection.md) | 0005 |
 | MWAA environment strategy | [mwaa-strategy.md](mwaa-strategy.md) | 0006, 0007, 0010 |
 | Secret provider | [secret-provider.md](secret-provider.md) | 0008, 0012 |
-| Portal integration | [portal-integration.md](portal-integration.md) | 0009 |
+| Portal integration and destinations | [portal-integration.md](portal-integration.md) | 0009, 0024 |
 | Security, network, multi-team, threat model | [security-network-multiteam.md](security-network-multiteam.md) | 0011, 0015, 0016, 0022 |
 | Agents and gates | [agents-and-gates.md](agents-and-gates.md) | 0019, 0020, 0022 |
 | Determinism and incremental change | [determinism-and-change.md](determinism-and-change.md) | 0017, 0018 |
 | GxP / Part 11 / ALCOA+ | [gxp-validation.md](gxp-validation.md) | 0021 |
 | Risks, spikes, open questions | [risk-register.md](risk-register.md), [spike-plan.md](spike-plan.md), [open-questions.md](open-questions.md) | — |
-| Next phase | [phase-2-plan.md](phase-2-plan.md) | — |
+| Phase 2 design | [phase-2-design.md](phase-2-design.md) | 0003, 0024 |
 
-## 5. Assumptions
+## 5. Assumptions and user decisions
 
-| Id | Assumption | Confirmed by |
+Decisions D1–D10 were made by the user on 2026-10-13. Assumptions still open are marked.
+
+| Id | Statement | Status |
 |---|---|---|
-| A1 | MWAA runs **Airflow 3.3.1** (GA on MWAA Sep 2026). It is pinned only after the spike passes; **3.2** is the fallback. | spike S1 |
-| A2 | One EKS cluster per stage, owned by the platform team. Karpenter provides on-demand and spot pools; each team gets a namespace. | Phase 1 review |
-| A3 | Encryption defaults to the **AWS Encryption SDK** message format with a KMS keyring. `vault_kv`, `vault_transit` and `openpgp` are explicit options. | open question Q2 |
-| A4 | MD5 exists only for consumers that ask for it. SHA-256 is always computed. | open question Q2 |
-| A5 | The portal is an internal HTTPS JSON API whose contract is captured in the spec. | open question Q3 |
-| A6 | This repo is the framework repo. Team and platform repos are represented under `examples/` and `platform/` for now. | Phase 1 review |
-| A7 | Builds see synthetic data only. No AWS account, real Vault or real portal is available yet; AWS-only spikes wait for a sandbox. | open question Q5 |
-| A8 | The Agent SDK can target Anthropic, Amazon Bedrock or Claude Platform on AWS. Replay keys use a logical model id. | ADR-0022 |
-| A9 | The account model is not decided, so both models are supported (`shared_per_env`, `account_per_team`). | ADR-0015, Q6 |
+| A1 | MWAA runs **Airflow 3.3.1** (GA on MWAA Sep 2026), pinned after spike S1; **3.2** is the fallback. | assumption (spike S1) |
+| D7 | Each team has its own AWS account per environment: **dev, test, ppt, prod**. A platform account per environment hosts the central MWAA; data and compute stay in team accounts. | decided |
+| A2 | EKS clusters live in team accounts and are provisioned per team-env **only when a pipeline needs pods** (Karpenter; on-demand + spot). | design |
+| D3 | **Package encryption is done outside the pipeline for now.** `encrypt` / `crypto.*` stay in the schema as *planned*. At-rest encryption is SSE-KMS and transit is TLS. | decided |
+| A4 | MD5 is produced for consumers that ask for it and is computed over the zip. SHA-256 is always computed. | design |
+| D1 | The SQS message carries metadata of a package uploaded to S3 (bucket, prefix, …); the run downloads all objects under that prefix. | decided |
+| D2 | The portal returns the **destinations**: another S3 bucket/prefix or an external server (SFTP, HTTPS, more later). Only allow-listed destinations are accepted ([ADR-0024](../adr/0024-portal-resolved-destinations.md)). | decided |
+| D4 | Portal changes take effect immediately (no PR gate). | decided |
+| D5 | GitHub PR approvals (SSO identities) are accepted as Part 11 e-signatures. | decided |
+| D6 | No AWS sandbox until the framework is complete. Phases 2–7 are verified locally; AWS-only spikes run in **Phase 8**. | decided |
+| D8 | Workload identity: **EKS Pod Identity** by default (IRSA supported); per-pipeline workload roles. | decided by us (user unsure) |
+| D9 | Fivetran is SaaS. Native connectors are managed through the Fivetran REST API; the Terraform provider is optional later. | decided |
+| D10 | Max package per run: **10 GB**. | decided |
+| A6 | This repo is the framework repo. Team and platform repos are represented under `examples/` and `platform/` for now. | design |
+| A8 | The Agent SDK can target Anthropic, Amazon Bedrock or Claude Platform on AWS. Replay keys use a logical model id. | design |
 | A10 | BAs work through the CLI / Claude Code first; a hosted UI later uses the same agent API. | user answer |
-| A11 | Sources include on-prem servers (DX/VPN through a Transit Gateway) and external partners (controlled egress). SFTP, FTPS, HTTPS and S3 come first; SMB/NFS later. | user answer |
+| A11 | Sources include S3, on-prem servers (DX/VPN through a Transit Gateway) and external partners (controlled egress). | user answer |
 
-## 6. Corrections to the brief (raised for approval)
+## 6. Corrections to the brief (accepted at the Phase 1 review)
 
-1. **Fivetran can run custom Python** through the Connector SDK (what pf 0.1.0 generates), but only to emit rows
-   into a Fivetran destination. Packaging, encryption and object delivery never route to Fivetran. The matrix keeps
-   two Fivetran engines ([ADR-0005](../adr/0005-engine-selection.md)).
-2. **"Lambda < Fivetran < MWAA task < EKS pod" is a heuristic, not a law.** Fivetran is billed by MAR and MWAA has a
-   fixed environment cost, so the planner compares per-task estimates instead.
-3. **Airflow's AssetWatcher SQS trigger deletes the message when it fires** and can merge events into one run. That
-   loses custody for GxP. Events go through a Lambda (or in-task custody transfer) instead
-   ([ADR-0010](../adr/0010-event-triggers-and-sqs-custody.md)).
+1. **Fivetran can run custom Python** through the Connector SDK, but only to emit rows into a Fivetran
+   destination. Packaging and object delivery never route to Fivetran
+   ([ADR-0005](../adr/0005-engine-selection.md)).
+2. **"Lambda < Fivetran < MWAA task < EKS pod" is a heuristic.** The planner compares per-task estimates.
+3. **Airflow's AssetWatcher SQS trigger deletes the message when it fires** and can merge events. Events go
+   through a dispatch Lambda instead ([ADR-0010](../adr/0010-event-triggers-and-sqs-custody.md)).
 4. **No custom Airflow secrets backend.** MWAA's native Secrets Manager backend serves Airflow's own connections.
    Pipeline secrets never pass through Airflow ([ADR-0008](../adr/0008-secret-provider.md)).
-5. **EKS Pod Identity is recommended over IRSA.** Both are generated; the default is decided at this review
+5. **EKS Pod Identity is the default** instead of IRSA; both are generated
    ([ADR-0011](../adr/0011-workload-identity.md)).
-6. **Agent-generated tests are code.** They are reviewed and committed, never regenerated. BA-approved `test_cases`
-   are the oracle ([ADR-0019](../adr/0019-agents-and-orchestrator.md)).
+6. **Agent-generated tests are code.** They are reviewed and committed, never regenerated. BA-approved
+   `test_cases` are the oracle ([ADR-0019](../adr/0019-agents-and-orchestrator.md)).
+7. **Portal-supplied destinations are constrained by a reviewed allow-list.** The portal is trusted to *choose*,
+   not to *define*, where data may go ([ADR-0024](../adr/0024-portal-resolved-destinations.md)).
+
+## 7. Delivery phases
+
+| Phase | Content | Status |
+|---|---|---|
+| 1 | Architecture, ADRs, repo skeleton | done; amended with D1–D10 |
+| 2 | Spec models, JSON Schema, starters, worked example, validator tests ([design](phase-2-design.md)) | in progress |
+| 3 | Runtime op library, secret provider, portal client, plugin interface | planned |
+| 4 | Agents, orchestrator, gates, skills | planned |
+| 5 | Generators (DAG, Lambda, EKS, Fivetran) and Terraform/IAM | planned |
+| 6 | Change engine, `factory verify`, cost, docs | planned |
+| 7 | Local end-to-end demo + one incremental change | planned |
+| 8 | **AWS validation in a sandbox account** (spikes S2, S3, S5, S9, S10; real MWAA/EKS/Lambda run) | planned (needs a sandbox, D6) |

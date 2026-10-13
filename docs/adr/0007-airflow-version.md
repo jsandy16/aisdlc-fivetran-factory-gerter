@@ -1,6 +1,6 @@
 # ADR-0007: Airflow 3.3.1 on MWAA, pinned after a spike; 3.2 as fallback; blue/green upgrades
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

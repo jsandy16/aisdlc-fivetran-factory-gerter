@@ -1,6 +1,6 @@
 # ADR-0018: Incremental change from output diffs, explained by a semantic spec diff
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

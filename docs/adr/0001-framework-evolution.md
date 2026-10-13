@@ -1,6 +1,6 @@
 # ADR-0001: Evolve pipeline-factory 0.1.0 into a multi-engine framework; freeze pf
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

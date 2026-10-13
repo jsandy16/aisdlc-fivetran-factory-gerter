@@ -1,6 +1,6 @@
 # ADR-0002: Framework repo, one pipelines repo per team, platform repo
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR-0008: Pluggable SecretProvider (Vault, Secrets Manager); resolved only in workloads; native SM backend for Airflow's own connections
 
-- **Status:** Proposed (Phase 1 review)
+- **Status:** Accepted
 - **Date:** 2026-10-13
 
 ## Context
