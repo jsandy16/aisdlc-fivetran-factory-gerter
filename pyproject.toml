@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "pipeline-factory"
 version = "0.1.0"
 description = "AI-SDLC pipeline factory: spec-driven Fivetran Connector SDK pipelines with governance outside Fivetran"
-requires-python = ">=3.10"
+requires-python = ">=3.11"  # tomllib (generate/cicd.py)
 dependencies = [
   "pydantic>=2.9,<3",
   "ruamel.yaml>=0.18,<0.20",

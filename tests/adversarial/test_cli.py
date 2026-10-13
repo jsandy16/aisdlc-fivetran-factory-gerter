@@ -6,18 +6,20 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 FRAMEWORK = Path(__file__).resolve().parents[2]
-PF = "/home/claude/pipeline-factory/.venv/bin/pf"
+BIN = Path(sys.executable).parent  # the pf console script installed next to the interpreter running the tests
+PF = str(BIN / "pf")
 
 
 def pf(cwd: Path, *args: str, json_mode: bool = True, stdin: str | None = None):
     env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "PF_AGENT_SESSION")}
     env.update(PYTHONPATH=str(FRAMEWORK / "src"), PF_LLM_PROVIDER="replay", PF_LLM_FIXTURES=str(FRAMEWORK / "tests/llm-fixtures"),
-               PATH="/home/claude/pipeline-factory/.venv/bin:" + env.get("PATH", ""))
+               PATH=str(BIN) + os.pathsep + env.get("PATH", ""))
     cmd = [PF] + (["--json"] if json_mode else []) + list(args)
     p = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, input=stdin, timeout=300)
     return p

@@ -35,7 +35,8 @@ are recorded (`PF_LLM_PROVIDER=record`) and replayed offline in CI (`replay`).
 ## Install
 
 ```bash
-pip install -e '.[runtime,fivetran,agent,docs]'     # framework + Connector SDK CLI + Agent SDK + docx/pdf intake
+pip install -e '.[runtime,fivetran,agent,docs]' \
+  -c examples/pipelines/oncology_labs/build/connector/requirements.txt   # pins match the connector, so pf deploy's preflight passes
 pf init-repo ../rd-pipelines                        # a pipelines repository (pf.toml, .gitignore, .claude/settings.json)
 claude --plugin-dir <framework>/plugin              # run in the pipelines repo: skills, reviewer agent, guard-rail hooks
 ```
