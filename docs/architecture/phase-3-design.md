@@ -359,4 +359,37 @@ Phase 4 plan.
 
 ## As built (differences from this design, and why)
 
-_Filled in at the end of Phase 3._
+Short notes; the full ADR and doc amendments of §5 move to Phase 4 (scope cut agreed during Phase 3 to save time).
+
+**Scope changes**
+- M11 is minimal: the planner and `factory plan` exist; `factory bundle` and `factory test` move to Phase 5 (the
+  logic exists: `factory_spec.bundle.build_bundle`, `factory_spec.owner_tests.run_owner_tests`).
+- M12 is cut down: one end-to-end run of the worked example in dev (dispatcher → t1 → t2 → t3, x = S3, y = SFTP)
+  plus three drills (portal attack URIs, wrong SFTP host key, bundle tampering), all exiting 77 with nothing
+  delivered; the canary is a log scan for the synthetic secrets. Dropped: the ppt (HTTPS) run, the starter runs,
+  the subprocess run of `python -m factory_runtime.run`. HTTPS, static puts, s3.copy, Fivetran and plugins are
+  covered by op- and task-level tests instead (`test_rt_transports`, `test_rt_deliver`, `test_rt_fivetran`,
+  `test_rt_plugin`).
+
+**Behaviour added or changed while building**
+- Receipts: `outcome: skipped` (optional slot left empty), `verification: none` (an HTTPS endpoint that answers
+  neither HEAD nor GET), `files[]` for s3.copy; receipts are adopted on retry (first answer wins).
+- Every delivery streams through a hash check that holds back the last chunk, so a staged package changed after its
+  checksum never lands complete (`staged_package_changed`, 65).
+- S3 delivery sets `ExpectedBucketOwner` when the placement account is known; non-team placements need
+  `FACTORY_PLACEMENT_ACCOUNTS` (otherwise `placement_unknown`, 78). s3.copy is verified by size only (server-side
+  copy, conditional on the listed ETag); a stronger server checksum is a Phase 8 item.
+- Dispatcher: poison messages are quarantined in staging (`_quarantine/`) and acknowledged; the dispatcher does not
+  write the run pin (the first task does), conf carries the bundle sha for traceability.
+- sqs.read `in_task`: an empty queue ends the run as `no_work` (exit 0; later tasks end at once via a `NOWORK`
+  run-state record).
+- Plugins: the context records side effects (`reads_staging`, `reads_workdir`, `writes_workdir`) and enforces them
+  at run time too, not only in tests; custom rules have no params in v1.
+- Planner prices are decimal strings (no floats); pod cost is divided by an assumed node utilisation (0.35) so
+  Lambda stays the cheaper choice for short work, as the decision matrix intends.
+
+**Open items for Phase 4/5**
+- `s3_event` triggers: s3.list expects a folder prefix; listing the single object named by the event needs a small
+  change (found while reviewing the s3_to_s3_event starter).
+- HTTPS POST endpoints: the upload goes to `<folder>/<name>`; an upload-to-folder variant is not modelled.
+- ADR/doc amendments listed in §5.
