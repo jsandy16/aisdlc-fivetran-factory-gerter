@@ -94,6 +94,44 @@ def evaluate(expr: str, activation: dict[str, Any]) -> tuple[bool, Any]:
     return False, "non_boolean_result"
 
 
+class CelEvalError(ValueError):
+    """Evaluation failed (unknown field, type error, ...); the message names the error type, never values."""
+
+
+def from_cel(v: Any) -> Any:
+    """CEL value -> plain JSON-like Python value."""
+    if v is None:
+        return None
+    if isinstance(v, _T.BoolType):
+        return bool(v)
+    if isinstance(v, _T.IntType | _T.UintType):
+        return int(v)
+    if isinstance(v, _T.DoubleType):
+        return float(v)
+    if isinstance(v, _T.StringType):
+        return str(v)
+    if isinstance(v, _T.BytesType):
+        return bytes(v)
+    if isinstance(v, _T.ListType):
+        return [from_cel(x) for x in v]
+    if isinstance(v, _T.MapType):
+        return {str(k): from_cel(x) for k, x in v.items()}
+    return v
+
+
+def evaluate_value(expr: str, activation: dict[str, Any]) -> Any:
+    """The value of an expression (naming rules). Raises CelEvalError instead of returning an error object."""
+    prg = compile_expr(expr)
+    act = {k: to_cel(v) for k, v in activation.items()}
+    try:
+        res = prg.evaluate(act)
+    except Exception as exc:
+        raise CelEvalError(f"expression failed: {type(exc).__name__}") from None
+    if isinstance(res, Exception):
+        raise CelEvalError(f"expression failed: {type(res).__name__}")
+    return from_cel(res)
+
+
 def referenced_paths(expr: str) -> set[tuple[str, ...]]:
     """Dotted member paths an expression reads, e.g. {('artifacts','listing','count'), ('vars','expected_files')}.
 
