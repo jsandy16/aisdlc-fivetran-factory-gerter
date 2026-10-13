@@ -1,0 +1,9 @@
+security.yaml:
+  security_and_access.gxp_tier: non_gxp
+  security_and_access.data_classification: confidential
+environments.yaml:
+  environments.{env}.apis.vendor_api.base_url: "https://api.{env}.vendor.example"
+destinations.yaml:
+  destinations.{env}[landing_s3].bucket: "acme-clinops-vendor-{env}"
+  destinations.{env}[landing_s3].kms_key: "alias/clinops-vendor-{env}"
+  destinations.{env}[landing_s3].max_classification: confidential

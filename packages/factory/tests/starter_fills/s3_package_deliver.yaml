@@ -1,0 +1,12 @@
+security.yaml:
+  security_and_access.gxp_tier: gxp_indirect
+  security_and_access.data_classification: restricted
+environments.yaml:
+  environments.{env}.portal.base_url: "https://portal.{env}.acme.example"
+  environments.{env}.queues.package_ready.name: "clinops-package-ready-{env}"
+  environments.{env}.sources.landing.buckets[0]: "acme-clinops-landing-{env}"
+  environments.{env}.sources.landing.prefix_roots[0]: incoming/
+destinations.yaml:
+  destinations.{env}[0].id: "{env}_delivery_s3"
+  destinations.{env}[0].bucket: "acme-clinops-delivery-{env}"
+  destinations.{env}[0].kms_key: "alias/clinops-delivery-{env}"

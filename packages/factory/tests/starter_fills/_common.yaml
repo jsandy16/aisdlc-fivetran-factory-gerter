@@ -1,0 +1,16 @@
+# Values every starter asks for. "{env}" in a path or value is expanded for dev, test, ppt and prod.
+# Synthetic only: made-up owners, topics, accounts and regions.
+pipeline.yaml:
+  metadata.owners.business_owner: "@alice-ba"
+  metadata.owners.data_engineer: "@bob-de"
+  metadata.owners.governance: "@carol-qa"
+  metadata.owners.platform: "@dan-platform"
+  metadata.tags.cost_centre: CC1234
+  cost.budget_per_run_usd: "2.00"
+  cost.budget_per_month_usd: "300.00"
+security.yaml:
+  security_and_access.residency.allowed_regions[0]: eu-west-1
+environments.yaml:
+  environments.{env}.alert_channels.data_owner.topic: "clinops-data-alerts-{env}"
+  environments.{env}.alert_channels.platform.topic: "factory-platform-alerts-{env}"
+  environments.{env}.alert_channels.security.topic: "factory-security-alerts-{env}"

@@ -1,0 +1,7 @@
+security.yaml:
+  security_and_access.gxp_tier: non_gxp
+  security_and_access.data_classification: confidential
+integrations.yaml:
+  sources[crm_db].tables[0]: public.accounts
+environments.yaml:
+  environments.{env}.sources.crm_db.fivetran_group: "clinops_lake_{env}"

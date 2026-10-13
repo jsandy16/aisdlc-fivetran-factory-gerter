@@ -1,0 +1,11 @@
+security.yaml:
+  security_and_access.gxp_tier: non_gxp
+  security_and_access.data_classification: internal
+environments.yaml:
+  environments.{env}.queues.object_created.name: "clinops-object-created-{env}"
+  environments.{env}.sources.source_bucket.buckets[0]: "acme-clinops-inbox-{env}"
+  environments.{env}.sources.source_bucket.prefix_roots[0]: drop/
+destinations.yaml:
+  destinations.{env}[archive_s3].bucket: "acme-clinops-archive-{env}"
+  destinations.{env}[archive_s3].kms_key: "alias/clinops-archive-{env}"
+  destinations.{env}[archive_s3].max_classification: internal
