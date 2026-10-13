@@ -1,0 +1,124 @@
+# sttm.yaml — source-to-target mapping. Owner: BA (meaning) + data engineer (technical columns).
+# One entity per target table; one attribute per target column (source column -> transforms -> checks).
+# Available attribute transforms:
+#   trim()
+#   upper()
+#   lower()
+#   null_if(values)
+#   default(value)
+#   replace(pattern, replacement?)
+#   map_values(mapping, unmapped?)
+#   pad_left(length, char?)
+#   pseudonymise(key)
+#   derive(expr)
+# Available attribute checks:
+#   not_null(max_failed_pct?)
+#   regex(max_failed_pct?, pattern)
+#   allowed_values(max_failed_pct?, values)
+#   range(max_failed_pct?, min?, max?)
+#   length(max_failed_pct?, min?, max?)
+#   expression(expr, max_failed_pct?)
+#   python(ref, params?, max_failed_pct?)
+#   english(text, examples?, max_failed_pct?)
+# Available row checks:
+#   expression(expr, max_failed_pct?)
+#   python(ref, params?, max_failed_pct?)
+#   english(text, examples?, max_failed_pct?)
+# Available entity checks:
+#   row_count(min?, max?)
+#   unique(columns)
+#   control_count(control_member, count_pattern?)
+entities:
+  - name: sites  # from trial_sites.docx: "table clinical.sites ... updated_at is set on every change"
+    description: Investigator sites from CTMS
+    table:
+      table: clinical.sites
+      incremental:
+        cursor_column: updated_at
+        initial_value:
+    load: upsert
+    primary_key:
+      - site_id
+    attributes:
+      - name: site_id
+        type: STRING
+        nullable: false
+        description: Site number
+        business_rule: 4 digits, unique
+        transforms: []
+        checks:
+          - id: site_id_format
+            kind: regex
+            pattern: ^\d{4}$
+            description: Site numbers are 4 digits  # evidence: "4 digits, unique"
+      - name: site_name
+        type: STRING
+        nullable: false
+        description: Site name
+        business_rule: mandatory
+        transforms: []
+        checks: []
+      - name: country
+        type: STRING
+        nullable: true
+        description: ISO country code
+        business_rule: two upper-case letters
+        transforms: []
+        checks:
+          - id: country_format
+            kind: regex
+            pattern: ^[A-Z]{2}$
+            description: Two upper-case letters  # evidence: "two upper-case letters"
+      - name: status
+        type: STRING
+        nullable: false
+        description: Site status
+        business_rule: ACTIVE, CLOSED or PLANNED
+        transforms: []
+        checks:
+          - id: status_values
+            kind: allowed_values
+            values:
+              - ACTIVE
+              - CLOSED
+              - PLANNED
+            description: Allowed statuses  # evidence: "ACTIVE, CLOSED or PLANNED"
+      - name: activated_on
+        type: NAIVE_DATE
+        nullable: true
+        description: Date the site was activated
+        business_rule: required when status is ACTIVE
+        transforms: []
+        checks: []
+      - name: enrolment_target
+        type: INT
+        nullable: true
+        description: Planned subjects
+        business_rule: between 1 and 500
+        transforms: []
+        checks:
+          - id: enrolment_target_range
+            kind: range
+            min: 1
+            max: 500
+            description: Between 1 and 500  # evidence: "between 1 and 500"
+      - name: updated_at
+        type: NAIVE_DATETIME
+        nullable: false
+        description: Last change
+        business_rule: Last change
+        transforms: []
+        checks: []
+    row_checks:
+      - id: activated_on_required_when_active
+        kind: english
+        description: activated_on is required when status is ACTIVE
+        text: "When STATUS is exactly ACTIVE (upper case), ACTIVATED_ON must be present. For any other STATUS, or a missing
+          STATUS, ACTIVATED_ON is not checked."
+        examples: [{"input": {"status": "ACTIVE", "activated_on": "2023-01-15"}, "expected": "pass"}, {"input": {"status": "ACTIVE",
+                "activated_on": null}, "expected": "fail"}, {"input": {"status": "PLANNED", "activated_on": null}, "expected": "pass"}] # from trial_sites.docx; add >=3 owner examples, then pf rules compile
+    checks:
+      - id: sites_has_rows
+        kind: row_count
+        min: 1
+        description: Every delivery of sites has rows

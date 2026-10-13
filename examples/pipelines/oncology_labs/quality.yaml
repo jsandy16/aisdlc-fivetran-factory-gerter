@@ -1,0 +1,7 @@
+# quality.yaml — whole-table checks after each sync, run on the lake (Athena). Owner: data quality.
+ticket_route: rd-data-quality
+checks:
+  - {id: lab_results_lake_rows, kind: row_count, entity: lab_results, min: 1, severity: blocker, description: "lab_results is not empty"}
+  - {id: lab_results_lake_unique, kind: unique, entity: lab_results, columns: [subject_key, visit, test_code], severity: blocker, description: "One row per subject, visit and test across all deliveries"}
+  - {id: lab_results_fresh, kind: freshness, entity: lab_results, max_hours: 30, severity: warning, description: "Synced within the SLA"}
+  - {id: lab_results_reconciled, kind: reconciliation, entity: lab_results, severity: blocker, description: "Every lake row comes from a loaded delivery"}

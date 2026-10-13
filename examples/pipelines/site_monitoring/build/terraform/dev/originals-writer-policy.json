@@ -1,0 +1,48 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "s3:PutObject"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::az-rd-originals-dev/originals/site_monitoring/*",
+      "Sid": "WriteOriginalsOnce"
+    },
+    {
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::az-rd-originals-dev/originals/site_monitoring/_loaded/*",
+      "Sid": "ReadLoadedRegistry"
+    },
+    {
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "originals/site_monitoring/*"
+          ]
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::az-rd-originals-dev",
+      "Sid": "ListOwnPrefix"
+    },
+    {
+      "Action": [
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:BypassGovernanceRetention",
+        "s3:PutObjectRetention",
+        "s3:PutObjectLegalHold"
+      ],
+      "Effect": "Deny",
+      "Resource": "arn:aws:s3:::az-rd-originals-dev/*",
+      "Sid": "NeverDeleteOrBypass"
+    }
+  ],
+  "Version": "2012-10-17"
+}

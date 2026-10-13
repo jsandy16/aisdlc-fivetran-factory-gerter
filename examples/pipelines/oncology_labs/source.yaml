@@ -1,0 +1,39 @@
+# source.yaml — connection and delivery (package) rules. Owner: data engineer.
+source:
+  type: sftp
+  host: sftp.centrallab.example
+  port: 22
+  username: az_rd_ingest
+  private_key: {secret: sftp_private_key}
+  host_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM+q46zWGkXM1yoev4CEou+F50Sc0fxiUJbCZpG6sHPp"
+  root: /outbound/oncology
+  timeout_seconds: 60
+  package:
+    match: '^(?P<date>[^/]+)/(?P<name>[^/]+)\.zip$'
+    order_by: [date, name]
+    readiness: {min_age_seconds: 300, marker: null}
+    on_redelivery: reject
+    max_package_bytes: 2147483648
+    transforms:
+      - {kind: unzip, max_members: 50, max_total_bytes: 1073741824, max_ratio: 200}
+    checks:
+      - {id: package_not_empty, kind: not_empty, description: "A delivery with no bytes is a broken source"}
+      - {id: package_size, kind: file_size, min_bytes: 100, max_bytes: 2147483648, description: "Delivery size within agreed
+          bounds"}
+      - {id: package_not_duplicate, kind: duplicate_package, description: "The same file content is never loaded twice"}
+      - id: package_name
+        kind: file_name_pattern
+        pattern: '^LB_[A-Z0-9]+_\d{3}\.zip$'
+        description: "File names follow LB_<study>_<seq>.zip"
+      - {id: package_checksum, kind: checksum, algorithm: sha256, sidecar: "{name}.sha256", description: "Content matches
+          the vendor's SHA-256 sidecar"}
+      - {id: package_is_zip, kind: package_type, allowed: [zip], description: "Deliveries are zip archives"}
+      - {id: package_folder, kind: folder_structure, path_pattern: '^\d{8}$', description: "Deliveries sit in a YYYYMMDD folder"}
+      - id: package_members
+        kind: required_members
+        patterns: ['^lab_results_\d{3}\.csv$', '^LB_CTRL\.txt$']
+        description: "Each delivery has lab results and a control file"
+      - {id: package_no_executables, kind: forbidden_members, patterns: ['.*\.(exe|sh|bat|js)$'], description: "No executable
+          content"}
+      - {id: package_member_count, kind: member_count, min: 2, max: 20, description: "Between 2 and 20 files per delivery"}
+    change_detection: content

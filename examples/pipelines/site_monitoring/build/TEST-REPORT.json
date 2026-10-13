@@ -1,0 +1,274 @@
+{
+  "cases": [
+    {
+      "case": "good",
+      "errors": [],
+      "fired": [],
+      "quarantined": {},
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "loaded",
+          ""
+        ],
+        [
+          "SMV_20240301_02.csv",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "cov_with_open_issues",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "cov_zero_open_issues": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "cov_zero_open_issues"
+      ],
+      "quarantined": {
+        "cov_zero_open_issues": 1
+      },
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "empty_file",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_not_empty",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_not_empty"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "rejected",
+          "package_not_empty"
+        ]
+      ]
+    },
+    {
+      "case": "misnamed_file",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_name",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_name"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "SMV_2024031_1.csv",
+          "rejected",
+          "package_name"
+        ]
+      ]
+    },
+    {
+      "case": "negative_issues",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "open_issues_non_negative": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "open_issues_non_negative"
+      ],
+      "quarantined": {
+        "open_issues_non_negative": 1
+      },
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "no_rows",
+      "errors": [],
+      "expected": {
+        "rule_id": "site_monitoring_has_rows",
+        "status": "rejected"
+      },
+      "fired": [
+        "site_monitoring_has_rows"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "rejected",
+          "site_monitoring_has_rows"
+        ]
+      ]
+    },
+    {
+      "case": "report_too_late",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "report_within_10_days": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "report_within_10_days"
+      ],
+      "quarantined": {
+        "report_within_10_days": 1
+      },
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "same_content_twice",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_not_duplicate",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_not_duplicate"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "loaded",
+          ""
+        ],
+        [
+          "SMV_20240302_01.csv",
+          "rejected",
+          "package_not_duplicate"
+        ]
+      ]
+    },
+    {
+      "case": "site_not_4_digits",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "site_no_format": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "site_no_format"
+      ],
+      "quarantined": {
+        "site_no_format": 1
+      },
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "loaded",
+          ""
+        ]
+      ]
+    },
+    {
+      "case": "stray_file",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_match",
+        "status": "unmatched"
+      },
+      "fired": [],
+      "quarantined": {},
+      "statuses": [
+        [
+          "notes.txt",
+          "unmatched",
+          "package_match"
+        ]
+      ]
+    },
+    {
+      "case": "truncated_file",
+      "errors": [],
+      "expected": {
+        "rule_id": "package_size",
+        "status": "rejected"
+      },
+      "fired": [
+        "package_size"
+      ],
+      "quarantined": {},
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "rejected",
+          "package_size"
+        ]
+      ]
+    },
+    {
+      "case": "unexpected_column",
+      "errors": [],
+      "expected": {
+        "status": "rejected"
+      },
+      "fired": [],
+      "quarantined": {},
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "rejected",
+          "schema__site_monitoring"
+        ]
+      ]
+    },
+    {
+      "case": "unknown_visit_type",
+      "errors": [],
+      "expected": {
+        "quarantined": {
+          "visit_type_values": 1
+        },
+        "status": "loaded"
+      },
+      "fired": [
+        "visit_type_values"
+      ],
+      "quarantined": {
+        "visit_type_values": 1
+      },
+      "statuses": [
+        [
+          "SMV_20240301_01.csv",
+          "loaded",
+          ""
+        ]
+      ]
+    }
+  ],
+  "ok": true,
+  "pipeline": "site_monitoring",
+  "spec_sha256": "835aa1d4e5d5a7932745dd30b70824773c85615741bca3e3df961bd41f9ba397",
+  "uncovered": []
+}

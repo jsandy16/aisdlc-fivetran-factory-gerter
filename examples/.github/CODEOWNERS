@@ -1,0 +1,34 @@
+# Framework code is owned by the platform team.
+
+# pf:begin oncology_labs (managed by `pf build`)
+/pipelines/oncology_labs/ @rd-data-eng
+/pipelines/oncology_labs/pipeline.yaml @rd-oncology-po
+/pipelines/oncology_labs/source.yaml @rd-data-eng
+/pipelines/oncology_labs/destination.yaml @rd-data-eng
+/pipelines/oncology_labs/sttm.yaml @rd-data-eng
+/pipelines/oncology_labs/quality.yaml @rd-data-quality
+/pipelines/oncology_labs/policy.yaml @rd-data-governance
+/pipelines/oncology_labs/rules.lock.yaml @rd-data-quality
+# pf:end oncology_labs
+
+# pf:begin site_monitoring (managed by `pf build`)
+/pipelines/site_monitoring/ @rd-data-eng
+/pipelines/site_monitoring/pipeline.yaml @clinops-po
+/pipelines/site_monitoring/source.yaml @rd-data-eng
+/pipelines/site_monitoring/destination.yaml @rd-data-eng
+/pipelines/site_monitoring/sttm.yaml @rd-data-eng
+/pipelines/site_monitoring/quality.yaml @rd-data-quality
+/pipelines/site_monitoring/policy.yaml @rd-governance
+/pipelines/site_monitoring/rules.lock.yaml @rd-data-quality
+# pf:end site_monitoring
+
+# pf:begin trial_sites (managed by `pf build`)
+/pipelines/trial_sites/ @rd-data-eng
+/pipelines/trial_sites/pipeline.yaml @feasibility-po
+/pipelines/trial_sites/source.yaml @rd-data-eng
+/pipelines/trial_sites/destination.yaml @rd-data-eng
+/pipelines/trial_sites/sttm.yaml @rd-data-eng
+/pipelines/trial_sites/quality.yaml @rd-data-quality
+/pipelines/trial_sites/policy.yaml @rd-governance
+/pipelines/trial_sites/rules.lock.yaml @rd-data-quality
+# pf:end trial_sites

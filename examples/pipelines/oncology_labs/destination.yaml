@@ -1,0 +1,24 @@
+# destination.yaml — Fivetran Managed Data Lake on Amazon S3, per environment.
+destination:
+  type: s3
+  processing_region: AWS_US_EAST_1
+  time_zone_offset: "0"
+  environments:
+    dev:
+      fivetran_group: rd_lake_dev
+      bucket: az-rd-lake-dev
+      prefix_path: fivetran
+      region: us-east-1
+      fivetran_role_arn: arn:aws:iam::111111111111:role/fivetran-mdls-dev
+      glue_catalog: true
+      snapshot_retention_period: ONE_WEEK
+      write_delta: false
+    prod:
+      fivetran_group: rd_lake_prod
+      bucket: az-rd-lake-prod
+      prefix_path: fivetran
+      region: us-east-1
+      fivetran_role_arn: arn:aws:iam::222222222222:role/fivetran-mdls-prod
+      glue_catalog: true
+      snapshot_retention_period: RETAIN_ALL_SNAPSHOTS
+      write_delta: false

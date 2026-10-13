@@ -1,0 +1,3 @@
+status: loaded
+rule_id: result_has_unit
+quarantined: {result_has_unit: 1}

@@ -1,0 +1,32 @@
+# policy.yaml — governance decisions, enforced outside Fivetran. Owner: governance.
+default_classification: confidential
+classification:
+  lab_results.subject_key: restricted
+  lab_results.site_id: internal
+archive_originals: true
+retention:
+  days: 9125
+  rationale: Clinical trial records are kept 25 years after trial end (EU CTR Art. 58)
+  object_lock_days: 9125
+environments:
+  dev:
+    access:
+      - {principal: "arn:aws:iam::111111111111:role/rd-data-engineers", classifications: [internal, confidential], justification: "Pipeline development and support"}
+    audit: {bucket: az-rd-pf-audit-dev, object_lock_mode: GOVERNANCE, cloudtrail_data_events: true}
+    originals:
+      bucket: az-rd-originals-dev
+      prefix: originals
+      region: us-east-1
+      access_key_id: {secret: originals_access_key_id_dev}
+      secret_access_key: {secret: originals_secret_access_key_dev}
+  prod:
+    access:
+      - {principal: "arn:aws:iam::222222222222:role/clinical-safety-analytics", classifications: [internal, confidential], justification: "Safety signal detection"}
+      - {principal: "arn:aws:iam::222222222222:role/biostatistics", classifications: [internal, confidential, restricted], justification: "Analysis datasets need subject linkage"}
+    audit: {bucket: az-rd-pf-audit-prod, object_lock_mode: COMPLIANCE, cloudtrail_data_events: true}
+    originals:
+      bucket: az-rd-originals-prod
+      prefix: originals
+      region: us-east-1
+      access_key_id: {secret: originals_access_key_id_prod}
+      secret_access_key: {secret: originals_secret_access_key_prod}

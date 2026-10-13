@@ -1,0 +1,33 @@
+# CI for the pipeline-factory framework itself (pipeline repositories get generated pf-<pipeline>.yml workflows).
+name: framework ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -e '.[runtime,fivetran,docs,dev]'
+      - name: Unit and integration tests (LLM steps replay recorded fixtures; no model calls)
+        run: pytest -q
+        env:
+          PF_LLM_PROVIDER: replay
+      - name: Example pipelines are valid, built from their specs, and pass break-and-verify
+        working-directory: examples
+        run: |
+          for p in oncology_labs site_monitoring trial_sites; do
+            pf validate "$p" && pf build "$p" --check && pf test "$p"
+          done

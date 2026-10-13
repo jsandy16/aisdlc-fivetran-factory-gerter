@@ -1,0 +1,502 @@
+{
+  "archive_originals": true,
+  "classification": {
+    "lab_results.site_id": "internal",
+    "lab_results.subject_key": "restricted"
+  },
+  "default_classification": "confidential",
+  "entities": [
+    {
+      "attributes": [
+        {
+          "business_rule": "The vendor subject id is never stored in clear",
+          "checks": [],
+          "description": "Pseudonymised subject identifier",
+          "input_format": null,
+          "name": "subject_key",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "SUBJID",
+          "transforms": [
+            {
+              "kind": "trim"
+            },
+            {
+              "key": {
+                "secret": "subject_key_salt"
+              },
+              "kind": "pseudonymise"
+            }
+          ],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "",
+          "checks": [
+            {
+              "description": "Site ids are 4 digits",
+              "id": "site_id_format",
+              "kind": "regex",
+              "max_failed_pct": null,
+              "mode": "enforce",
+              "on_fail": "quarantine_row",
+              "pattern": "^\\d{4}$",
+              "tags": []
+            }
+          ],
+          "description": "Investigator site",
+          "input_format": null,
+          "name": "site_id",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "SITEID",
+          "transforms": [
+            {
+              "kind": "trim"
+            },
+            {
+              "char": "0",
+              "kind": "pad_left",
+              "length": 4
+            }
+          ],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "",
+          "checks": [
+            {
+              "description": "Visits are numbered 1-99",
+              "id": "visit_range",
+              "kind": "range",
+              "max": 99.0,
+              "max_failed_pct": null,
+              "min": 1.0,
+              "mode": "enforce",
+              "on_fail": "quarantine_row",
+              "tags": []
+            }
+          ],
+          "description": "Protocol visit number",
+          "input_format": null,
+          "name": "visit",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "VISIT",
+          "transforms": [],
+          "type": "INT"
+        },
+        {
+          "business_rule": "",
+          "checks": [],
+          "description": "Date of the visit",
+          "input_format": "%d%b%Y",
+          "name": "visit_date",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "VISITDT",
+          "transforms": [],
+          "type": "NAIVE_DATE"
+        },
+        {
+          "business_rule": "",
+          "checks": [],
+          "description": "Date the lab received the sample",
+          "input_format": "%d%b%Y",
+          "name": "received_date",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "RCVDT",
+          "transforms": [],
+          "type": "NAIVE_DATE"
+        },
+        {
+          "business_rule": "",
+          "checks": [
+            {
+              "description": "Only tests in the lab manual",
+              "id": "test_code_known",
+              "kind": "allowed_values",
+              "max_failed_pct": null,
+              "mode": "enforce",
+              "on_fail": "quarantine_row",
+              "tags": [],
+              "values": [
+                "ALT",
+                "AST",
+                "HGB",
+                "WBC",
+                "PLAT",
+                "CREAT"
+              ]
+            }
+          ],
+          "description": "CDISC lab test code",
+          "input_format": null,
+          "name": "test_code",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "LBTESTCD",
+          "transforms": [
+            {
+              "kind": "trim"
+            },
+            {
+              "kind": "upper"
+            }
+          ],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "",
+          "checks": [],
+          "description": "Result in original units",
+          "input_format": null,
+          "name": "result_value",
+          "nullable": true,
+          "on_type_error": "quarantine_row",
+          "precision": 18,
+          "scale": 6,
+          "source": "LBORRES",
+          "transforms": [],
+          "type": "DECIMAL"
+        },
+        {
+          "business_rule": "",
+          "checks": [],
+          "description": "Original unit",
+          "input_format": null,
+          "name": "result_unit",
+          "nullable": true,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "LBORRESU",
+          "transforms": [],
+          "type": "STRING"
+        }
+      ],
+      "checks": [
+        {
+          "description": "Every delivery has lab results",
+          "id": "lab_results_has_rows",
+          "kind": "row_count",
+          "max": null,
+          "min": 1,
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        },
+        {
+          "columns": [
+            "subject_key",
+            "visit",
+            "test_code"
+          ],
+          "description": "One result per subject, visit and test in a delivery",
+          "id": "lab_results_unique",
+          "kind": "unique",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        },
+        {
+          "control_member": "^LB_CTRL\\.txt$",
+          "count_pattern": "ROWS=(\\d+)",
+          "description": "Row count matches the vendor control file",
+          "id": "lab_results_control_count",
+          "kind": "control_count",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        }
+      ],
+      "description": "One lab test result per subject, visit and test",
+      "file": {
+        "extra_columns": "reject",
+        "format": {
+          "delimiter": ",",
+          "encoding": "utf-8",
+          "header": true,
+          "null_tokens": [
+            "",
+            "NA"
+          ],
+          "quotechar": "\"",
+          "type": "csv"
+        },
+        "member": "^lab_results_\\d{3}\\.csv$"
+      },
+      "load": "upsert",
+      "name": "lab_results",
+      "primary_key": [
+        "subject_key",
+        "visit",
+        "test_code"
+      ],
+      "row_checks": [
+        {
+          "description": "A result always has a unit",
+          "expr": "row.result_value == null || row.result_unit != null",
+          "id": "result_has_unit",
+          "kind": "expression",
+          "max_failed_pct": 5.0,
+          "mode": "enforce",
+          "on_fail": "quarantine_row",
+          "tags": []
+        },
+        {
+          "compiled_expr": "row.visit_date != null && row.received_date != null && row.visit_date <= row.received_date",
+          "description": "Samples cannot be received before the visit",
+          "examples": [
+            {
+              "expected": "pass",
+              "input": {
+                "received_date": "2024-03-02",
+                "visit_date": "2024-03-01"
+              }
+            },
+            {
+              "expected": "pass",
+              "input": {
+                "received_date": "2024-03-02",
+                "visit_date": "2024-03-02"
+              }
+            },
+            {
+              "expected": "fail",
+              "input": {
+                "received_date": "2024-03-02",
+                "visit_date": "2024-03-03"
+              }
+            }
+          ],
+          "id": "visit_before_receipt",
+          "kind": "english",
+          "max_failed_pct": null,
+          "mode": "enforce",
+          "on_fail": "quarantine_row",
+          "tags": [],
+          "text": "The visit date must be on or before the date the lab received the sample. A row with either date missing fails."
+        }
+      ],
+      "table": null
+    }
+  ],
+  "environments": [
+    "dev",
+    "prod"
+  ],
+  "framework_version": "0.1.0",
+  "gxp_tier": "gxp_indirect",
+  "late_data_policy": "wait",
+  "lock_version": 1,
+  "originals": {
+    "dev": {
+      "access_key_id": {
+        "secret": "originals_access_key_id_dev"
+      },
+      "bucket": "az-rd-originals-dev",
+      "endpoint_url": null,
+      "kms_key_arn": null,
+      "prefix": "originals",
+      "region": "us-east-1",
+      "secret_access_key": {
+        "secret": "originals_secret_access_key_dev"
+      }
+    },
+    "prod": {
+      "access_key_id": {
+        "secret": "originals_access_key_id_prod"
+      },
+      "bucket": "az-rd-originals-prod",
+      "endpoint_url": null,
+      "kms_key_arn": null,
+      "prefix": "originals",
+      "region": "us-east-1",
+      "secret_access_key": {
+        "secret": "originals_secret_access_key_prod"
+      }
+    }
+  },
+  "pipeline": "oncology_labs",
+  "rules_lock_sha256": "40f552b2f788cde055ab30cf7614ef30583e6bf94ecc4f8ada48d99f978dce99",
+  "runtime": {
+    "checkpoint_every_rows": 5000,
+    "parallelism": 2,
+    "python_version": "3.12",
+    "retry": {
+      "attempts": 5,
+      "base_seconds": 2.0,
+      "max_seconds": 60.0
+    }
+  },
+  "runtime_version": "0.1.0",
+  "secrets": {
+    "dev": [
+      "originals_access_key_id_dev",
+      "originals_secret_access_key_dev",
+      "sftp_private_key",
+      "subject_key_salt"
+    ],
+    "prod": [
+      "originals_access_key_id_prod",
+      "originals_secret_access_key_prod",
+      "sftp_private_key",
+      "subject_key_salt"
+    ]
+  },
+  "source": {
+    "host": "sftp.centrallab.example",
+    "host_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM+q46zWGkXM1yoev4CEou+F50Sc0fxiUJbCZpG6sHPp",
+    "package": {
+      "admit_late": [],
+      "change_detection": "content",
+      "checks": [
+        {
+          "description": "A delivery with no bytes is a broken source",
+          "id": "package_not_empty",
+          "kind": "not_empty",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        },
+        {
+          "description": "Delivery size within agreed bounds",
+          "id": "package_size",
+          "kind": "file_size",
+          "max_bytes": 2147483648,
+          "min_bytes": 100,
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        },
+        {
+          "description": "The same file content is never loaded twice",
+          "id": "package_not_duplicate",
+          "kind": "duplicate_package",
+          "lookback_packages": 500,
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        },
+        {
+          "description": "File names follow LB_<study>_<seq>.zip",
+          "id": "package_name",
+          "kind": "file_name_pattern",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "pattern": "^LB_[A-Z0-9]+_\\d{3}\\.zip$",
+          "tags": []
+        },
+        {
+          "algorithm": "sha256",
+          "description": "Content matches the vendor's SHA-256 sidecar",
+          "id": "package_checksum",
+          "kind": "checksum",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "sidecar": "{name}.sha256",
+          "tags": []
+        },
+        {
+          "allowed": [
+            "zip"
+          ],
+          "description": "Deliveries are zip archives",
+          "id": "package_is_zip",
+          "kind": "package_type",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        },
+        {
+          "description": "Deliveries sit in a YYYYMMDD folder",
+          "id": "package_folder",
+          "kind": "folder_structure",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "path_pattern": "^\\d{8}$",
+          "tags": []
+        },
+        {
+          "description": "Each delivery has lab results and a control file",
+          "id": "package_members",
+          "kind": "required_members",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "patterns": [
+            "^lab_results_\\d{3}\\.csv$",
+            "^LB_CTRL\\.txt$"
+          ],
+          "tags": []
+        },
+        {
+          "description": "No executable content",
+          "id": "package_no_executables",
+          "kind": "forbidden_members",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "patterns": [
+            ".*\\.(exe|sh|bat|js)$"
+          ],
+          "tags": []
+        },
+        {
+          "description": "Between 2 and 20 files per delivery",
+          "id": "package_member_count",
+          "kind": "member_count",
+          "max": 20,
+          "min": 2,
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        }
+      ],
+      "match": "^(?P<date>[^/]+)/(?P<name>[^/]+)\\.zip$",
+      "max_package_bytes": 2147483648,
+      "on_redelivery": "reject",
+      "on_unmatched": "warn",
+      "order_by": [
+        "date",
+        "name"
+      ],
+      "readiness": {
+        "marker": null,
+        "min_age_seconds": 300
+      },
+      "transforms": [
+        {
+          "kind": "unzip",
+          "max_members": 50,
+          "max_ratio": 200,
+          "max_total_bytes": 1073741824
+        }
+      ]
+    },
+    "password": null,
+    "port": 22,
+    "private_key": {
+      "secret": "sftp_private_key"
+    },
+    "root": "/outbound/oncology",
+    "timeout_seconds": 60,
+    "type": "sftp",
+    "username": "az_rd_ingest"
+  },
+  "spec_sha256": "b212601b60543ef79b27aed84f9ce469cbc4c77d609186fc0e1318be955e9127",
+  "title": "Oncology central-lab results (vendor SFTP)",
+  "version": "1.0.0"
+}

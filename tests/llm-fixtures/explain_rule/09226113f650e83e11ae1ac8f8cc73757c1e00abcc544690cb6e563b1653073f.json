@@ -1,0 +1,26 @@
+{
+  "output": {
+    "explanation": "Checks that any site marked ACTIVE also has an activated_on date. Sites with any other status are accepted whether or not they have an activation date.",
+    "fails_when": [
+      "status is exactly \"ACTIVE\" and activated_on is missing (null)",
+      "Surprising: the comparison is case-sensitive, so \"active\" or \"Active\" is not treated as ACTIVE and always passes",
+      "Surprising: a status with extra whitespace such as \"ACTIVE \" also passes without needing activated_on"
+    ],
+    "passes_when": [
+      "status is anything other than \"ACTIVE\" (e.g. \"PENDING\", \"CLOSED\"), regardless of activated_on",
+      "status is \"ACTIVE\" and activated_on has a date",
+      "status is missing (null): null is not equal to \"ACTIVE\", so the row passes, assuming null comparison is evaluated as not-equal"
+    ]
+  },
+  "output_sha256": "c0706ed3213f2aaa8c389338f1acede5fcc5801d021a98a2d105a669a42f8f2b",
+  "provenance": {
+    "cost_usd": 0.0067157,
+    "model": "claude-sonnet-5-5",
+    "prompt_version": "1",
+    "recorded_at": "2026-10-12T22:34:59Z",
+    "skill_sha256": "c6582cdbd90fbc10711061afb7183a92693c888e3878a0de56e9761a0ea3ab19",
+    "turns": 4
+  },
+  "skill": "explaining-compiled-rules",
+  "task": "explain_rule"
+}

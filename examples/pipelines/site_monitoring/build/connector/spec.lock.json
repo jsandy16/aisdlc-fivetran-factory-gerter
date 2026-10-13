@@ -1,0 +1,399 @@
+{
+  "archive_originals": true,
+  "classification": {
+    "site_monitoring.cra_email": "confidential"
+  },
+  "default_classification": "internal",
+  "entities": [
+    {
+      "attributes": [
+        {
+          "business_rule": "unique, mandatory",
+          "checks": [],
+          "description": "CRO identifier of the monitoring visit",
+          "input_format": null,
+          "name": "visit_id",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "VISIT_ID",
+          "transforms": [],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "mandatory, 4 digits",
+          "checks": [
+            {
+              "description": "Site numbers are 4 digits",
+              "id": "site_no_format",
+              "kind": "regex",
+              "max_failed_pct": null,
+              "mode": "enforce",
+              "on_fail": "quarantine_row",
+              "pattern": "^\\d{4}$",
+              "tags": []
+            }
+          ],
+          "description": "Investigator site number",
+          "input_format": null,
+          "name": "site_no",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "SITE_NO",
+          "transforms": [],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "mandatory",
+          "checks": [],
+          "description": "Study code, e.g. D1234C00001",
+          "input_format": null,
+          "name": "study",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "STUDY",
+          "transforms": [],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "SIV, IMV, COV (initiation, interim, close-out)",
+          "checks": [
+            {
+              "description": "Visit type must be SIV, IMV or COV",
+              "id": "visit_type_values",
+              "kind": "allowed_values",
+              "max_failed_pct": null,
+              "mode": "enforce",
+              "on_fail": "quarantine_row",
+              "tags": [],
+              "values": [
+                "SIV",
+                "IMV",
+                "COV"
+              ]
+            }
+          ],
+          "description": "Visit type: initiation, interim, close-out",
+          "input_format": null,
+          "name": "visit_type",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "VISIT_TYPE",
+          "transforms": [],
+          "type": "STRING"
+        },
+        {
+          "business_rule": "mandatory",
+          "checks": [],
+          "description": "Date of the visit",
+          "input_format": "%Y-%m-%d",
+          "name": "visit_date",
+          "nullable": false,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "VISIT_DATE",
+          "transforms": [],
+          "type": "NAIVE_DATE"
+        },
+        {
+          "business_rule": "optional until finalised",
+          "checks": [],
+          "description": "Date the report was finalised",
+          "input_format": "%Y-%m-%d",
+          "name": "report_date",
+          "nullable": true,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "REPORT_DATE",
+          "transforms": [],
+          "type": "NAIVE_DATE"
+        },
+        {
+          "business_rule": "whole number, zero or more",
+          "checks": [
+            {
+              "description": "Open issues can never be negative",
+              "id": "open_issues_non_negative",
+              "kind": "range",
+              "max": null,
+              "max_failed_pct": null,
+              "min": 0.0,
+              "mode": "enforce",
+              "on_fail": "quarantine_row",
+              "tags": []
+            }
+          ],
+          "description": "Number of open issues at the site",
+          "input_format": null,
+          "name": "open_issues",
+          "nullable": true,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "OPEN_ISSUES",
+          "transforms": [],
+          "type": "INT"
+        },
+        {
+          "business_rule": "personal data",
+          "checks": [],
+          "description": "Email of the monitor",
+          "input_format": null,
+          "name": "cra_email",
+          "nullable": true,
+          "on_type_error": "quarantine_row",
+          "precision": null,
+          "scale": null,
+          "source": "CRA_EMAIL",
+          "transforms": [],
+          "type": "STRING"
+        }
+      ],
+      "checks": [
+        {
+          "description": "Every delivery of site_monitoring has rows",
+          "id": "site_monitoring_has_rows",
+          "kind": "row_count",
+          "max": null,
+          "min": 1,
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        }
+      ],
+      "description": "One row per monitoring visit from the CRO daily CSV",
+      "file": {
+        "extra_columns": "reject",
+        "format": {
+          "delimiter": ",",
+          "encoding": "utf-8",
+          "header": true,
+          "null_tokens": [
+            ""
+          ],
+          "quotechar": "\"",
+          "type": "csv"
+        },
+        "member": "SMV_\\d{8}_\\d{2}\\.csv"
+      },
+      "load": "upsert",
+      "name": "site_monitoring",
+      "primary_key": [
+        "visit_id"
+      ],
+      "row_checks": [
+        {
+          "compiled_expr": "row.report_date == null || (row.visit_date != null && row.visit_date <= row.report_date && timestamp(row.report_date + \"T00:00:00Z\") - timestamp(row.visit_date + \"T00:00:00Z\") <= duration(\"240h\"))",
+          "description": "A report must be finalised no more than 10 calendar days after the visit date.",
+          "examples": [
+            {
+              "expected": "pass",
+              "input": {
+                "report_date": "2024-03-11",
+                "visit_date": "2024-03-01"
+              }
+            },
+            {
+              "expected": "fail",
+              "input": {
+                "report_date": "2024-03-12",
+                "visit_date": "2024-03-01"
+              }
+            },
+            {
+              "expected": "pass",
+              "input": {
+                "report_date": null,
+                "visit_date": "2024-03-01"
+              }
+            }
+          ],
+          "id": "report_within_10_days",
+          "kind": "english",
+          "max_failed_pct": null,
+          "mode": "enforce",
+          "on_fail": "quarantine_row",
+          "tags": [],
+          "text": "When REPORT_DATE is present, it must be on or after VISIT_DATE and at most 10 calendar days after it (exactly 10 days passes). When REPORT_DATE is missing the report is not finalised yet and the row passes. When REPORT_DATE is present but VISIT_DATE is missing, the row fails."
+        },
+        {
+          "compiled_expr": "row.visit_type == null || row.visit_type != \"COV\" || (row.open_issues != null && row.open_issues == 0)",
+          "description": "Close-out visits (COV) must have zero open issues.",
+          "examples": [
+            {
+              "expected": "pass",
+              "input": {
+                "open_issues": 0,
+                "visit_type": "COV"
+              }
+            },
+            {
+              "expected": "fail",
+              "input": {
+                "open_issues": 2,
+                "visit_type": "COV"
+              }
+            },
+            {
+              "expected": "pass",
+              "input": {
+                "open_issues": 5,
+                "visit_type": "IMV"
+              }
+            }
+          ],
+          "id": "cov_zero_open_issues",
+          "kind": "english",
+          "max_failed_pct": null,
+          "mode": "enforce",
+          "on_fail": "quarantine_row",
+          "tags": [],
+          "text": "When VISIT_TYPE is exactly COV (case-sensitive), OPEN_ISSUES must be present and equal to 0. Rows with any other VISIT_TYPE, or with VISIT_TYPE missing, pass this rule."
+        }
+      ],
+      "table": null
+    }
+  ],
+  "environments": [
+    "dev",
+    "prod"
+  ],
+  "framework_version": "0.1.0",
+  "gxp_tier": "non_gxp",
+  "late_data_policy": "wait",
+  "lock_version": 1,
+  "originals": {
+    "dev": {
+      "access_key_id": {
+        "secret": "originals_access_key_id_dev"
+      },
+      "bucket": "az-rd-originals-dev",
+      "endpoint_url": null,
+      "kms_key_arn": null,
+      "prefix": "originals",
+      "region": "us-east-1",
+      "secret_access_key": {
+        "secret": "originals_secret_access_key_dev"
+      }
+    },
+    "prod": {
+      "access_key_id": {
+        "secret": "originals_access_key_id_prod"
+      },
+      "bucket": "az-rd-originals-prod",
+      "endpoint_url": null,
+      "kms_key_arn": null,
+      "prefix": "originals",
+      "region": "us-east-1",
+      "secret_access_key": {
+        "secret": "originals_secret_access_key_prod"
+      }
+    }
+  },
+  "pipeline": "site_monitoring",
+  "rules_lock_sha256": "1b5e0975f3f98e3710a42ee6117673ef06eddd80ae0a5d4026421971ea107a00",
+  "runtime": {
+    "checkpoint_every_rows": 5000,
+    "parallelism": 2,
+    "python_version": "3.12",
+    "retry": {
+      "attempts": 5,
+      "base_seconds": 2.0,
+      "max_seconds": 60.0
+    }
+  },
+  "runtime_version": "0.1.0",
+  "secrets": {
+    "dev": [
+      "ftp_password",
+      "originals_access_key_id_dev",
+      "originals_secret_access_key_dev"
+    ],
+    "prod": [
+      "ftp_password",
+      "originals_access_key_id_prod",
+      "originals_secret_access_key_prod"
+    ]
+  },
+  "source": {
+    "ca_cert": null,
+    "host": "ftps.cro-partner.example",
+    "package": {
+      "admit_late": [],
+      "change_detection": "metadata",
+      "checks": [
+        {
+          "description": "A delivery with no bytes is a broken source",
+          "id": "package_not_empty",
+          "kind": "not_empty",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        },
+        {
+          "description": "Delivery size within agreed bounds",
+          "id": "package_size",
+          "kind": "file_size",
+          "max_bytes": 2147483648,
+          "min_bytes": 60,
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        },
+        {
+          "description": "The same file content is never loaded twice",
+          "id": "package_not_duplicate",
+          "kind": "duplicate_package",
+          "lookback_packages": 500,
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "tags": []
+        },
+        {
+          "description": "File names follow the agreed naming convention",
+          "id": "package_name",
+          "kind": "file_name_pattern",
+          "mode": "enforce",
+          "on_fail": "reject_package",
+          "pattern": "SMV_\\d{8}_\\d{2}\\.csv",
+          "tags": []
+        }
+      ],
+      "match": "SMV_(?P<date>\\d+)_(?P<seq>\\d+)\\.csv",
+      "max_package_bytes": 2147483648,
+      "on_redelivery": "reject",
+      "on_unmatched": "warn",
+      "order_by": [
+        "date",
+        "seq"
+      ],
+      "readiness": {
+        "marker": null,
+        "min_age_seconds": 600
+      },
+      "transforms": []
+    },
+    "passive": true,
+    "password": {
+      "secret": "ftp_password"
+    },
+    "port": 21,
+    "root": "/exports/monitoring",
+    "timeout_seconds": 60,
+    "tls": "explicit",
+    "type": "ftp",
+    "username": "az_sitemon"
+  },
+  "spec_sha256": "835aa1d4e5d5a7932745dd30b70824773c85615741bca3e3df961bd41f9ba397",
+  "title": "Site monitoring visit reports (CRO FTPS feed)",
+  "version": "0.1.0"
+}

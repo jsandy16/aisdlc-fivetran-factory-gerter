@@ -1,0 +1,25 @@
+{
+  "output": {
+    "explanation": "Checks that both visit_date and received_date are present and that the visit happened on or before the date the result was received. A row with either date missing fails.",
+    "fails_when": [
+      "visit_date is missing (null), so the row fails rather than being skipped",
+      "received_date is missing (null), so the row fails rather than being skipped",
+      "visit_date is later than received_date, meaning the result was received before the visit"
+    ],
+    "passes_when": [
+      "visit_date and received_date are both present and visit_date is earlier than received_date",
+      "visit_date and received_date are both present and are the same day (equal dates pass, since the comparison is inclusive)"
+    ]
+  },
+  "output_sha256": "5d93dc33c608be4eb58901bd302566f2894d27aebe2b3ea12ceb7f9762a4431c",
+  "provenance": {
+    "cost_usd": 0.0232763,
+    "model": "claude-sonnet-5-5",
+    "prompt_version": "1",
+    "recorded_at": "2026-10-12T21:47:30Z",
+    "skill_sha256": "c6582cdbd90fbc10711061afb7183a92693c888e3878a0de56e9761a0ea3ab19",
+    "turns": 4
+  },
+  "skill": "explaining-compiled-rules",
+  "task": "explain_rule"
+}

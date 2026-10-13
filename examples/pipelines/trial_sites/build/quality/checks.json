@@ -1,0 +1,30 @@
+{
+  "checks": [
+    {
+      "description": "sites is not empty",
+      "entity": "sites",
+      "id": "sites_lake_rows",
+      "kind": "row_count",
+      "severity": "blocker",
+      "sql": "SELECT CASE WHEN COUNT(*) >= 1 THEN 0 ELSE 1 END AS failed, COUNT(*) AS observed FROM \"trial_sites\".\"sites\" WHERE COALESCE(_fivetran_deleted, FALSE) = FALSE"
+    },
+    {
+      "description": "sites synced within the SLA",
+      "entity": "sites",
+      "id": "sites_fresh",
+      "kind": "freshness",
+      "severity": "warning",
+      "sql": "SELECT CASE WHEN MAX(finished_at) >= CURRENT_TIMESTAMP - INTERVAL '24' HOUR THEN 0 ELSE 1 END AS failed, COUNT(*) AS observed FROM \"trial_sites\".\"pf_package_audit\" WHERE COALESCE(_fivetran_deleted, FALSE) = FALSE AND status = 'loaded'"
+    },
+    {
+      "description": "Lake rows equal rows the connector emitted",
+      "entity": "sites",
+      "id": "sites_reconciled",
+      "kind": "reconciliation",
+      "severity": "blocker",
+      "sql": "SELECT (SELECT COUNT(*) FROM \"trial_sites\".\"sites\" x WHERE COALESCE(x._fivetran_deleted, FALSE) = FALSE AND NOT EXISTS (SELECT 1 FROM \"trial_sites\".\"pf_entity_audit\" a WHERE a.package_hash = x.pf_package_hash AND a.entity = 'sites' AND a.status = 'loaded')) + (SELECT COUNT(*) FROM \"trial_sites\".\"pf_keys_sites\" k WHERE COALESCE(k._fivetran_deleted, FALSE) = FALSE AND NOT EXISTS (SELECT 1 FROM \"trial_sites\".\"sites\" y WHERE COALESCE(y._fivetran_deleted, FALSE) = FALSE AND y.pf_key_hash = k.key_hash AND y.pf_package_hash = k.package_hash)) + (SELECT COUNT(*) FROM \"trial_sites\".\"sites\" z WHERE COALESCE(z._fivetran_deleted, FALSE) = FALSE AND NOT EXISTS (SELECT 1 FROM \"trial_sites\".\"pf_keys_sites\" k WHERE k.key_hash = z.pf_key_hash AND COALESCE(k._fivetran_deleted, FALSE) = FALSE)) AS failed, (SELECT COUNT(*) FROM \"trial_sites\".\"sites\" WHERE COALESCE(_fivetran_deleted, FALSE) = FALSE) AS observed"
+    }
+  ],
+  "pipeline": "trial_sites",
+  "schema": "trial_sites"
+}

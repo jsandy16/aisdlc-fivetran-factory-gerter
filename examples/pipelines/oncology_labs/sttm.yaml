@@ -1,0 +1,85 @@
+# sttm.yaml — source-to-target mapping. Owner: BA (meaning) + data engineer (technical columns).
+entities:
+  - name: lab_results
+    description: One lab test result per subject, visit and test
+    file:
+      member: '^lab_results_\d{3}\.csv$'
+      format: {type: csv, delimiter: ",", quotechar: '"', header: true, encoding: utf-8, null_tokens: ["", "NA"]}
+      extra_columns: reject
+    load: upsert
+    primary_key: [subject_key, visit, test_code]
+    attributes:
+      - name: subject_key
+        source: SUBJID
+        type: STRING
+        nullable: false
+        description: Pseudonymised subject identifier
+        business_rule: The vendor subject id is never stored in clear
+        transforms: [{kind: trim}, {kind: pseudonymise, key: {secret: subject_key_salt}}]
+      - name: site_id
+        source: SITEID
+        type: STRING
+        nullable: false
+        description: Investigator site
+        transforms: [{kind: trim}, {kind: pad_left, length: 4, char: "0"}]
+        checks:
+          - {id: site_id_format, kind: regex, pattern: '^\d{4}$', description: "Site ids are 4 digits"}
+      - name: visit
+        source: VISIT
+        type: INT
+        nullable: false
+        description: Protocol visit number
+        checks:
+          - {id: visit_range, kind: range, min: 1, max: 99, description: "Visits are numbered 1-99"}
+      - name: visit_date
+        source: VISITDT
+        type: NAIVE_DATE
+        input_format: "%d%b%Y"
+        nullable: false
+        description: Date of the visit
+      - name: received_date
+        source: RCVDT
+        type: NAIVE_DATE
+        input_format: "%d%b%Y"
+        nullable: false
+        description: Date the lab received the sample
+      - name: test_code
+        source: LBTESTCD
+        type: STRING
+        nullable: false
+        description: CDISC lab test code
+        transforms: [{kind: trim}, {kind: upper}]
+        checks:
+          - {id: test_code_known, kind: allowed_values, values: [ALT, AST, HGB, WBC, PLAT, CREAT], description: "Only tests in the lab manual"}
+      - name: result_value
+        source: LBORRES
+        type: DECIMAL
+        precision: 18
+        scale: 6
+        nullable: true
+        description: Result in original units
+      - name: result_unit
+        source: LBORRESU
+        type: STRING
+        nullable: true
+        description: Original unit
+    row_checks:
+      - id: result_has_unit
+        kind: expression
+        expr: 'row.result_value == null || row.result_unit != null'
+        description: "A result always has a unit"
+        on_fail: quarantine_row
+        max_failed_pct: 5
+      - id: visit_before_receipt
+        kind: english
+        text: "The visit date must be on or before the date the lab received the sample. A row with either date missing fails."
+        description: "Samples cannot be received before the visit"
+        on_fail: quarantine_row
+        examples:
+          - {input: {visit_date: "2024-03-01", received_date: "2024-03-02"}, expected: pass}
+          - {input: {visit_date: "2024-03-02", received_date: "2024-03-02"}, expected: pass}
+          - {input: {visit_date: "2024-03-03", received_date: "2024-03-02"}, expected: fail}
+    checks:
+      - {id: lab_results_has_rows, kind: row_count, min: 1, description: "Every delivery has lab results"}
+      - {id: lab_results_unique, kind: unique, columns: [subject_key, visit, test_code], description: "One result per subject, visit and test in a delivery"}
+      - {id: lab_results_control_count, kind: control_count, control_member: '^LB_CTRL\.txt$', count_pattern: 'ROWS=(\d+)', description: "Row count matches the vendor control file"}

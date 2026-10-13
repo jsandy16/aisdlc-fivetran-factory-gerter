@@ -1,0 +1,33 @@
+# pipeline.yaml — identity, owners, requirement summary, environments and schedule.
+# Owner: product owner.
+api_version: pf/v1
+name: oncology_labs
+version: 1.0.0
+title: Oncology central-lab results (vendor SFTP)
+gxp_tier: gxp_indirect
+owners:
+  product_owner: "@rd-oncology-po"
+  data_engineer: "@rd-data-eng"
+  governance: "@rd-data-governance"
+  quality: "@rd-data-quality"
+requirement:
+  purpose: Land central-lab results for oncology studies daily so safety and efficacy analytics use one trusted copy.
+  consumers: [clinical-safety-analytics, biostatistics]
+  freshness_sla_hours: 24
+  late_data_policy: wait
+  source_document: null
+environments: [dev, prod]
+schedule:
+  dev:
+    sync_frequency: 1440
+    daily_sync_time: "02:00"
+    paused: true
+  prod:
+    sync_frequency: 360
+    daily_sync_time: null
+    paused: false
+runtime:
+  parallelism: 2
+  retry: {attempts: 5, base_seconds: 2.0, max_seconds: 60.0}
+  checkpoint_every_rows: 5000
+  python_version: "3.12"

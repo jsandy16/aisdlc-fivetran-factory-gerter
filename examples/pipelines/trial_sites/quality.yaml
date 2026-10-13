@@ -1,0 +1,17 @@
+# quality.yaml — whole-table checks after each sync, run on the lake (Athena). Owner: data quality.
+# severity: blocker keeps the table uncertified for consumers (a human-owned decision); warning only alerts.
+# Available lake checks:
+#   row_count(entity, severity?, min?, max?)
+#   unique(entity, severity?, columns)
+#   not_null(entity, severity?, column)
+#   freshness(entity, severity?, max_hours)
+#   referential(entity, severity?, column, ref_entity, ref_column)
+#   reconciliation(entity, severity?)
+#   sql_assert(entity, severity?, query)
+ticket_route: "jira:FEAS"
+checks:
+  - {id: sites_lake_rows, kind: row_count, entity: sites, min: 1, severity: blocker, description: "sites is not empty"}
+  - {id: sites_fresh, kind: freshness, entity: sites, max_hours: 24, severity: warning, description: "sites synced within
+      the SLA"}
+  - {id: sites_reconciled, kind: reconciliation, entity: sites, severity: blocker, description: "Lake rows equal rows the
+      connector emitted"}

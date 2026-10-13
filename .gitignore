@@ -1,0 +1,7 @@
+artifacts/
+**/build/connector/files/
+**/build/connector/configuration.json
+configuration.json
+.venv/
+__pycache__/
+*.pyc

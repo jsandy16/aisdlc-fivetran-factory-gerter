@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Read|Bash|PowerShell",
+        "hooks": [{ "type": "command", "command": "command -v pf >/dev/null 2>&1 || { echo 'pipeline-factory: pf is not on PATH, so the guard rails cannot run; refusing' >&2; exit 2; }; pf hook pre-tool", "timeout": 30 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [{ "type": "command", "command": "command -v pf >/dev/null 2>&1 && pf hook post-edit", "timeout": 60 }]
+      }
+    ]
+  }
+}

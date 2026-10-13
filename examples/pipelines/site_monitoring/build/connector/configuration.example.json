@@ -1,0 +1,8 @@
+{
+  "ftp_password": "",
+  "originals_access_key_id_dev": "",
+  "originals_access_key_id_prod": "",
+  "originals_secret_access_key_dev": "",
+  "originals_secret_access_key_prod": "",
+  "pf_environment": "dev|prod"
+}

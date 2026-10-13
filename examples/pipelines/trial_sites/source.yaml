@@ -1,0 +1,14 @@
+# source.yaml — database connection. Owner: data engineer.
+# Secrets are never written here: {secret: key} names a Fivetran configuration key that CI fills.
+source:
+  type: rds
+  engine: "postgres"                           # from trial_sites.docx: "the CTMS PostgreSQL database `ctms` (RDS)"
+  host: "ctms-prod.cluster-c1abcd2efgh3.eu-west-1.rds.amazonaws.com" # RDS endpoint
+  port: 5432                                # default 5432 (postgres) / 3306 (mysql)
+  database: "ctms"                          # from trial_sites.docx: "PostgreSQL database `ctms`"
+  username: "pf_reader"                     # from trial_sites.docx: "Read-only user pf_reader"
+  password: {secret: rds_password}
+  ssl_mode: "verify-full"                   # verify-full (verifies the server) | require (encrypted only) | disable
+  ca_cert: {secret: rds_ca_bundle}          # PEM: AWS RDS global bundle (https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem)
+  batch_size: 5000
+  timeout_seconds: 60

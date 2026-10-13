@@ -1,0 +1,27 @@
+{
+  "output": {
+    "explanation": "Checks that when a report_date is given, the visit_date is present, is not after the report_date, and is at most 10 days (240 hours) before it. A missing report_date is accepted without further checks.",
+    "fails_when": [
+      "report_date is present but visit_date is missing",
+      "visit_date is after report_date",
+      "report_date is more than 10 days (240 hours) after visit_date",
+      "Surprising: the expression appends the text \"T00:00:00Z\" to report_date and visit_date with +. If these columns are true date values (NAIVE_DATE) rather than text, that addition may be a type error or fail at runtime instead of giving a clean pass or fail."
+    ],
+    "passes_when": [
+      "report_date is missing (visit_date is not checked then)",
+      "report_date is present, visit_date is present, and visit_date is on or before report_date (same day passes)",
+      "the gap between visit_date and report_date is 10 days (240 hours) or less (exactly 10 days passes)"
+    ]
+  },
+  "output_sha256": "2556202e6d32d7a720f56e97e6c002b765f19c89647d980e42fbcdcb1db5a80f",
+  "provenance": {
+    "cost_usd": 0.008299699999999998,
+    "model": "claude-sonnet-5-5",
+    "prompt_version": "1",
+    "recorded_at": "2026-10-12T22:33:42Z",
+    "skill_sha256": "c6582cdbd90fbc10711061afb7183a92693c888e3878a0de56e9761a0ea3ab19",
+    "turns": 4
+  },
+  "skill": "explaining-compiled-rules",
+  "task": "explain_rule"
+}

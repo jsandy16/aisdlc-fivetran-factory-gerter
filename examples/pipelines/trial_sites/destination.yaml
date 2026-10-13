@@ -1,0 +1,25 @@
+# destination.yaml — Fivetran Managed Data Lake on Amazon S3, per environment. Owner: data engineer (platform).
+# Bucket, prefix, region and role are immutable once the Fivetran destination exists.
+destination:
+  type: s3
+  processing_region: "AWS_US_EAST_1"           # Fivetran processing location, e.g. AWS_US_EAST_1, AWS_EU_WEST_1
+  time_zone_offset: "0"
+  environments:
+    dev:
+      fivetran_group: "rd_lake_dev"            # Fivetran destination (group) name
+      bucket: "az-rd-lake-dev"
+      prefix_path: fivetran
+      region: "us-east-1"                      # e.g. us-east-1
+      fivetran_role_arn: "arn:aws:iam::111111111111:role/fivetran-mdls" # arn:aws:iam::<account>:role/<name>
+      glue_catalog: true                    # can only be chosen when the destination is created
+      snapshot_retention_period: ONE_WEEK
+      write_delta: false
+    prod:
+      fivetran_group: "rd_lake_prod"           # Fivetran destination (group) name
+      bucket: "az-rd-lake-prod"
+      prefix_path: fivetran
+      region: "us-east-1"                      # e.g. us-east-1
+      fivetran_role_arn: "arn:aws:iam::222222222222:role/fivetran-mdls" # arn:aws:iam::<account>:role/<name>
+      glue_catalog: true                    # can only be chosen when the destination is created
+      snapshot_retention_period: ONE_WEEK
+      write_delta: false

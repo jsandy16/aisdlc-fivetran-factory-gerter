@@ -1,0 +1,3 @@
+status: loaded
+rule_id: site_id_format
+quarantined: {site_id_format: 1}
