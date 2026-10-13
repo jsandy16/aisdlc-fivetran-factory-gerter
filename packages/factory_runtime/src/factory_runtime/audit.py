@@ -46,9 +46,12 @@ class AuditLog:
     def record(self, event_type: str, **fields: Any) -> None:
         if event_type not in EVENT_TYPES:
             raise ValueError(f"unknown audit event type {event_type}")
+        clash = {"ts", "type"} & set(fields)
+        if clash:
+            raise ValueError(f"audit fields {sorted(clash)} are reserved")
         if event_type not in self.enabled:
             return
-        doc = {"ts": round(self.clock(), 3), "type": event_type, **self.base, **fields}
+        doc = {"ts": int(self.clock()), "type": event_type, **self.base, **fields}
         with self._lock:
             self.events.append(doc)
 

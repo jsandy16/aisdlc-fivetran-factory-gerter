@@ -48,6 +48,18 @@ _TRANSIENT_NAMES = frozenset(
 )
 _SECURITY_NAMES = frozenset({"BadHostKeyException", "SSLCertVerificationError", "CertificateError"})
 _CONFIG_NAMES = frozenset({"AuthenticationException", "PasswordRequiredException", "NoCredentialsError"})
+# TLS alerts that mean "the server rejected our client certificate" (mTLS): a configuration problem, not a blip
+TLS_CLIENT_REJECTED = frozenset(
+    {
+        "TLSV13_ALERT_CERTIFICATE_REQUIRED",
+        "TLSV1_ALERT_UNKNOWN_CA",
+        "TLSV1_ALERT_ACCESS_DENIED",
+        "SSLV3_ALERT_BAD_CERTIFICATE",
+        "SSLV3_ALERT_CERTIFICATE_UNKNOWN",
+        "SSLV3_ALERT_CERTIFICATE_EXPIRED",
+        "SSLV3_ALERT_CERTIFICATE_REVOKED",
+    }
+)
 
 _AWS_TRANSIENT_CODES = frozenset(
     {
@@ -114,6 +126,9 @@ def classify(exc: BaseException) -> ErrorClass:
     for e in chain:
         if isinstance(e, ssl.SSLCertVerificationError) or _names(e) & _SECURITY_NAMES:
             return ErrorClass.SECURITY
+    for e in chain:
+        if isinstance(e, ssl.SSLError) and getattr(e, "reason", None) in TLS_CLIENT_REJECTED:
+            return ErrorClass.CONFIG
     names = _names(exc)
     if names & _CONFIG_NAMES:
         return ErrorClass.CONFIG

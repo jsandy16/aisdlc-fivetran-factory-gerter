@@ -25,6 +25,7 @@ DATA = Path(__file__).parent / "data"
 UNIT_REPO = DATA / "unit_repo"
 EXAMPLE_REPO = REPO_ROOT / "examples" / "team-pipelines"
 PLATFORM_SETTINGS = REPO_ROOT / "platform" / "platform-settings"
+STARTERS = REPO_ROOT / "packages" / "factory" / "src" / "factory" / "starters"
 REGION = "eu-west-1"
 
 
@@ -110,3 +111,86 @@ def run_task(
     if conf is not None:
         argv += ["--conf", json.dumps(conf)]
     return main(argv, config=cfg, overrides=overrides, environ=environ if environ is not None else {})
+
+
+# ---------------------------------------------------------------- op-level harness
+
+
+class OpHarness:
+    """A real RuleContext for one rule of a spec: moto-backed staging and audit, memory run-state, the task's
+    secrets stack. Lets op tests run without the whole task."""
+
+    def __init__(
+        self,
+        pipeline_dir: Path,
+        cfg: RuntimeConfig,
+        *,
+        trigger_body: dict[str, Any] | None = None,
+        overrides: Overrides | None = None,
+        run_key: str = "REQ-00000001",
+    ) -> None:
+        from factory_core.canonical import canonical_bytes, sha256_hex
+        from factory_core.runkey import run_dir, run_key_hash
+        from factory_runtime.artifacts import ArtifactStore, RunInfo, Vars
+        from factory_runtime.audit import EVENT_TYPES, AuditLog
+        from factory_runtime.secrets.router import build_secrets
+        from factory_runtime.services import Services
+        from factory_runtime.staging import Staging
+        from factory_runtime.state import MemoryRunState
+        from factory_spec.artifact_models import PortalSnapshot, TriggerSnapshot
+        from factory_spec.derive import derive_artifacts
+        from factory_spec.load import load_spec
+
+        spec = load_spec(pipeline_dir).spec
+        assert spec is not None
+        self.spec = spec
+        self.cfg = cfg
+        self.services = Services.build(cfg, overrides, state=MemoryRunState(spec.pipeline_id))
+        self.run_dir = run_dir(run_key)
+        self.staging = Staging(self.services.aws, cfg.staging_bucket, None, spec.pipeline_id, self.run_dir)
+        self.store = ArtifactStore(derive_artifacts(spec), self.staging)
+        trig = None
+        if trigger_body is not None:
+            trig = TriggerSnapshot(
+                source="sqs", body=trigger_body, body_sha256=sha256_hex(canonical_bytes(trigger_body))
+            )
+        self.trigger = trig
+
+        def portal(endpoint: str) -> PortalSnapshot | None:
+            for name in self.store.graph.artifacts:
+                if self.store.has(name) and isinstance(self.store.get(name).value, PortalSnapshot):
+                    return self.store.get(name).value  # type: ignore[no-any-return]
+            return None
+
+        self.vars = Vars(spec, trig, portal)
+        self.audit = AuditLog(
+            self.services.aws, cfg.audit_store, None, f"{spec.pipeline_id}/{self.run_dir}/", frozenset(EVENT_TYPES)
+        )
+        self.secrets = build_secrets(self.services, spec, cfg.env, self.audit.record)
+        self.run = RunInfo(
+            run_key, self.run_dir, run_key_hash(run_key), cfg.env, spec.pipeline_id, cfg.team, 1, self.run_dir,
+            1_791_000_000, "2026-10-03",
+        )  # fmt: skip
+
+    def ctx(self, rule_id: str) -> Any:
+        from factory_runtime.context import RuleContext
+
+        rule = self.spec.rule(rule_id)
+        task = self.spec.task_of_rule()[rule_id]
+        wd = self.cfg.workdir / "runs" / self.run_dir / task
+        wd.mkdir(parents=True, exist_ok=True)
+        return RuleContext(
+            rule, task, self.spec, self.services, self.run, self.vars, self.store, self.staging, self.audit, wd,
+            self.secrets,
+        )  # fmt: skip
+
+    def run_rule(self, rule_id: str) -> list[Any]:
+        from factory_runtime.executor import _run_rule, _store_outputs
+
+        ctx = self.ctx(rule_id)
+        outs = _run_rule(ctx)
+        _store_outputs(ctx, outs)
+        return [self.store.get(n).value for n in ctx.rule.outputs]
+
+    def put(self, name: str, value: Any) -> None:
+        self.store.put(name, value)
