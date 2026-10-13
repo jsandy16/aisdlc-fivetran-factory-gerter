@@ -1,0 +1,45 @@
+# Synthetic test pipeline for the runtime executor (no I/O ops): a manual trigger, a name and some checks.
+api_version: factory/v1
+kind: Pipeline
+schema_version: 1.0.0
+metadata:
+  pipeline_id: unit_naming
+  name: Unit naming pipeline
+  description: Synthetic pipeline used by the runtime tests; it names a file and checks run values.
+  team: clinops_data
+  spec_version: 0.1.0
+  owners: {business_owner: "@alice-ba", data_engineer: "@bob-de", governance: "@carol-qa", platform: "@dan-platform"}
+  requirements: []
+  tags: {cost_centre: CC1234}
+variables:
+  request_id: trigger.conf.request_id
+  study_id: trigger.conf.study_id
+  n: trigger.conf.n
+trigger:
+  type: manual
+  conf:
+    unknown_fields: reject
+    fields:
+      request_id: {type: string, pattern: "^[A-Za-z0-9-]{8,64}$"}
+      study_id: {type: string, pattern: "^[A-Z]{3}[0-9]{3,5}$"}
+      n: {type: integer, minimum: -100, maximum: 100000}
+orchestration:
+  dag: {catchup: false, max_active_runs: 1, timeout: 1h}
+  tasks:
+    - task_id: t1_name
+      label: Name the file and check the run values
+      rules: [r_name, r_check_name, r_check_n, r_warn_big]
+      engine: lambda
+      timeout: 5m
+reliability:
+  run_key: "{request_id}"
+  retry: {max_attempts: 3, backoff: exponential_jitter, base: 10s, max: 5m}
+  replay_window: 7d
+observability:
+  alerts: {transient: none, data: data_owner, config: platform, security: security}
+workload:
+  bytes_per_run: {p50: 1KB, p95: 1KB, max: 1KB}
+  files_per_run: {p50: 0, p95: 0, max: 0}
+  runs_per_day: 1
+cost: {budget_per_run_usd: "0.01", budget_per_month_usd: "1.00"}
+open_questions: []

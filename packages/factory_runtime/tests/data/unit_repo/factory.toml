@@ -1,0 +1,4 @@
+api_version = "factory/v1"
+team = "clinops_data"
+environments = ["dev"]
+platform_settings = "../../../../../platform/platform-settings"

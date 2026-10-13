@@ -9,8 +9,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from cli_helpers import EXAMPLE_REPO, PLATFORM_SETTINGS, fill_edits
-from conftest import Run
+from cli_helpers import EXAMPLE_REPO, PLATFORM_SETTINGS, Run, fill_edits
 from factory.cli import starters
 
 PIPE = "study_pkg_delivery"

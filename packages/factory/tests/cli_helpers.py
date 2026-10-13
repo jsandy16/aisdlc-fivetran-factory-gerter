@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 EXAMPLE_REPO = REPO_ROOT / "examples" / "team-pipelines"
 PLATFORM_SETTINGS = REPO_ROOT / "platform" / "platform-settings"
 FILLS = Path(__file__).parent / "starter_fills"
+Run = Callable[..., tuple[int, Any]]  # the `cli` fixture: run(*args) -> (exit code, envelope or text)
 ENVS = ("dev", "test", "ppt", "prod")
 
 

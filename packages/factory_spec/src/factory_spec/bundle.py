@@ -80,11 +80,12 @@ def _zip(files: dict[str, bytes]) -> bytes:
 
 def build_bundle(pipeline_dir: Path) -> Bundle:
     """Bundle a valid pipeline whose spec.lock.json is current (raises ConfigError otherwise)."""
-    from .load import load_spec
+    from .validate import validate_dir
 
-    res = load_spec(pipeline_dir)
-    if res.spec is None:
-        raise ConfigError("bundle_spec_invalid", "the spec does not load; run `factory validate`")
+    result = validate_dir(pipeline_dir)
+    res = result.load
+    if res.spec is None or result.errors:
+        raise ConfigError("bundle_spec_invalid", "the spec has validation errors; run `factory validate`")
     stale = check_lock(res.spec)
     if stale:
         raise ConfigError("bundle_lock_stale", stale[0].msg)

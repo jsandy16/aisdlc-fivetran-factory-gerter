@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
-from cli_helpers import copy_example
+from cli_helpers import Run, copy_example
 from factory.cli import main
-
-Run = Callable[..., tuple[int, Any]]
 
 
 @pytest.fixture

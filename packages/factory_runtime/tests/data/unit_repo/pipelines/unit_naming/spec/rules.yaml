@@ -1,0 +1,21 @@
+rules:
+  - rule_id: r_name
+    category: naming
+    plain_english: Name the file <study>_<sequence>.txt, for example ONC101_0001.txt.
+    implementation: {kind: builtin, op: naming.render, params: {template: "{study_id}_{seq:04d}.txt"}}
+    outputs: [file_name]
+  - rule_id: r_check_name
+    category: validate
+    plain_english: The file name must not be empty.
+    implementation: {kind: expression, cel: "size(artifacts.file_name) > 4"}
+    inputs: [file_name]
+  - rule_id: r_check_n
+    category: validate
+    plain_english: The count given when the run was started must be positive.
+    implementation: {kind: expression, cel: "vars.n > 0"}
+    on_failure: {action: fail, error_class: data}
+  - rule_id: r_warn_big
+    category: validate
+    plain_english: Warn when the count is unusually large, but carry on.
+    implementation: {kind: expression, cel: "vars.n < 1000"}
+    on_failure: {action: warn, error_class: data}

@@ -1,0 +1,327 @@
+{
+  "api_version": "factory/v1",
+  "bindings": {
+    "dev": {
+      "destinations": [],
+      "environment": {
+        "alert_channels": {
+          "data_owner": {
+            "topic": "unit-data-alerts-dev",
+            "type": "sns"
+          },
+          "platform": {
+            "topic": "unit-platform-alerts-dev",
+            "type": "sns"
+          },
+          "security": {
+            "topic": "unit-security-alerts-dev",
+            "type": "sns"
+          }
+        },
+        "apis": {},
+        "enabled": true,
+        "placement": {
+          "orchestration": "mwaa",
+          "workload": "team"
+        },
+        "portal": null,
+        "queues": {},
+        "schedule_cron": null,
+        "secrets": {
+          "aws_secrets_manager": null,
+          "vault": null
+        },
+        "sources": {}
+      }
+    }
+  },
+  "derived": {
+    "artifacts": {
+      "file_name": {
+        "consumers": [
+          "r_check_name"
+        ],
+        "durability": "local",
+        "kind": "value",
+        "producer": "r_name",
+        "task": "t1_name"
+      }
+    },
+    "op_contracts": {
+      "naming.render": {
+        "contract_sha": "65c76e3de1d33e3495763b8060699568582788bacde411cd3ec368cfb593c8c6",
+        "version": "1.0.0"
+      }
+    }
+  },
+  "hashes": {
+    "binding_sha": {
+      "dev": "226fb4724c32de5b6b93352c76cccf6e655c104c8c4b0d468e02459f863842fe"
+    },
+    "derived_sha": "74a94b8327aa0cd6c196fabfb6facaec02a3e36875e3949151e7b6d34c69dcff",
+    "logic_sha": "0240034a78c719391ec0f14dd2ea79d1fa5ccdbd6d31cd00f869dc7019653dc4"
+  },
+  "lock_version": 1,
+  "logic": {
+    "integrations": {
+      "apis": [],
+      "destinations": [],
+      "portal": null,
+      "secrets": {},
+      "sources": []
+    },
+    "pipeline": {
+      "api_version": "factory/v1",
+      "artifacts": {},
+      "cost": {
+        "budget_per_month_usd": "1.00",
+        "budget_per_run_usd": "0.01"
+      },
+      "kind": "Pipeline",
+      "metadata": {
+        "description": "Synthetic pipeline used by the runtime tests; it names a file and checks run values.",
+        "name": "Unit naming pipeline",
+        "owners": {
+          "business_owner": "@alice-ba",
+          "data_engineer": "@bob-de",
+          "governance": "@carol-qa",
+          "platform": "@dan-platform"
+        },
+        "pipeline_id": "unit_naming",
+        "requirements": [],
+        "spec_version": "0.1.0",
+        "tags": {
+          "cost_centre": "CC1234"
+        },
+        "team": "clinops_data"
+      },
+      "observability": {
+        "alerts": {
+          "config": "platform",
+          "data": "data_owner",
+          "security": "security",
+          "transient": "none"
+        },
+        "sla": null
+      },
+      "open_questions": [],
+      "orchestration": {
+        "dag": {
+          "catchup": false,
+          "max_active_runs": 1,
+          "timeout": 3600
+        },
+        "pool": null,
+        "tasks": [
+          {
+            "depends_on": [],
+            "engine": "lambda",
+            "label": "Name the file and check the run values",
+            "retry": null,
+            "rules": [
+              "r_name",
+              "r_check_name",
+              "r_check_n",
+              "r_warn_big"
+            ],
+            "task_id": "t1_name",
+            "timeout": 300
+          }
+        ]
+      },
+      "reliability": {
+        "replay_window": 604800,
+        "retry": {
+          "backoff": "exponential_jitter",
+          "base": 10,
+          "max": 300,
+          "max_attempts": 3
+        },
+        "run_key": "{request_id}"
+      },
+      "schema_version": "1.0.0",
+      "trigger": {
+        "conf": {
+          "fields": {
+            "n": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": 100000,
+              "minimum": -100,
+              "pattern": null,
+              "required": true,
+              "type": "integer",
+              "values": null
+            },
+            "request_id": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": null,
+              "minimum": null,
+              "pattern": "^[A-Za-z0-9-]{8,64}$",
+              "required": true,
+              "type": "string",
+              "values": null
+            },
+            "study_id": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": null,
+              "minimum": null,
+              "pattern": "^[A-Z]{3}[0-9]{3,5}$",
+              "required": true,
+              "type": "string",
+              "values": null
+            }
+          },
+          "unknown_fields": "reject"
+        },
+        "type": "manual"
+      },
+      "variables": {
+        "n": "trigger.conf.n",
+        "request_id": "trigger.conf.request_id",
+        "study_id": "trigger.conf.study_id"
+      },
+      "workload": {
+        "bytes_per_run": {
+          "max": 1000,
+          "p50": 1000,
+          "p95": 1000
+        },
+        "files_per_run": {
+          "max": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "runs_per_day": 1
+      }
+    },
+    "rules": {
+      "rules": [
+        {
+          "category": "validate",
+          "implementation": {
+            "cel": "vars.n > 0",
+            "kind": "expression"
+          },
+          "inputs": [],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [],
+          "plain_english": "The count given when the run was started must be positive.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_check_n",
+          "test_cases": []
+        },
+        {
+          "category": "validate",
+          "implementation": {
+            "cel": "size(artifacts.file_name) > 4",
+            "kind": "expression"
+          },
+          "inputs": [
+            "file_name"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [],
+          "plain_english": "The file name must not be empty.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_check_name",
+          "test_cases": []
+        },
+        {
+          "category": "naming",
+          "implementation": {
+            "kind": "builtin",
+            "op": "naming.render",
+            "params": {
+              "template": "{study_id}_{seq:04d}.txt"
+            }
+          },
+          "inputs": [],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "file_name"
+          ],
+          "plain_english": "Name the file <study>_<sequence>.txt, for example ONC101_0001.txt.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_name",
+          "test_cases": []
+        },
+        {
+          "category": "validate",
+          "implementation": {
+            "cel": "vars.n < 1000",
+            "kind": "expression"
+          },
+          "inputs": [],
+          "on_failure": {
+            "action": "warn",
+            "error_class": "data"
+          },
+          "outputs": [],
+          "plain_english": "Warn when the count is unusually large, but carry on.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_warn_big",
+          "test_cases": []
+        }
+      ]
+    },
+    "security": {
+      "security_and_access": {
+        "audit": {
+          "enabled": true,
+          "events": [
+            "rule_result"
+          ],
+          "evidence_retention": "1y"
+        },
+        "checksums": {
+          "delivery_sidecars": [],
+          "manifest": [
+            "sha256"
+          ]
+        },
+        "data_classification": "internal",
+        "encryption_at_rest": {
+          "s3_destinations": "sse_kms",
+          "staging": "sse_kms"
+        },
+        "gxp_tier": "non_gxp",
+        "package_encryption": "none",
+        "residency": {
+          "allowed_regions": [
+            "eu-west-1"
+          ]
+        },
+        "retention": {
+          "run_logs": "30d",
+          "staging_after_failure": "7d",
+          "staging_after_success": "7d"
+        }
+      }
+    }
+  },
+  "pipeline_id": "unit_naming",
+  "schema_version": "1.0.0",
+  "spec_version": "0.1.0"
+}
