@@ -38,7 +38,7 @@ from .artifacts import ADOPT_KINDS, TRIGGER_SNAPSHOT, ArtifactStore, RunInfo, Va
 from .audit import AuditLog
 from .bundles import LoadedBundle, bundle_uri, load_bundle
 from .context import RuleContext
-from .ops import CheckFailed, lookup
+from .ops import CheckFailed, NoWork, lookup
 from .pin import Pin, check_image, establish_pin
 from .secrets.router import build_secrets
 from .services import Services
@@ -66,9 +66,12 @@ class TaskRequest:
 @dataclass
 class TaskOutcome:
     task_id: str
-    status: str  # "succeeded" | "already_done"
+    status: str  # "succeeded" | "already_done" | "no_work"
     rules: list[str] = field(default_factory=list)
     audit_key: str | None = None
+
+
+NO_WORK = "NOWORK"
 
 
 def classified(exc: BaseException, where: str) -> FactoryError:
@@ -237,6 +240,9 @@ def _execute_task(services: Services, req: TaskRequest, bundle: LoadedBundle, pi
     if done is not None:
         log.event("task_already_done", attempt_done=done.doc.get("attempt"))
         return TaskOutcome(req.task_id, "already_done")
+    if services.state.get(rdir, NO_WORK) is not None:
+        log.event("run_has_no_work")
+        return TaskOutcome(req.task_id, "no_work")
     trigger = _trigger_snapshot(bundle, staging, req.conf)
     graph = derive_artifacts(spec)
     store = ArtifactStore(graph, staging)
@@ -268,6 +274,11 @@ def _execute_task(services: Services, req: TaskRequest, bundle: LoadedBundle, pi
         services.state.put(rdir, f"TASK#{req.task_id}", {"attempt": req.attempt, "rules": ran})
         log.event("task_end", duration_ms=int((time.monotonic() - t0) * 1000))
         return TaskOutcome(req.task_id, "succeeded", ran, audit.flush(f"{req.task_id}/attempt-{req.attempt}"))
+    except NoWork as nothing:
+        services.state.put(rdir, NO_WORK, {"task_id": req.task_id, "reason": str(nothing)})
+        services.state.put(rdir, f"TASK#{req.task_id}", {"attempt": req.attempt, "rules": ran, "no_work": True})
+        log.event("run_has_no_work", reason=str(nothing))
+        return TaskOutcome(req.task_id, "no_work", ran, audit.flush(f"{req.task_id}/attempt-{req.attempt}"))
     except BaseException as exc:
         err = classified(exc, req.task_id)
         log.event("task_failed", level="ERROR", error_class=str(err.error_class), code=err.code)
@@ -297,6 +308,8 @@ def _one_rule(ctx: RuleContext, services: Services, rdir: str, task_id: str) -> 
         if err is None:
             return str(rule.rule_id)
         raise err from failure
+    except NoWork:
+        raise
     except BaseException as exc:
         err = classified(exc, rule.rule_id)
         ctx.audit.record(

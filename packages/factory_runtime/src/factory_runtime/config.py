@@ -39,6 +39,14 @@ class RuntimeConfig(BaseModel):
     vault_role: str | None = None
     vault_iam_server_id: str | None = None
     fivetran_api_secret: str | None = None  # Secrets Manager id of the platform's Fivetran API key (fivetran.sync)
+    # the dispatcher Lambda only: the deployed bundle it validates messages against, and where it starts runs
+    bundle_uri: str | None = None
+    bundle_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    dag_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.-]{1,250}$")
+    mwaa_environment: str | None = Field(default=None, pattern=r"^[A-Za-z][0-9A-Za-z_-]{0,79}$")
+    trigger_role_arn: str | None = Field(
+        default=None, pattern=r"^arn:aws[a-z-]*:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,512}$"
+    )
     workdir: Path = Path("/tmp/factory")  # noqa: S108 - Lambda/pod ephemeral storage; private per invocation
 
     @property
@@ -64,6 +72,11 @@ _ENV_MAP = {
     "vault_role": "FACTORY_VAULT_ROLE",
     "vault_iam_server_id": "FACTORY_VAULT_IAM_SERVER_ID",
     "fivetran_api_secret": "FACTORY_FIVETRAN_API_SECRET",
+    "bundle_uri": "FACTORY_BUNDLE_URI",
+    "bundle_sha256": "FACTORY_BUNDLE_SHA256",
+    "dag_id": "FACTORY_DAG_ID",
+    "mwaa_environment": "FACTORY_MWAA_ENV",
+    "trigger_role_arn": "FACTORY_TRIGGER_ROLE_ARN",
     "workdir": "FACTORY_WORKDIR",
 }
 ENV_VARS = frozenset(_ENV_MAP.values())

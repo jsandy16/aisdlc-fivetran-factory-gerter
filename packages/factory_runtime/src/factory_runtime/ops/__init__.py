@@ -40,6 +40,11 @@ class CheckFailed(DataError):  # noqa: N818 - the domain term used in the docs
     """A check did not hold (validate op, expression, precondition). Only these follow `on_failure.error_class`."""
 
 
+class NoWork(Exception):  # noqa: N818 - a run outcome, not an error
+    """The run has nothing to process (an in_task sqs.read found the queue empty). The task ends with exit 0, the run
+    is marked `no_work` in run-state, and every later task of the run ends at once the same way."""
+
+
 def op(name: str) -> Callable[[OpFn], OpFn]:
     def register(fn: OpFn) -> OpFn:
         if name in REGISTRY:
