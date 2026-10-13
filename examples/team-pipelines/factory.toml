@@ -1,0 +1,5 @@
+# Pipeline Factory team repository marker (example: the clinops_data team)
+api_version = "factory/v1"
+team = "clinops_data"
+environments = ["dev", "test", "ppt", "prod"]
+platform_settings = "../../platform/platform-settings"

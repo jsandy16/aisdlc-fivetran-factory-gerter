@@ -1,0 +1,62 @@
+{
+  "account_model": "account_per_team",
+  "accounts": {
+    "clinops_data": {
+      "account_id": "200000000001"
+    },
+    "platform": {
+      "account_id": "100000000001"
+    }
+  },
+  "environment": "dev",
+  "identity": {
+    "default": "pod_identity"
+  },
+  "limits": {
+    "lambda": {
+      "ephemeral_storage": "10240MiB",
+      "memory": "10240MiB",
+      "timeout": "15m"
+    },
+    "max_package_bytes": "10GB"
+  },
+  "mwaa": {
+    "airflow_version": "3.3.1",
+    "environment_name": "factory-dev",
+    "launcher_role_pattern": "factory-launcher-{team}",
+    "rbac_role_pattern": "team_{team}",
+    "trigger_role_pattern": "factory-trigger-{team}"
+  },
+  "placements": {
+    "mwaa": {
+      "account": "platform",
+      "role": "orchestration"
+    },
+    "team": {
+      "account": "@team",
+      "role": "workload"
+    }
+  },
+  "region": "eu-west-1",
+  "settings_version": 1,
+  "teams": {
+    "clinops_data": {
+      "account": "clinops_data",
+      "kms_aliases": {
+        "audit": "alias/factory-clinops-data-audit",
+        "staging": "alias/factory-clinops-data-staging"
+      },
+      "stores": {
+        "audit_store": "factory-clinops-data-dev-audit",
+        "bundle_store": "factory-clinops-data-dev-bundles",
+        "run_state_table": "factory-clinops-data-dev-run-state",
+        "staging_bucket": "factory-clinops-data-dev-staging"
+      }
+    }
+  },
+  "vault": {
+    "address": "https://vault.dev.acme.example:8200",
+    "auth_method": "aws",
+    "auth_mount": "aws"
+  }
+}

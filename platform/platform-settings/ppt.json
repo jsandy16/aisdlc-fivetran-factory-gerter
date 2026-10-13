@@ -1,0 +1,69 @@
+{
+  "account_model": "account_per_team",
+  "accounts": {
+    "clinops_data": {
+      "account_id": "200000000003"
+    },
+    "cro_archive": {
+      "account_id": "300000000003"
+    },
+    "platform": {
+      "account_id": "100000000003"
+    }
+  },
+  "environment": "ppt",
+  "identity": {
+    "default": "pod_identity"
+  },
+  "limits": {
+    "lambda": {
+      "ephemeral_storage": "10240MiB",
+      "memory": "10240MiB",
+      "timeout": "15m"
+    },
+    "max_package_bytes": "10GB"
+  },
+  "mwaa": {
+    "airflow_version": "3.3.1",
+    "environment_name": "factory-ppt",
+    "launcher_role_pattern": "factory-launcher-{team}",
+    "rbac_role_pattern": "team_{team}",
+    "trigger_role_pattern": "factory-trigger-{team}"
+  },
+  "placements": {
+    "cro_archive": {
+      "account": "cro_archive",
+      "role": "destination"
+    },
+    "mwaa": {
+      "account": "platform",
+      "role": "orchestration"
+    },
+    "team": {
+      "account": "@team",
+      "role": "workload"
+    }
+  },
+  "region": "eu-west-1",
+  "settings_version": 1,
+  "teams": {
+    "clinops_data": {
+      "account": "clinops_data",
+      "kms_aliases": {
+        "audit": "alias/factory-clinops-data-audit",
+        "staging": "alias/factory-clinops-data-staging"
+      },
+      "stores": {
+        "audit_store": "factory-clinops-data-ppt-audit",
+        "bundle_store": "factory-clinops-data-ppt-bundles",
+        "run_state_table": "factory-clinops-data-ppt-run-state",
+        "staging_bucket": "factory-clinops-data-ppt-staging"
+      }
+    }
+  },
+  "vault": {
+    "address": "https://vault.ppt.acme.example:8200",
+    "auth_method": "aws",
+    "auth_mount": "aws"
+  }
+}

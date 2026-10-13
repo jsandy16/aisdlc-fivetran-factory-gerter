@@ -1,0 +1,51 @@
+# environments.yaml: per-environment bindings (accounts are placement aliases from the platform settings).
+# Owner: platform (CODEOWNERS). Part of binding_sha, not logic_sha.
+environments:
+  dev:
+    enabled: true
+    placement: {orchestration: mwaa, workload: team}
+    secrets: {vault: {mount: kv, namespace: clinops}, aws_secrets_manager: {prefix: factory/}}
+    queues: {package_ready: {name: clinops-package-ready-dev}}
+    sources:
+      landing: {buckets: [acme-clinops-landing-dev], prefix_roots: [incoming/], placement: team}
+    portal: {base_url: "https://portal.dev.acme.example"}
+    alert_channels:
+      clinops_data: {type: sns, topic: clinops-data-alerts-dev}
+      platform: {type: sns, topic: factory-platform-alerts-dev}
+      security: {type: sns, topic: factory-security-alerts-dev}
+  test:
+    enabled: true
+    placement: {orchestration: mwaa, workload: team}
+    secrets: {vault: {mount: kv, namespace: clinops}, aws_secrets_manager: {prefix: factory/}}
+    queues: {package_ready: {name: clinops-package-ready-test}}
+    sources:
+      landing: {buckets: [acme-clinops-landing-test], prefix_roots: [incoming/], placement: team}
+    portal: {base_url: "https://portal.test.acme.example"}
+    alert_channels:
+      clinops_data: {type: sns, topic: clinops-data-alerts-test}
+      platform: {type: sns, topic: factory-platform-alerts-test}
+      security: {type: sns, topic: factory-security-alerts-test}
+  ppt:
+    enabled: true
+    placement: {orchestration: mwaa, workload: team}
+    secrets: {vault: {mount: kv, namespace: clinops}, aws_secrets_manager: {prefix: factory/}}
+    queues: {package_ready: {name: clinops-package-ready-ppt}}
+    sources:
+      landing: {buckets: [acme-clinops-landing-ppt], prefix_roots: [incoming/], placement: team}
+    portal: {base_url: "https://portal.ppt.acme.example"}
+    alert_channels:
+      clinops_data: {type: sns, topic: clinops-data-alerts-ppt}
+      platform: {type: sns, topic: factory-platform-alerts-ppt}
+      security: {type: sns, topic: factory-security-alerts-ppt}
+  prod:
+    enabled: true
+    placement: {orchestration: mwaa, workload: team}
+    secrets: {vault: {mount: kv, namespace: clinops}, aws_secrets_manager: {prefix: factory/}}
+    queues: {package_ready: {name: clinops-package-ready-prod}}
+    sources:
+      landing: {buckets: [acme-clinops-landing-prod], prefix_roots: [incoming/], placement: team}
+    portal: {base_url: "https://portal.acme.example"}
+    alert_channels:
+      clinops_data: {type: sns, topic: clinops-data-alerts-prod}
+      platform: {type: sns, topic: factory-platform-alerts-prod}
+      security: {type: sns, topic: factory-security-alerts-prod}
