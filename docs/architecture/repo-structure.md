@@ -24,7 +24,7 @@ aisdlc-fivetran-factory-gerter/
       change/, cost/, verify.py     #   change engine, cost model (pricing.v1.json), drift check
       agents/, orchestrator/        #   AgentRunner and agents; deterministic gate state machine
   skills/                           # NEW: SKILL.md per agent capability (spec-authoring, rule-review, …)
-  starters/                         # NEW: 4 starter templates
+  starters/                         # NEW: README only; the 4 starters ship as package data in packages/factory/src/factory/starters/
   testing/                          # NEW: mock portal, Vault dev, SFTP/FTPS/HTTPS stand-ins, moto, Airflow DAG harness
   toolchain/                        # NEW: toolchain Dockerfile + toolchain.lock.json (Phase 2+)
   platform/                         # NEW: example of the platform repo content (modules, MWAA, publisher, settings)

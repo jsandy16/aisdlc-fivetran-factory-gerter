@@ -981,3 +981,24 @@ environments:
 
 The ADR and doc amendments can run in parallel from day 1.
 
+
+---
+
+## I. As built (differences from this design, and why)
+
+Phase 2 follows this design. These are the places where the code differs, each found while building or testing:
+
+| Area | Design | As built | Why |
+|---|---|---|---|
+| Invalid-spec corpus | YAML files under `tests/corpus/invalid/` | A registry of named cases in `factory_spec/tests/test_spec_invalid.py`, one per code. A meta-test fails if any registered code has no case. | Several cases edit `factory.toml`, create `rules/<id>/impl.py` or delete a file, which YAML patches cannot express. The meta-test enforces "every code has a case". |
+| CLI tests | `typer.testing.CliRunner` | `factory.cli.main(argv)` in-process with `capsys`, plus one subprocess test of the console script. | `CliRunner` bypasses `main()`, which is where usage errors become envelopes and exit codes are mapped. |
+| Starter fills | `tests/starters/<name>.fill.yaml` | `factory/tests/starter_fills/{_common,<name>}.yaml`, with `{env}` expanded per environment, applied through `factory set` (no `--keep-invalid`). | Each fill also exercises the patch engine's rollback rule; one fill per environment would be 4x longer. |
+| Error codes | — | Added `cel_invalid` and `jmespath_invalid`. Field validators raise *coded* errors (`fieldtypes.coded_error`), and the loader reports them under that code (`template_syntax`, `destination_pattern_invalid`, `destination_pattern_too_broad`, …) instead of the generic `invalid_value`. | Specific codes carry specific hints. |
+| Planned ops in the dataflow graph | skipped | Their outputs stay in the graph with kind `unknown`, which matches any input port. | Skipping them caused about 10 follow-on dataflow errors; now `op_not_available` is the only finding. |
+| Follow-on findings | — | An unresolvable variable is reported once (`variable_unresolvable`), not again as `template_token_unconstrained` at every use. `unknown_team` is one finding that lists the environments. | Less noise for the person fixing the spec. |
+| `secret_in_spec` | PEM, AKIA, JWT and `key: value` patterns | The `password|secret|api_key|token: value` pattern skips values that name a declared secret (e.g. `secret: vendor_api_key`). | The `rest_to_s3` starter fill showed a false positive on a secret *reference*. |
+| Static uploads | `s3.put` / `sftp.put` / `https.put` take artifact + name | They also take an optional `manifest` input, stored next to the artifact. | The `rest_to_s3` starter built a manifest it could not deliver (`artifact_unused`). |
+| Stricter binding types | — | `prefix_roots` (`incoming/`), static source `prefix`, `fivetran_group` and database `tables` (`schema.table`) now have patterns. | They accepted any text, including `..` segments. |
+| Dynamic models | pydantic defaults | `regex_engine="python-re"` | A pattern is checked with Python `re` when the spec loads, so the same engine must run it (lookarounds included). |
+| Schema tests | drift + determinism | Also validate the worked example's six files and the platform settings against the exported schemas, with `jsonschema` (dev only). | Proves the editor schemas accept real specs, e.g. sizes as text. |
+| Unused design items | — | `retry` / `jsonlog` and the `auto` engine planner are Phase 3, as planned. `discover.list` / `transfer.download` params were not built; their contract rows stay `planned`. | Scope cuts listed above. |
