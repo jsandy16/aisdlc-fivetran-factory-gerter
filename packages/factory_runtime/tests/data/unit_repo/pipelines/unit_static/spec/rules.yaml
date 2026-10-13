@@ -1,0 +1,53 @@
+rules:
+  - rule_id: r_list
+    category: extract
+    plain_english: List every object in the outbox folder.
+    implementation: {kind: builtin, op: s3.list, params: {source: outbox, recursive: true, include: ["**/*"], max_objects: 100}}
+    outputs: [listing]
+  - rule_id: r_download
+    category: extract
+    plain_english: Read each listed object, checking its size and ETag.
+    implementation: {kind: builtin, op: s3.download, params: {verify: size_and_etag, concurrency: 4}}
+    inputs: [listing]
+    outputs: [files]
+  - rule_id: r_zip
+    category: package
+    plain_english: Zip the files in a fixed order.
+    implementation: {kind: builtin, op: package.zip, params: {paths: relative_to_prefix, compression: deflate, level: 6}}
+    inputs: [files]
+    outputs: [package]
+  - rule_id: r_manifest
+    category: package
+    plain_english: List every file in the zip with its size and SHA-256.
+    implementation: {kind: builtin, op: manifest.build, params: {file_algorithms: [sha256], package_algorithms: [md5, sha256]}}
+    inputs: [package, listing]
+    outputs: [manifest]
+  - rule_id: r_name
+    category: naming
+    plain_english: Name the zip after the batch, for example B001.zip.
+    implementation: {kind: builtin, op: naming.render, params: {template: "{batch_id}.zip"}}
+    outputs: [package_name]
+  - rule_id: r_store_s3
+    category: upload
+    plain_english: Store the zip and its manifest in the team's store bucket.
+    implementation: {kind: builtin, op: s3.put, params: {slot: store, object_name: package_name}}
+    inputs: [package, manifest, package_name]
+    outputs: [stored_s3]
+  - rule_id: r_store_sftp
+    category: upload
+    plain_english: Store the zip and its manifest on the partner's SFTP server.
+    implementation: {kind: builtin, op: sftp.put, params: {slot: partner, object_name: package_name}}
+    inputs: [package, manifest, package_name]
+    outputs: [stored_sftp]
+  - rule_id: r_upload
+    category: upload
+    plain_english: Upload the zip to the partner's upload endpoint.
+    implementation: {kind: builtin, op: https.put, params: {slot: upload, object_name: package_name}}
+    inputs: [package, package_name]
+    outputs: [uploaded]
+  - rule_id: r_copy
+    category: upload
+    plain_english: Copy the original objects to the archive bucket, keeping their folders.
+    implementation: {kind: builtin, op: s3.copy, params: {slot: archive}}
+    inputs: [listing]
+    outputs: [copied]

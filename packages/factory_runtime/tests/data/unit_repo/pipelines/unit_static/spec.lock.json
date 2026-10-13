@@ -1,0 +1,743 @@
+{
+  "api_version": "factory/v1",
+  "bindings": {
+    "dev": {
+      "destinations": [
+        {
+          "bucket": "unit-archive-dev",
+          "id": "archive_s3",
+          "kms_key": "alias/unit-archive-dev",
+          "max_classification": "internal",
+          "placement": "team",
+          "prefix_pattern": "copies/{batch_id}/**",
+          "slots": [
+            "archive"
+          ],
+          "type": "s3"
+        },
+        {
+          "at_rest_attestation": null,
+          "host": "sftp-stub.dev.acme.example",
+          "host_key_algorithm": "ssh-ed25519",
+          "host_key_fingerprint": "SHA256:BL9HMgxr4b/72m2LW/tyfQGKDHqpHsMVCNKcVoCOVCs",
+          "id": "partner_sftp",
+          "max_classification": "internal",
+          "path_pattern": "/inbound/{batch_id}/**",
+          "port": 22,
+          "private_key_secret": "partner_sftp_key",
+          "slots": [
+            "partner"
+          ],
+          "type": "sftp",
+          "username": "factory-delivery"
+        },
+        {
+          "bucket": "unit-store-dev",
+          "id": "store_s3",
+          "kms_key": "alias/unit-store-dev",
+          "max_classification": "internal",
+          "placement": "team",
+          "prefix_pattern": "packages/{batch_id}/**",
+          "slots": [
+            "store"
+          ],
+          "type": "s3"
+        },
+        {
+          "at_rest_attestation": null,
+          "auth": {
+            "token_secret": "upload_token",
+            "type": "bearer"
+          },
+          "host": "upload.dev.acme.example",
+          "id": "upload_https",
+          "max_classification": "internal",
+          "method": "PUT",
+          "path_pattern": "/api/v1/batches/{batch_id}",
+          "port": 443,
+          "slots": [
+            "upload"
+          ],
+          "type": "https",
+          "write_once": "if_none_match"
+        }
+      ],
+      "environment": {
+        "alert_channels": {
+          "data_owner": {
+            "topic": "unit-data-alerts-dev",
+            "type": "sns"
+          },
+          "platform": {
+            "topic": "unit-platform-alerts-dev",
+            "type": "sns"
+          },
+          "security": {
+            "topic": "unit-security-alerts-dev",
+            "type": "sns"
+          }
+        },
+        "apis": {},
+        "enabled": true,
+        "placement": {
+          "orchestration": "mwaa",
+          "workload": "team"
+        },
+        "portal": null,
+        "queues": {},
+        "schedule_cron": null,
+        "secrets": {
+          "aws_secrets_manager": {
+            "prefix": "factory/"
+          },
+          "vault": null
+        },
+        "sources": {
+          "outbox": {
+            "bucket": "unit-outbox-dev",
+            "buckets": [],
+            "fivetran_group": null,
+            "placement": "team",
+            "prefix_roots": []
+          }
+        }
+      }
+    }
+  },
+  "derived": {
+    "artifacts": {
+      "copied": {
+        "consumers": [],
+        "durability": "final",
+        "kind": "receipt",
+        "producer": "r_copy",
+        "task": "t1_store"
+      },
+      "files": {
+        "consumers": [
+          "r_zip"
+        ],
+        "durability": "stream",
+        "kind": "file_set",
+        "producer": "r_download",
+        "task": "t1_store"
+      },
+      "listing": {
+        "consumers": [
+          "r_copy",
+          "r_download",
+          "r_manifest"
+        ],
+        "durability": "staged",
+        "kind": "object_listing",
+        "producer": "r_list",
+        "task": "t1_store"
+      },
+      "manifest": {
+        "consumers": [
+          "r_store_s3",
+          "r_store_sftp"
+        ],
+        "durability": "staged",
+        "kind": "manifest",
+        "producer": "r_manifest",
+        "task": "t1_store"
+      },
+      "package": {
+        "consumers": [
+          "r_manifest",
+          "r_store_s3",
+          "r_store_sftp",
+          "r_upload"
+        ],
+        "durability": "staged",
+        "kind": "package",
+        "producer": "r_zip",
+        "task": "t1_store"
+      },
+      "package_name": {
+        "consumers": [
+          "r_store_s3",
+          "r_store_sftp",
+          "r_upload"
+        ],
+        "durability": "local",
+        "kind": "value",
+        "producer": "r_name",
+        "task": "t1_store"
+      },
+      "stored_s3": {
+        "consumers": [],
+        "durability": "final",
+        "kind": "receipt",
+        "producer": "r_store_s3",
+        "task": "t1_store"
+      },
+      "stored_sftp": {
+        "consumers": [],
+        "durability": "final",
+        "kind": "receipt",
+        "producer": "r_store_sftp",
+        "task": "t1_store"
+      },
+      "uploaded": {
+        "consumers": [],
+        "durability": "final",
+        "kind": "receipt",
+        "producer": "r_upload",
+        "task": "t1_store"
+      }
+    },
+    "op_contracts": {
+      "https.put": {
+        "contract_sha": "467a30aa71442654a1d6d1b28b7cd290881121894410d3d0d4296c81e290bcfe",
+        "version": "1.0.0"
+      },
+      "manifest.build": {
+        "contract_sha": "cf087f07681d69da6cafb690a50ef0b549e1fbe88723a4acbb290d538688a724",
+        "version": "1.0.0"
+      },
+      "naming.render": {
+        "contract_sha": "65c76e3de1d33e3495763b8060699568582788bacde411cd3ec368cfb593c8c6",
+        "version": "1.0.0"
+      },
+      "package.zip": {
+        "contract_sha": "92977346f481e7ca94f9a8ee8dd4e98ecb9408d8c66f4357c71349afe7e28e99",
+        "version": "1.0.0"
+      },
+      "s3.copy": {
+        "contract_sha": "56970d364d1944970afd66ffeee2c6f367856c0bc34a31ed5b50fe91caa77738",
+        "version": "1.0.0"
+      },
+      "s3.download": {
+        "contract_sha": "0cd17784f1eb0cc1c5ed0629a121d0ad2ee430b561605895b4d83f98742c659d",
+        "version": "1.0.0"
+      },
+      "s3.list": {
+        "contract_sha": "323ffd44e668edf9be6be17b4eb07f4381e6be504e211a2643050a0590a7a432",
+        "version": "1.0.0"
+      },
+      "s3.put": {
+        "contract_sha": "7809834d7cd3d9307e46202146f68bd144d46d21a4dd21bb344a6ac0964e9221",
+        "version": "1.0.0"
+      },
+      "sftp.put": {
+        "contract_sha": "310b4b28ec4823655df75927afa5e9b35ad759bc679268ff7017c0d04b07a6bf",
+        "version": "1.0.0"
+      }
+    }
+  },
+  "hashes": {
+    "binding_sha": {
+      "dev": "9bed2dfeaff7690c9f2fda40a4486a678f2fd71b0343727b5b6cc50e3cf9a334"
+    },
+    "derived_sha": "f78693b926b695e6c91733e8b612ef1b86b00b56088baf95c3fc486e621fb2e9",
+    "logic_sha": "de3e076ef205a88b8ec810f6001abe81fba22f041c2d38f7d9cb860c9da8c764"
+  },
+  "lock_version": 1,
+  "logic": {
+    "integrations": {
+      "apis": [],
+      "destinations": [
+        {
+          "allowed_types": [
+            "s3"
+          ],
+          "id": "archive",
+          "label": "Archive bucket",
+          "required": true,
+          "resolve": {
+            "entry": "archive_s3",
+            "path": "copies/{batch_id}/",
+            "via": "static"
+          }
+        },
+        {
+          "allowed_types": [
+            "sftp"
+          ],
+          "id": "partner",
+          "label": "Partner SFTP server",
+          "required": true,
+          "resolve": {
+            "entry": "partner_sftp",
+            "path": "inbound/{batch_id}/",
+            "via": "static"
+          }
+        },
+        {
+          "allowed_types": [
+            "s3"
+          ],
+          "id": "store",
+          "label": "Team store bucket",
+          "required": true,
+          "resolve": {
+            "entry": "store_s3",
+            "path": "packages/{batch_id}/",
+            "via": "static"
+          }
+        },
+        {
+          "allowed_types": [
+            "https"
+          ],
+          "id": "upload",
+          "label": "Partner upload endpoint",
+          "required": true,
+          "resolve": {
+            "entry": "upload_https",
+            "path": "api/v1/batches/{batch_id}/",
+            "via": "static"
+          }
+        }
+      ],
+      "portal": null,
+      "secrets": {
+        "partner_sftp_key": {
+          "key": "private_key",
+          "kind": "ssh_private_key",
+          "path": "unit/{env}/partner-sftp",
+          "provider": "aws_secrets_manager",
+          "version": null
+        },
+        "upload_token": {
+          "key": "token",
+          "kind": "api_key",
+          "path": "unit/{env}/upload",
+          "provider": "aws_secrets_manager",
+          "version": null
+        }
+      },
+      "sources": [
+        {
+          "id": "outbox",
+          "label": "Outbox folder",
+          "location": {
+            "prefix": "outbox/",
+            "via": "static"
+          },
+          "type": "s3"
+        }
+      ]
+    },
+    "pipeline": {
+      "api_version": "factory/v1",
+      "artifacts": {},
+      "cost": {
+        "budget_per_month_usd": "5.00",
+        "budget_per_run_usd": "0.10"
+      },
+      "kind": "Pipeline",
+      "metadata": {
+        "description": "Synthetic pipeline used by the runtime tests of s3.put, sftp.put, https.put and s3.copy.",
+        "name": "Unit static delivery pipeline",
+        "owners": {
+          "business_owner": "@alice-ba",
+          "data_engineer": "@bob-de",
+          "governance": "@carol-qa",
+          "platform": "@dan-platform"
+        },
+        "pipeline_id": "unit_static",
+        "requirements": [],
+        "spec_version": "0.1.0",
+        "tags": {
+          "cost_centre": "CC1234"
+        },
+        "team": "clinops_data"
+      },
+      "observability": {
+        "alerts": {
+          "config": "platform",
+          "data": "data_owner",
+          "security": "security",
+          "transient": "none"
+        },
+        "sla": null
+      },
+      "open_questions": [],
+      "orchestration": {
+        "dag": {
+          "catchup": false,
+          "max_active_runs": 1,
+          "timeout": 3600
+        },
+        "pool": null,
+        "tasks": [
+          {
+            "depends_on": [],
+            "engine": "eks_pod",
+            "label": "Zip the outbox and store it in every static destination",
+            "retry": null,
+            "rules": [
+              "r_list",
+              "r_download",
+              "r_zip",
+              "r_manifest",
+              "r_name",
+              "r_store_s3",
+              "r_store_sftp",
+              "r_upload",
+              "r_copy"
+            ],
+            "task_id": "t1_store",
+            "timeout": 1800
+          }
+        ]
+      },
+      "reliability": {
+        "replay_window": 604800,
+        "retry": {
+          "backoff": "exponential_jitter",
+          "base": 10,
+          "max": 300,
+          "max_attempts": 3
+        },
+        "run_key": "{request_id}"
+      },
+      "schema_version": "1.0.0",
+      "trigger": {
+        "conf": {
+          "fields": {
+            "batch_id": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": null,
+              "minimum": null,
+              "pattern": "^B[0-9]{3}$",
+              "required": true,
+              "type": "string",
+              "values": null
+            },
+            "request_id": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": null,
+              "minimum": null,
+              "pattern": "^[A-Za-z0-9-]{8,64}$",
+              "required": true,
+              "type": "string",
+              "values": null
+            }
+          },
+          "unknown_fields": "reject"
+        },
+        "type": "manual"
+      },
+      "variables": {
+        "batch_id": "trigger.conf.batch_id",
+        "request_id": "trigger.conf.request_id"
+      },
+      "workload": {
+        "bytes_per_run": {
+          "max": 100000000,
+          "p50": 1000000,
+          "p95": 10000000
+        },
+        "files_per_run": {
+          "max": 100,
+          "p50": 5,
+          "p95": 50
+        },
+        "runs_per_day": 1
+      }
+    },
+    "rules": {
+      "rules": [
+        {
+          "category": "upload",
+          "implementation": {
+            "kind": "builtin",
+            "op": "s3.copy",
+            "params": {
+              "object_name": null,
+              "slot": "archive"
+            }
+          },
+          "inputs": [
+            "listing"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "copied"
+          ],
+          "plain_english": "Copy the original objects to the archive bucket, keeping their folders.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_copy",
+          "test_cases": []
+        },
+        {
+          "category": "extract",
+          "implementation": {
+            "kind": "builtin",
+            "op": "s3.download",
+            "params": {
+              "concurrency": 4,
+              "verify": "size_and_etag"
+            }
+          },
+          "inputs": [
+            "listing"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "files"
+          ],
+          "plain_english": "Read each listed object, checking its size and ETag.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_download",
+          "test_cases": []
+        },
+        {
+          "category": "extract",
+          "implementation": {
+            "kind": "builtin",
+            "op": "s3.list",
+            "params": {
+              "exclude": [],
+              "include": [
+                "**/*"
+              ],
+              "max_objects": 100,
+              "max_total_bytes": null,
+              "recursive": true,
+              "source": "outbox"
+            }
+          },
+          "inputs": [],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "listing"
+          ],
+          "plain_english": "List every object in the outbox folder.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_list",
+          "test_cases": []
+        },
+        {
+          "category": "package",
+          "implementation": {
+            "kind": "builtin",
+            "op": "manifest.build",
+            "params": {
+              "file_algorithms": [
+                "sha256"
+              ],
+              "format": "json",
+              "package_algorithms": [
+                "md5",
+                "sha256"
+              ]
+            }
+          },
+          "inputs": [
+            "package",
+            "listing"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "manifest"
+          ],
+          "plain_english": "List every file in the zip with its size and SHA-256.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_manifest",
+          "test_cases": []
+        },
+        {
+          "category": "naming",
+          "implementation": {
+            "kind": "builtin",
+            "op": "naming.render",
+            "params": {
+              "template": "{batch_id}.zip"
+            }
+          },
+          "inputs": [],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "package_name"
+          ],
+          "plain_english": "Name the zip after the batch, for example B001.zip.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_name",
+          "test_cases": []
+        },
+        {
+          "category": "upload",
+          "implementation": {
+            "kind": "builtin",
+            "op": "s3.put",
+            "params": {
+              "object_name": "package_name",
+              "slot": "store"
+            }
+          },
+          "inputs": [
+            "package",
+            "manifest",
+            "package_name"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "stored_s3"
+          ],
+          "plain_english": "Store the zip and its manifest in the team's store bucket.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_store_s3",
+          "test_cases": []
+        },
+        {
+          "category": "upload",
+          "implementation": {
+            "kind": "builtin",
+            "op": "sftp.put",
+            "params": {
+              "object_name": "package_name",
+              "slot": "partner"
+            }
+          },
+          "inputs": [
+            "package",
+            "manifest",
+            "package_name"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "stored_sftp"
+          ],
+          "plain_english": "Store the zip and its manifest on the partner's SFTP server.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_store_sftp",
+          "test_cases": []
+        },
+        {
+          "category": "upload",
+          "implementation": {
+            "kind": "builtin",
+            "op": "https.put",
+            "params": {
+              "object_name": "package_name",
+              "slot": "upload"
+            }
+          },
+          "inputs": [
+            "package",
+            "package_name"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "uploaded"
+          ],
+          "plain_english": "Upload the zip to the partner's upload endpoint.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_upload",
+          "test_cases": []
+        },
+        {
+          "category": "package",
+          "implementation": {
+            "kind": "builtin",
+            "op": "package.zip",
+            "params": {
+              "compression": "deflate",
+              "level": 6,
+              "paths": "relative_to_prefix",
+              "store_if_compressed": true,
+              "zip64": "auto"
+            }
+          },
+          "inputs": [
+            "files"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "package"
+          ],
+          "plain_english": "Zip the files in a fixed order.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_zip",
+          "test_cases": []
+        }
+      ]
+    },
+    "security": {
+      "security_and_access": {
+        "audit": {
+          "enabled": true,
+          "events": [
+            "delivery",
+            "rule_result",
+            "secret_access"
+          ],
+          "evidence_retention": "1y"
+        },
+        "checksums": {
+          "delivery_sidecars": [],
+          "manifest": [
+            "sha256"
+          ]
+        },
+        "data_classification": "internal",
+        "encryption_at_rest": {
+          "s3_destinations": "sse_kms",
+          "staging": "sse_kms"
+        },
+        "gxp_tier": "non_gxp",
+        "package_encryption": "none",
+        "residency": {
+          "allowed_regions": [
+            "eu-west-1"
+          ]
+        },
+        "retention": {
+          "run_logs": "30d",
+          "staging_after_failure": "7d",
+          "staging_after_success": "7d"
+        }
+      }
+    }
+  },
+  "pipeline_id": "unit_static",
+  "schema_version": "1.0.0",
+  "spec_version": "0.1.0"
+}

@@ -126,22 +126,37 @@ class ChecksumRecord(Doc):
     compared_with_manifest: bool
 
 
+class ReceiptFile(Doc):
+    """One object of a multi-object delivery (s3.copy): its path below the target folder."""
+
+    path: str
+    size: int = Field(ge=0)
+    source_etag: str
+    outcome: Literal["written", "already_present"]
+
+
 class Receipt(Doc):
-    """Evidence of one delivery: what was written where, how it was verified."""
+    """Evidence of one delivery: what was written where, how it was verified.
+
+    `skipped`: an optional slot the portal left empty (nothing was written). `verification: none`: the destination
+    offered no way to check the written file (decision P3-3); the receipt says so rather than claiming a check.
+    A multi-object copy lists its objects in `files`; `sha256` is then absent (the copy is server-side).
+    """
 
     kind: Literal["receipt"] = "receipt"
     slot: str
-    entry_id: str
-    type: Literal["s3", "sftp", "https"]
+    entry_id: str | None
+    type: Literal["s3", "sftp", "https"] | None
     target: str
     object_name: str
     size: int = Field(ge=0)
-    sha256: str
+    sha256: str | None = None
     md5: str | None = None
-    outcome: Literal["written", "already_present"]
-    verification: Literal["read_back", "digest", "size_only", "server_checksum"]
+    outcome: Literal["written", "already_present", "skipped"]
+    verification: Literal["read_back", "digest", "size_only", "server_checksum", "none"]
     sidecars: list[str] = Field(default_factory=list)
     manifest: bool = False
+    files: list[ReceiptFile] = Field(default_factory=list)
 
 
 ARTIFACT_MODELS: dict[str, type[Doc]] = {

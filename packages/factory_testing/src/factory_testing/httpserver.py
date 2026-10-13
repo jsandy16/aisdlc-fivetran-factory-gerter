@@ -55,6 +55,7 @@ class StandIn:
         self.require_client_cert = require_client_cert
         self.max_body = max_body
         self.requests: list[Request] = []
+        self.errors: list[str] = []
         self._lock = threading.Lock()
         self._server: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
@@ -106,7 +107,17 @@ class StandIn:
 
             do_GET = do_POST = do_PUT = do_HEAD = do_DELETE = do_PATCH = _serve  # noqa: N815 - http.server's naming
 
-        self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        class Server(ThreadingHTTPServer):
+            daemon_threads = True
+
+            def handle_error(self, request: Any, client_address: Any) -> None:
+                # a client that aborts (failed TLS handshake, refused client certificate, cut-off upload) is an
+                # expected test scenario: record it instead of printing a traceback
+                import sys
+
+                outer.errors.append(repr(sys.exc_info()[1]))
+
+        self._server = Server(("127.0.0.1", 0), Handler)
         self._server.socket = self._ssl().wrap_socket(self._server.socket, server_side=True)
         self.port = self._server.server_address[1]
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)

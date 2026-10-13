@@ -1,0 +1,25 @@
+sources:
+  - id: outbox
+    type: s3
+    label: Outbox folder
+    location: {via: static, prefix: "outbox/"}
+destinations:
+  - id: store
+    label: Team store bucket
+    resolve: {via: static, entry: store_s3, path: "packages/{batch_id}/"}
+    allowed_types: [s3]
+  - id: partner
+    label: Partner SFTP server
+    resolve: {via: static, entry: partner_sftp, path: "inbound/{batch_id}/"}
+    allowed_types: [sftp]
+  - id: upload
+    label: Partner upload endpoint
+    resolve: {via: static, entry: upload_https, path: "api/v1/batches/{batch_id}/"}
+    allowed_types: [https]
+  - id: archive
+    label: Archive bucket
+    resolve: {via: static, entry: archive_s3, path: "copies/{batch_id}/"}
+    allowed_types: [s3]
+secrets:
+  partner_sftp_key: {provider: aws_secrets_manager, path: "unit/{env}/partner-sftp", key: private_key, kind: ssh_private_key}
+  upload_token: {provider: aws_secrets_manager, path: "unit/{env}/upload", key: token, kind: api_key}

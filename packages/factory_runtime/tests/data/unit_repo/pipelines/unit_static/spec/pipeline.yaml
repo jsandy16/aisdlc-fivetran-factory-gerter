@@ -1,0 +1,44 @@
+# Synthetic test pipeline for the static delivery ops: zip an outbox folder, store it in S3, on SFTP and over HTTPS,
+# and copy the source objects to an archive bucket. Synthetic data only.
+api_version: factory/v1
+kind: Pipeline
+schema_version: 1.0.0
+metadata:
+  pipeline_id: unit_static
+  name: Unit static delivery pipeline
+  description: Synthetic pipeline used by the runtime tests of s3.put, sftp.put, https.put and s3.copy.
+  team: clinops_data
+  spec_version: 0.1.0
+  owners: {business_owner: "@alice-ba", data_engineer: "@bob-de", governance: "@carol-qa", platform: "@dan-platform"}
+  requirements: []
+  tags: {cost_centre: CC1234}
+variables:
+  request_id: trigger.conf.request_id
+  batch_id: trigger.conf.batch_id
+trigger:
+  type: manual
+  conf:
+    unknown_fields: reject
+    fields:
+      request_id: {type: string, pattern: "^[A-Za-z0-9-]{8,64}$"}
+      batch_id: {type: string, pattern: "^B[0-9]{3}$"}
+orchestration:
+  dag: {catchup: false, max_active_runs: 1, timeout: 1h}
+  tasks:
+    - task_id: t1_store
+      label: Zip the outbox and store it in every static destination
+      rules: [r_list, r_download, r_zip, r_manifest, r_name, r_store_s3, r_store_sftp, r_upload, r_copy]
+      engine: eks_pod
+      timeout: 30m
+reliability:
+  run_key: "{request_id}"
+  retry: {max_attempts: 3, backoff: exponential_jitter, base: 10s, max: 5m}
+  replay_window: 7d
+observability:
+  alerts: {transient: none, data: data_owner, config: platform, security: security}
+workload:
+  bytes_per_run: {p50: 1MB, p95: 10MB, max: 100MB}
+  files_per_run: {p50: 5, p95: 50, max: 100}
+  runs_per_day: 1
+cost: {budget_per_run_usd: "0.10", budget_per_month_usd: "5.00"}
+open_questions: []

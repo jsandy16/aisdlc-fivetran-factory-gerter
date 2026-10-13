@@ -1,0 +1,12 @@
+security_and_access:
+  gxp_tier: non_gxp
+  data_classification: internal
+  encryption_at_rest: {staging: sse_kms, s3_destinations: sse_kms}
+  package_encryption: none
+  checksums: {manifest: [sha256], delivery_sidecars: []}
+  audit:
+    enabled: true
+    events: [delivery, rule_result, secret_access]
+    evidence_retention: 1y
+  retention: {staging_after_success: 7d, staging_after_failure: 7d, run_logs: 30d}
+  residency: {allowed_regions: [eu-west-1]}

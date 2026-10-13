@@ -20,7 +20,9 @@ from factory_spec.spec import PipelineSpec
 from .staging import Staging
 
 TRIGGER_SNAPSHOT = "trigger.json"
-ADOPT_KINDS = frozenset({"message", "portal_snapshot", "object_listing"})  # custody snapshots: first answer wins
+# first answer wins: custody snapshots, and receipts (a retry after a lost checkpoint finds the file "already_present";
+# the receipt of the attempt that wrote it is the evidence that stays)
+ADOPT_KINDS = frozenset({"message", "portal_snapshot", "object_listing", "receipt"})
 
 
 def doc_name(artifact: str) -> str:
