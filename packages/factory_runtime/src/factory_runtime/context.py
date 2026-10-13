@@ -27,6 +27,7 @@ class RuleContext:
     staging: Staging
     audit: AuditLog
     workdir: Path
+    secrets: Any = None  # secrets.router.Secrets; never handed to custom rules
     staged: set[str] = field(default_factory=set)  # outputs the op already persisted itself
 
     @property

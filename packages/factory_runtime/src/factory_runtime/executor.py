@@ -40,6 +40,7 @@ from .bundles import LoadedBundle, bundle_uri, load_bundle
 from .context import RuleContext
 from .ops import CheckFailed, lookup
 from .pin import Pin, check_image, establish_pin
+from .secrets.router import build_secrets
 from .services import Services
 from .staging import Staging
 
@@ -254,13 +255,14 @@ def _execute_task(services: Services, req: TaskRequest, bundle: LoadedBundle, pi
     vars_ = Vars(spec, trigger, _portal_lookup(bundle, store))
     workdir = cfg.workdir / "runs" / rdir / req.task_id
     workdir.mkdir(parents=True, exist_ok=True)
+    secrets = build_secrets(services, spec, cfg.env, audit.record)
     rules = [r for t, r in spec.ordered_rules() if t.task_id == req.task_id]
     log.event("task_start", rules=len(rules))
     t0 = time.monotonic()
     ran: list[str] = []
     try:
         for rule in rules:
-            ctx = RuleContext(rule, req.task_id, spec, services, run, vars_, store, staging, audit, workdir)
+            ctx = RuleContext(rule, req.task_id, spec, services, run, vars_, store, staging, audit, workdir, secrets)
             with bind(rule_id=rule.rule_id):
                 ran.append(_one_rule(ctx, services, rdir, req.task_id))
         services.state.put(rdir, f"TASK#{req.task_id}", {"attempt": req.attempt, "rules": ran})
