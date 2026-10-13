@@ -1,0 +1,1245 @@
+{
+  "catalog_version": "1.0.0",
+  "ops": [
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "s3:GetObject",
+            "s3:PutObject"
+          ],
+          "resource": "{staging.run_prefix_arn}"
+        }
+      ],
+      "categories": [
+        "checksum"
+      ],
+      "determinism": "pure",
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "package",
+          "min_durability": "local",
+          "port": "package",
+          "required": true,
+          "streaming": false
+        },
+        {
+          "kind": "manifest",
+          "min_durability": "local",
+          "port": "manifest",
+          "required": false,
+          "streaming": false
+        }
+      ],
+      "op": "checksum.compute",
+      "outputs": [
+        {
+          "kind": "checksum",
+          "min_durability": "staged",
+          "port": "checksum",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": 180000000,
+          "overhead_s": 30
+        },
+        "lambda": {
+          "bytes_per_s": 90000000,
+          "overhead_s": 5
+        }
+      },
+      "side_effects": [
+        "reads_staging",
+        "writes_staging"
+      ],
+      "status": "available",
+      "summary": "Re-read the stored object and compute digests; compare with the manifest; write sidecars.",
+      "version": "1.0.0"
+    },
+    {
+      "categories": [
+        "encrypt"
+      ],
+      "op": "crypto.decrypt",
+      "status": "planned",
+      "summary": "Decrypt a package (deferred: ADR-0012).",
+      "version": "0.0.0"
+    },
+    {
+      "categories": [
+        "encrypt"
+      ],
+      "op": "crypto.encrypt",
+      "status": "planned",
+      "summary": "Encrypt a package (deferred: ADR-0012).",
+      "version": "0.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "s3:PutObject",
+            "s3:AbortMultipartUpload",
+            "s3:GetObject"
+          ],
+          "resource": "{entry.object_arns}"
+        },
+        {
+          "actions": [
+            "kms:GenerateDataKey",
+            "kms:Decrypt"
+          ],
+          "resource": "{entry.kms_arn}"
+        },
+        {
+          "actions": [
+            "secretsmanager:GetSecretValue"
+          ],
+          "resource": "{entry.secret_arns}"
+        }
+      ],
+      "categories": [
+        "upload"
+      ],
+      "determinism": "deterministic_effect",
+      "egress": [
+        {
+          "host": "{entry.host}",
+          "port": "{entry.port}"
+        }
+      ],
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "package",
+          "min_durability": "local",
+          "port": "package",
+          "required": true,
+          "streaming": false
+        },
+        {
+          "kind": "manifest",
+          "min_durability": "local",
+          "port": "manifest",
+          "required": false,
+          "streaming": false
+        },
+        {
+          "kind": "checksum",
+          "min_durability": "local",
+          "port": "checksum",
+          "required": false,
+          "streaming": false
+        },
+        {
+          "kind": "value",
+          "min_durability": "local",
+          "port": "name",
+          "required": true,
+          "streaming": false
+        },
+        {
+          "kind": "destination_set",
+          "min_durability": "local",
+          "port": "destinations",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "op": "destination.deliver",
+      "outputs": [
+        {
+          "kind": "receipt",
+          "min_durability": "final",
+          "port": "receipt",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": 50000000,
+          "overhead_s": 35
+        },
+        "lambda": {
+          "bytes_per_s": 25000000,
+          "overhead_s": 10
+        }
+      },
+      "side_effects": [
+        "reads_staging",
+        "writes_target",
+        "reads_secret"
+      ],
+      "status": "available",
+      "summary": "Deliver the package (+ manifest, sidecars) to a resolved destination slot, write-once, verified.",
+      "version": "1.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "s3:GetObject",
+            "s3:PutObject"
+          ],
+          "resource": "{staging.run_prefix_arn}"
+        }
+      ],
+      "categories": [
+        "integration"
+      ],
+      "determinism": "pure",
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "portal_snapshot",
+          "min_durability": "local",
+          "port": "answer",
+          "required": true,
+          "streaming": false
+        },
+        {
+          "kind": "message",
+          "min_durability": "local",
+          "port": "request",
+          "required": false,
+          "streaming": false
+        }
+      ],
+      "op": "destination.resolve",
+      "outputs": [
+        {
+          "kind": "destination_set",
+          "min_durability": "staged",
+          "port": "destinations",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 30
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 5
+        }
+      },
+      "side_effects": [
+        "reads_staging",
+        "writes_staging"
+      ],
+      "status": "available",
+      "summary": "Match each destination slot's URI against the environment's allow-list (ADR-0024).",
+      "version": "1.0.0"
+    },
+    {
+      "categories": [
+        "extract"
+      ],
+      "op": "discover.list",
+      "status": "planned",
+      "summary": "List an SFTP/FTPS/HTTPS server path (recursive).",
+      "version": "0.0.0"
+    },
+    {
+      "allowed_engines": [
+        "mwaa",
+        "fivetran_native",
+        "fivetran_sdk"
+      ],
+      "categories": [
+        "integration"
+      ],
+      "determinism": "nondeterministic",
+      "egress": [
+        {
+          "host": "api.fivetran.com",
+          "port": "443"
+        }
+      ],
+      "idempotency": "natural",
+      "op": "fivetran.sync",
+      "outputs": [
+        {
+          "kind": "report",
+          "min_durability": "local",
+          "port": "report",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {},
+      "side_effects": [
+        "triggers_external_sync"
+      ],
+      "status": "available",
+      "summary": "Trigger a Fivetran connector sync and wait for it (REST API).",
+      "version": "1.0.0"
+    },
+    {
+      "categories": [
+        "housekeeping"
+      ],
+      "op": "housekeeping.retention",
+      "status": "planned",
+      "summary": "Tag or expire staging objects.",
+      "version": "0.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "secretsmanager:GetSecretValue"
+          ],
+          "resource": "{entry.secret_arns}"
+        }
+      ],
+      "categories": [
+        "upload"
+      ],
+      "determinism": "deterministic_effect",
+      "egress": [
+        {
+          "host": "{entry.host}",
+          "port": "{entry.port}"
+        }
+      ],
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "package",
+          "min_durability": "local",
+          "port": "artifact",
+          "required": true,
+          "streaming": false
+        },
+        {
+          "kind": "value",
+          "min_durability": "local",
+          "port": "name",
+          "required": false,
+          "streaming": false
+        }
+      ],
+      "op": "https.put",
+      "outputs": [
+        {
+          "kind": "receipt",
+          "min_durability": "final",
+          "port": "receipt",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": 50000000,
+          "overhead_s": 35
+        },
+        "lambda": {
+          "bytes_per_s": 25000000,
+          "overhead_s": 10
+        }
+      },
+      "side_effects": [
+        "reads_staging",
+        "writes_target",
+        "reads_secret"
+      ],
+      "status": "available",
+      "summary": "Upload to a static HTTPS destination slot.",
+      "version": "1.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "s3:PutObject"
+          ],
+          "resource": "{staging.run_prefix_arn}"
+        }
+      ],
+      "categories": [
+        "package",
+        "validate"
+      ],
+      "determinism": "pure",
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "package",
+          "min_durability": "local",
+          "port": "package",
+          "required": true,
+          "streaming": false
+        },
+        {
+          "kind": "object_listing",
+          "min_durability": "local",
+          "port": "listing",
+          "required": false,
+          "streaming": false
+        }
+      ],
+      "op": "manifest.build",
+      "outputs": [
+        {
+          "kind": "manifest",
+          "min_durability": "staged",
+          "port": "manifest",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 30
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 5
+        }
+      },
+      "side_effects": [
+        "writes_staging"
+      ],
+      "status": "available",
+      "summary": "Manifest of every file (path, size, sha256) and the package checksums.",
+      "version": "1.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "dynamodb:UpdateItem",
+            "dynamodb:PutItem"
+          ],
+          "resource": "{run_state.table_arn}"
+        }
+      ],
+      "categories": [
+        "naming"
+      ],
+      "determinism": "deterministic_effect",
+      "idempotency": "dedupe_key",
+      "op": "naming.render",
+      "outputs": [
+        {
+          "kind": "value",
+          "min_durability": "local",
+          "port": "name",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 30
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 5
+        }
+      },
+      "side_effects": [
+        "allocates_sequence"
+      ],
+      "status": "available",
+      "summary": "Render a name from a restricted token template ({seq} allocated transactionally).",
+      "version": "1.0.0"
+    },
+    {
+      "categories": [
+        "package"
+      ],
+      "op": "package.tar",
+      "status": "planned",
+      "summary": "tar.gz packaging.",
+      "version": "0.0.0"
+    },
+    {
+      "categories": [
+        "transform"
+      ],
+      "op": "package.unzip",
+      "status": "planned",
+      "summary": "Safe extraction (zip-slip, bomb defences).",
+      "version": "0.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "s3:PutObject",
+            "s3:AbortMultipartUpload"
+          ],
+          "resource": "{staging.run_prefix_arn}"
+        },
+        {
+          "actions": [
+            "kms:GenerateDataKey",
+            "kms:Decrypt"
+          ],
+          "resource": "{staging.kms_arn}"
+        }
+      ],
+      "categories": [
+        "package"
+      ],
+      "determinism": "pure",
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "file_set",
+          "min_durability": "local",
+          "port": "files",
+          "required": true,
+          "streaming": true
+        }
+      ],
+      "op": "package.zip",
+      "outputs": [
+        {
+          "kind": "package",
+          "min_durability": "staged",
+          "port": "package",
+          "required": true,
+          "streaming": true
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": 120000000,
+          "overhead_s": 30
+        },
+        "lambda": {
+          "bytes_per_s": 60000000,
+          "overhead_s": 5
+        }
+      },
+      "side_effects": [
+        "writes_staging"
+      ],
+      "status": "available",
+      "summary": "Deterministic zip preserving folder structure (streaming, zip64).",
+      "version": "1.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "secretsmanager:GetSecretValue"
+          ],
+          "resource": "{portal.secret_arns}"
+        },
+        {
+          "actions": [
+            "s3:PutObject"
+          ],
+          "resource": "{staging.run_prefix_arn}"
+        }
+      ],
+      "categories": [
+        "integration"
+      ],
+      "determinism": "deterministic_effect",
+      "egress": [
+        {
+          "host": "{portal.host}",
+          "port": "{portal.port}"
+        }
+      ],
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "message",
+          "min_durability": "local",
+          "port": "request",
+          "required": false,
+          "streaming": false
+        }
+      ],
+      "op": "portal.lookup",
+      "outputs": [
+        {
+          "kind": "portal_snapshot",
+          "min_durability": "staged",
+          "port": "answer",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 35
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 10
+        }
+      },
+      "side_effects": [
+        "calls_portal",
+        "reads_secret",
+        "writes_staging"
+      ],
+      "status": "available",
+      "summary": "Call a portal endpoint, validate the response, map it with JMESPath and snapshot it write-once.",
+      "version": "1.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "secretsmanager:GetSecretValue"
+          ],
+          "resource": "{api.secret_arns}"
+        }
+      ],
+      "categories": [
+        "extract"
+      ],
+      "determinism": "deterministic_effect",
+      "egress": [
+        {
+          "host": "{api.host}",
+          "port": "{api.port}"
+        }
+      ],
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "message",
+          "min_durability": "local",
+          "port": "request",
+          "required": false,
+          "streaming": false
+        }
+      ],
+      "op": "rest.fetch",
+      "outputs": [
+        {
+          "kind": "file_set",
+          "min_durability": "local",
+          "port": "files",
+          "required": true,
+          "streaming": true
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": 40000000,
+          "overhead_s": 35
+        },
+        "lambda": {
+          "bytes_per_s": 20000000,
+          "overhead_s": 10
+        }
+      },
+      "side_effects": [
+        "calls_api",
+        "reads_secret"
+      ],
+      "status": "available",
+      "summary": "Fetch pages from a declared HTTPS API into files.",
+      "version": "1.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "s3:PutObject",
+            "s3:GetObject"
+          ],
+          "resource": "{entry.object_arns}"
+        },
+        {
+          "actions": [
+            "s3:GetObject",
+            "s3:GetObjectVersion"
+          ],
+          "resource": "{source.object_arns}"
+        }
+      ],
+      "categories": [
+        "upload",
+        "housekeeping"
+      ],
+      "determinism": "deterministic_effect",
+      "egress": [],
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "object_listing",
+          "min_durability": "local",
+          "port": "objects",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "op": "s3.copy",
+      "outputs": [
+        {
+          "kind": "receipt",
+          "min_durability": "final",
+          "port": "receipt",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 35
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 10
+        }
+      },
+      "side_effects": [
+        "reads_staging",
+        "writes_target"
+      ],
+      "status": "available",
+      "summary": "Server-side copy of the listed objects to a static S3 destination slot (write-once).",
+      "version": "1.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "s3:GetObject",
+            "s3:GetObjectVersion"
+          ],
+          "resource": "{source.object_arns}"
+        },
+        {
+          "actions": [
+            "kms:Decrypt"
+          ],
+          "resource": "{source.kms_arns}"
+        }
+      ],
+      "categories": [
+        "extract"
+      ],
+      "determinism": "pure",
+      "idempotency": "natural",
+      "inputs": [
+        {
+          "kind": "object_listing",
+          "min_durability": "local",
+          "port": "listing",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "op": "s3.download",
+      "outputs": [
+        {
+          "kind": "file_set",
+          "min_durability": "local",
+          "port": "files",
+          "required": true,
+          "streaming": true
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": 180000000,
+          "overhead_s": 30
+        },
+        "lambda": {
+          "bytes_per_s": 90000000,
+          "overhead_s": 5
+        }
+      },
+      "side_effects": [
+        "reads_source"
+      ],
+      "status": "available",
+      "summary": "Read the listed objects as streams, verifying size and ETag.",
+      "version": "1.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "s3:ListBucket"
+          ],
+          "resource": "{source.bucket_arns}"
+        },
+        {
+          "actions": [
+            "s3:PutObject"
+          ],
+          "resource": "{staging.run_prefix_arn}"
+        }
+      ],
+      "categories": [
+        "extract"
+      ],
+      "determinism": "deterministic_effect",
+      "idempotency": "natural",
+      "inputs": [
+        {
+          "kind": "message",
+          "min_durability": "local",
+          "port": "request",
+          "required": false,
+          "streaming": false
+        }
+      ],
+      "op": "s3.list",
+      "outputs": [
+        {
+          "kind": "object_listing",
+          "min_durability": "staged",
+          "port": "listing",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 35
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 10
+        }
+      },
+      "side_effects": [
+        "reads_source",
+        "writes_staging"
+      ],
+      "status": "available",
+      "summary": "List objects under the source bucket/prefix (recursive, include/exclude, limits).",
+      "version": "1.0.0"
+    },
+    {
+      "categories": [
+        "housekeeping"
+      ],
+      "op": "s3.move",
+      "status": "planned",
+      "summary": "Copy, verify, delete.",
+      "version": "0.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "s3:PutObject",
+            "s3:GetObject"
+          ],
+          "resource": "{entry.object_arns}"
+        }
+      ],
+      "categories": [
+        "upload"
+      ],
+      "determinism": "deterministic_effect",
+      "egress": [],
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "package",
+          "min_durability": "local",
+          "port": "artifact",
+          "required": true,
+          "streaming": false
+        },
+        {
+          "kind": "value",
+          "min_durability": "local",
+          "port": "name",
+          "required": false,
+          "streaming": false
+        }
+      ],
+      "op": "s3.put",
+      "outputs": [
+        {
+          "kind": "receipt",
+          "min_durability": "final",
+          "port": "receipt",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": 50000000,
+          "overhead_s": 35
+        },
+        "lambda": {
+          "bytes_per_s": 90000000,
+          "overhead_s": 10
+        }
+      },
+      "side_effects": [
+        "reads_staging",
+        "writes_target"
+      ],
+      "status": "available",
+      "summary": "Upload an artifact to a static S3 destination slot (write-once).",
+      "version": "1.0.0"
+    },
+    {
+      "categories": [
+        "housekeeping"
+      ],
+      "op": "s3.rename",
+      "status": "planned",
+      "summary": "Rename within a bucket.",
+      "version": "0.0.0"
+    },
+    {
+      "categories": [
+        "integration"
+      ],
+      "op": "secret.read",
+      "status": "planned",
+      "summary": "Resolve a secret handle for later rules.",
+      "version": "0.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "secretsmanager:GetSecretValue"
+          ],
+          "resource": "{entry.secret_arns}"
+        }
+      ],
+      "categories": [
+        "upload"
+      ],
+      "determinism": "deterministic_effect",
+      "egress": [
+        {
+          "host": "{entry.host}",
+          "port": "{entry.port}"
+        }
+      ],
+      "idempotency": "conditional_write",
+      "inputs": [
+        {
+          "kind": "package",
+          "min_durability": "local",
+          "port": "artifact",
+          "required": true,
+          "streaming": false
+        },
+        {
+          "kind": "value",
+          "min_durability": "local",
+          "port": "name",
+          "required": false,
+          "streaming": false
+        }
+      ],
+      "op": "sftp.put",
+      "outputs": [
+        {
+          "kind": "receipt",
+          "min_durability": "final",
+          "port": "receipt",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": 50000000,
+          "overhead_s": 35
+        },
+        "lambda": {
+          "bytes_per_s": 25000000,
+          "overhead_s": 10
+        }
+      },
+      "side_effects": [
+        "reads_staging",
+        "writes_target",
+        "reads_secret"
+      ],
+      "status": "available",
+      "summary": "Upload to a static SFTP destination slot (pinned host key, no-clobber rename).",
+      "version": "1.0.0"
+    },
+    {
+      "categories": [
+        "integration"
+      ],
+      "op": "sqs.ack",
+      "status": "planned",
+      "summary": "Acknowledge messages explicitly.",
+      "version": "0.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "s3:GetObject",
+            "s3:PutObject"
+          ],
+          "resource": "{staging.run_prefix_arn}"
+        },
+        {
+          "actions": [
+            "dynamodb:PutItem",
+            "dynamodb:GetItem"
+          ],
+          "resource": "{run_state.table_arn}"
+        }
+      ],
+      "categories": [
+        "integration"
+      ],
+      "determinism": "deterministic_effect",
+      "idempotency": "dedupe_key",
+      "op": "sqs.read",
+      "outputs": [
+        {
+          "kind": "message",
+          "min_durability": "staged",
+          "port": "message",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 30
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 5
+        }
+      },
+      "side_effects": [
+        "reads_staging",
+        "writes_staging"
+      ],
+      "status": "available",
+      "summary": "Read the message that triggered the run (custody snapshot in dispatch mode; receive, snapshot, dedupe, delete in in_task mode).",
+      "version": "1.0.0"
+    },
+    {
+      "categories": [
+        "extract"
+      ],
+      "op": "transfer.download",
+      "status": "planned",
+      "summary": "Download from an SFTP/FTPS/HTTPS server.",
+      "version": "0.0.0"
+    },
+    {
+      "categories": [
+        "validate"
+      ],
+      "op": "validate.checksum_match",
+      "status": "planned",
+      "summary": "Sidecar checksum match.",
+      "version": "0.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "categories": [
+        "validate"
+      ],
+      "determinism": "pure",
+      "inputs": [
+        {
+          "kind": "object_listing",
+          "min_durability": "local",
+          "port": "listing",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "op": "validate.file_count",
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 30
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 5
+        }
+      },
+      "status": "available",
+      "summary": "The number of files is within bounds.",
+      "version": "1.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "categories": [
+        "validate"
+      ],
+      "determinism": "pure",
+      "inputs": [
+        {
+          "kind": "manifest",
+          "min_durability": "local",
+          "port": "manifest",
+          "required": true,
+          "streaming": false
+        },
+        {
+          "kind": "object_listing",
+          "min_durability": "local",
+          "port": "listing",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "op": "validate.manifest_match",
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 30
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 5
+        }
+      },
+      "status": "available",
+      "summary": "The manifest lists exactly the listed objects with matching sizes.",
+      "version": "1.0.0"
+    },
+    {
+      "categories": [
+        "validate"
+      ],
+      "op": "validate.name_pattern",
+      "status": "planned",
+      "summary": "File name pattern checks.",
+      "version": "0.0.0"
+    },
+    {
+      "categories": [
+        "validate"
+      ],
+      "op": "validate.schema",
+      "status": "planned",
+      "summary": "CSV/JSON header and schema checks.",
+      "version": "0.0.0"
+    },
+    {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "categories": [
+        "validate"
+      ],
+      "determinism": "pure",
+      "inputs": [
+        {
+          "kind": "object_listing",
+          "min_durability": "local",
+          "port": "listing",
+          "required": true,
+          "streaming": false
+        }
+      ],
+      "op": "validate.total_size",
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 30
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 5
+        }
+      },
+      "status": "available",
+      "summary": "The total size is within bounds.",
+      "version": "1.0.0"
+    }
+  ]
+}
