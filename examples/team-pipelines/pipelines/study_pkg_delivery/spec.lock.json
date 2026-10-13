@@ -1,0 +1,1486 @@
+{
+  "api_version": "factory/v1",
+  "bindings": {
+    "dev": {
+      "destinations": [
+        {
+          "bucket": "acme-clinops-delivery-dev",
+          "id": "dev_delivery_s3",
+          "kms_key": "alias/clinops-delivery-dev",
+          "max_classification": "restricted",
+          "placement": "team",
+          "prefix_pattern": "studies/{study_id}/**",
+          "slots": [
+            "x",
+            "y"
+          ],
+          "type": "s3"
+        },
+        {
+          "at_rest_attestation": "DEV-STUB-NOT-GXP",
+          "host": "sftp-stub.dev.acme.example",
+          "host_key_fingerprint": "SHA256:zEA/dDcrIBhmGJxUY8UzlHhbXcFIZNehohInWBQWWmQ",
+          "id": "dev_stub_sftp",
+          "max_classification": "restricted",
+          "path_pattern": "/inbound/{study_id}/**",
+          "port": 22,
+          "private_key_secret": "partner_sftp_key",
+          "slots": [
+            "x",
+            "y"
+          ],
+          "type": "sftp",
+          "username": "factory-delivery"
+        }
+      ],
+      "environment": {
+        "alert_channels": {
+          "clinops_data": {
+            "topic": "clinops-data-alerts-dev",
+            "type": "sns"
+          },
+          "platform": {
+            "topic": "factory-platform-alerts-dev",
+            "type": "sns"
+          },
+          "security": {
+            "topic": "factory-security-alerts-dev",
+            "type": "sns"
+          }
+        },
+        "apis": {},
+        "enabled": true,
+        "placement": {
+          "orchestration": "mwaa",
+          "workload": "team"
+        },
+        "portal": {
+          "base_url": "https://portal.dev.acme.example"
+        },
+        "queues": {
+          "package_ready": {
+            "name": "clinops-package-ready-dev"
+          }
+        },
+        "schedule_cron": null,
+        "secrets": {
+          "aws_secrets_manager": {
+            "prefix": "factory/"
+          },
+          "vault": {
+            "mount": "kv",
+            "namespace": "clinops"
+          }
+        },
+        "sources": {
+          "landing": {
+            "bucket": null,
+            "buckets": [
+              "acme-clinops-landing-dev"
+            ],
+            "fivetran_group": null,
+            "placement": "team",
+            "prefix_roots": [
+              "incoming/"
+            ]
+          }
+        }
+      }
+    },
+    "ppt": {
+      "destinations": [
+        {
+          "bucket": "acme-cro-archive-ppt",
+          "id": "cro_archive_s3",
+          "kms_key": "alias/cro-archive-inbound",
+          "max_classification": "restricted",
+          "placement": "cro_archive",
+          "prefix_pattern": "studies/{study_id}/packages/**",
+          "slots": [
+            "x",
+            "y"
+          ],
+          "type": "s3"
+        },
+        {
+          "at_rest_attestation": "QA-ATT-2026-018",
+          "auth": {
+            "token_secret": "cro_upload_token",
+            "type": "bearer"
+          },
+          "host": "upload-uat.partner-cro.example.com",
+          "id": "cro_https_upload",
+          "max_classification": "restricted",
+          "method": "PUT",
+          "path_pattern": "/api/v2/studies/{study_id}/packages/*",
+          "port": 443,
+          "slots": [
+            "x"
+          ],
+          "type": "https",
+          "write_once": "if_none_match"
+        },
+        {
+          "at_rest_attestation": "QA-ATT-2026-017",
+          "host": "sftp-uat.partner-cro.example.com",
+          "host_key_fingerprint": "SHA256:fEEcwQkJ8AiU1i85Rj0zuzl8pWghGQgeVP+/5P5p9b8",
+          "id": "partner_sftp",
+          "max_classification": "restricted",
+          "path_pattern": "/inbound/acme/{study_id}/**",
+          "port": 22,
+          "private_key_secret": "partner_sftp_key",
+          "slots": [
+            "x",
+            "y"
+          ],
+          "type": "sftp",
+          "username": "acme-delivery-uat"
+        }
+      ],
+      "environment": {
+        "alert_channels": {
+          "clinops_data": {
+            "topic": "clinops-data-alerts-ppt",
+            "type": "sns"
+          },
+          "platform": {
+            "topic": "factory-platform-alerts-ppt",
+            "type": "sns"
+          },
+          "security": {
+            "topic": "factory-security-alerts-ppt",
+            "type": "sns"
+          }
+        },
+        "apis": {},
+        "enabled": true,
+        "placement": {
+          "orchestration": "mwaa",
+          "workload": "team"
+        },
+        "portal": {
+          "base_url": "https://portal.ppt.acme.example"
+        },
+        "queues": {
+          "package_ready": {
+            "name": "clinops-package-ready-ppt"
+          }
+        },
+        "schedule_cron": null,
+        "secrets": {
+          "aws_secrets_manager": {
+            "prefix": "factory/"
+          },
+          "vault": {
+            "mount": "kv",
+            "namespace": "clinops"
+          }
+        },
+        "sources": {
+          "landing": {
+            "bucket": null,
+            "buckets": [
+              "acme-clinops-landing-ppt"
+            ],
+            "fivetran_group": null,
+            "placement": "team",
+            "prefix_roots": [
+              "incoming/"
+            ]
+          }
+        }
+      }
+    },
+    "prod": {
+      "destinations": [
+        {
+          "bucket": "acme-cro-archive-prod",
+          "id": "cro_archive_s3",
+          "kms_key": "alias/cro-archive-inbound",
+          "max_classification": "restricted",
+          "placement": "cro_archive",
+          "prefix_pattern": "studies/{study_id}/packages/**",
+          "slots": [
+            "x",
+            "y"
+          ],
+          "type": "s3"
+        },
+        {
+          "at_rest_attestation": "QA-ATT-2026-018",
+          "auth": {
+            "token_secret": "cro_upload_token",
+            "type": "bearer"
+          },
+          "host": "upload.partner-cro.example.com",
+          "id": "cro_https_upload",
+          "max_classification": "restricted",
+          "method": "PUT",
+          "path_pattern": "/api/v2/studies/{study_id}/packages/*",
+          "port": 443,
+          "slots": [
+            "x"
+          ],
+          "type": "https",
+          "write_once": "if_none_match"
+        },
+        {
+          "at_rest_attestation": "QA-ATT-2026-017",
+          "host": "sftp.partner-cro.example.com",
+          "host_key_fingerprint": "SHA256:o2K6iOZLOrmaihUq2iIr8t8LMSXuBKBiG9Ve+XKxDbE",
+          "id": "partner_sftp",
+          "max_classification": "restricted",
+          "path_pattern": "/inbound/acme/{study_id}/**",
+          "port": 22,
+          "private_key_secret": "partner_sftp_key",
+          "slots": [
+            "x",
+            "y"
+          ],
+          "type": "sftp",
+          "username": "acme-delivery"
+        }
+      ],
+      "environment": {
+        "alert_channels": {
+          "clinops_data": {
+            "topic": "clinops-data-alerts-prod",
+            "type": "sns"
+          },
+          "platform": {
+            "topic": "factory-platform-alerts-prod",
+            "type": "sns"
+          },
+          "security": {
+            "topic": "factory-security-alerts-prod",
+            "type": "sns"
+          }
+        },
+        "apis": {},
+        "enabled": true,
+        "placement": {
+          "orchestration": "mwaa",
+          "workload": "team"
+        },
+        "portal": {
+          "base_url": "https://portal.acme.example"
+        },
+        "queues": {
+          "package_ready": {
+            "name": "clinops-package-ready-prod"
+          }
+        },
+        "schedule_cron": null,
+        "secrets": {
+          "aws_secrets_manager": {
+            "prefix": "factory/"
+          },
+          "vault": {
+            "mount": "kv",
+            "namespace": "clinops"
+          }
+        },
+        "sources": {
+          "landing": {
+            "bucket": null,
+            "buckets": [
+              "acme-clinops-landing-prod"
+            ],
+            "fivetran_group": null,
+            "placement": "team",
+            "prefix_roots": [
+              "incoming/"
+            ]
+          }
+        }
+      }
+    },
+    "test": {
+      "destinations": [
+        {
+          "bucket": "acme-clinops-delivery-test",
+          "id": "test_delivery_s3",
+          "kms_key": "alias/clinops-delivery-test",
+          "max_classification": "restricted",
+          "placement": "team",
+          "prefix_pattern": "studies/{study_id}/**",
+          "slots": [
+            "x",
+            "y"
+          ],
+          "type": "s3"
+        },
+        {
+          "at_rest_attestation": "TEST-STUB-NOT-GXP",
+          "host": "sftp-stub.test.acme.example",
+          "host_key_fingerprint": "SHA256:igOmd94YxOamC/64sh+ZrG6zcyR7ROoprczu5GCx/VY",
+          "id": "test_stub_sftp",
+          "max_classification": "restricted",
+          "path_pattern": "/inbound/{study_id}/**",
+          "port": 22,
+          "private_key_secret": "partner_sftp_key",
+          "slots": [
+            "x",
+            "y"
+          ],
+          "type": "sftp",
+          "username": "factory-delivery"
+        }
+      ],
+      "environment": {
+        "alert_channels": {
+          "clinops_data": {
+            "topic": "clinops-data-alerts-test",
+            "type": "sns"
+          },
+          "platform": {
+            "topic": "factory-platform-alerts-test",
+            "type": "sns"
+          },
+          "security": {
+            "topic": "factory-security-alerts-test",
+            "type": "sns"
+          }
+        },
+        "apis": {},
+        "enabled": true,
+        "placement": {
+          "orchestration": "mwaa",
+          "workload": "team"
+        },
+        "portal": {
+          "base_url": "https://portal.test.acme.example"
+        },
+        "queues": {
+          "package_ready": {
+            "name": "clinops-package-ready-test"
+          }
+        },
+        "schedule_cron": null,
+        "secrets": {
+          "aws_secrets_manager": {
+            "prefix": "factory/"
+          },
+          "vault": {
+            "mount": "kv",
+            "namespace": "clinops"
+          }
+        },
+        "sources": {
+          "landing": {
+            "bucket": null,
+            "buckets": [
+              "acme-clinops-landing-test"
+            ],
+            "fivetran_group": null,
+            "placement": "team",
+            "prefix_roots": [
+              "incoming/"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "derived": {
+    "artifacts": {
+      "delivered_x": {
+        "consumers": [],
+        "durability": "final",
+        "kind": "receipt",
+        "producer": "r_upload_x",
+        "task": "t3_upload"
+      },
+      "delivered_y": {
+        "consumers": [],
+        "durability": "final",
+        "kind": "receipt",
+        "producer": "r_upload_y",
+        "task": "t3_upload"
+      },
+      "destinations": {
+        "consumers": [
+          "r_upload_x",
+          "r_upload_y"
+        ],
+        "durability": "staged",
+        "kind": "destination_set",
+        "producer": "r_resolve_destinations",
+        "task": "t1_collect"
+      },
+      "files": {
+        "consumers": [
+          "r_zip"
+        ],
+        "durability": "stream",
+        "kind": "file_set",
+        "producer": "r_download",
+        "task": "t1_collect"
+      },
+      "listing": {
+        "consumers": [
+          "r_check_listing",
+          "r_download",
+          "r_manifest"
+        ],
+        "durability": "staged",
+        "kind": "object_listing",
+        "producer": "r_list_objects",
+        "task": "t1_collect"
+      },
+      "manifest": {
+        "consumers": [
+          "r_checksum",
+          "r_upload_x",
+          "r_upload_y"
+        ],
+        "durability": "staged",
+        "kind": "manifest",
+        "producer": "r_manifest",
+        "task": "t1_collect"
+      },
+      "package": {
+        "consumers": [
+          "r_checksum",
+          "r_manifest",
+          "r_upload_x",
+          "r_upload_y"
+        ],
+        "durability": "staged",
+        "kind": "package",
+        "producer": "r_zip",
+        "task": "t1_collect"
+      },
+      "package_checksum": {
+        "consumers": [
+          "r_upload_x",
+          "r_upload_y"
+        ],
+        "durability": "staged",
+        "kind": "checksum",
+        "producer": "r_checksum",
+        "task": "t2_checksum"
+      },
+      "package_name": {
+        "consumers": [
+          "r_upload_x",
+          "r_upload_y"
+        ],
+        "durability": "local",
+        "kind": "value",
+        "producer": "r_package_name",
+        "task": "t3_upload"
+      },
+      "portal_answer": {
+        "consumers": [
+          "r_resolve_destinations"
+        ],
+        "durability": "staged",
+        "kind": "portal_snapshot",
+        "producer": "r_portal_lookup",
+        "task": "t1_collect"
+      },
+      "request": {
+        "consumers": [
+          "r_list_objects",
+          "r_portal_lookup",
+          "r_resolve_destinations"
+        ],
+        "durability": "staged",
+        "kind": "message",
+        "producer": "r_read_request",
+        "task": "t1_collect"
+      }
+    },
+    "op_contracts": {
+      "checksum.compute": {
+        "contract_sha": "e60d0e0f0cab71d2792888e671c7d1ef4b9fb2ef3a74830391badaab35ecb031",
+        "version": "1.0.0"
+      },
+      "destination.deliver": {
+        "contract_sha": "fa26ad0c97e2b8fea8ec5b17b5449da85701137c7631589c23b52a06e8f17a9f",
+        "version": "1.0.0"
+      },
+      "destination.resolve": {
+        "contract_sha": "083755e9ddf56953168445d2420b757a93498bf132fd17008eac6fabdd3ab652",
+        "version": "1.0.0"
+      },
+      "manifest.build": {
+        "contract_sha": "cf087f07681d69da6cafb690a50ef0b549e1fbe88723a4acbb290d538688a724",
+        "version": "1.0.0"
+      },
+      "naming.render": {
+        "contract_sha": "65c76e3de1d33e3495763b8060699568582788bacde411cd3ec368cfb593c8c6",
+        "version": "1.0.0"
+      },
+      "package.zip": {
+        "contract_sha": "92977346f481e7ca94f9a8ee8dd4e98ecb9408d8c66f4357c71349afe7e28e99",
+        "version": "1.0.0"
+      },
+      "portal.lookup": {
+        "contract_sha": "a5b80ba9c61679c22453af1fe83158ff7eac9a0ed63a41b5d9b6c6aab760c848",
+        "version": "1.0.0"
+      },
+      "s3.download": {
+        "contract_sha": "0cd17784f1eb0cc1c5ed0629a121d0ad2ee430b561605895b4d83f98742c659d",
+        "version": "1.0.0"
+      },
+      "s3.list": {
+        "contract_sha": "323ffd44e668edf9be6be17b4eb07f4381e6be504e211a2643050a0590a7a432",
+        "version": "1.0.0"
+      },
+      "sqs.read": {
+        "contract_sha": "fd9394b68a0bb3d88f601e238051ca4cce8b43348c03681b20603d62c339d885",
+        "version": "1.0.0"
+      }
+    }
+  },
+  "hashes": {
+    "binding_sha": {
+      "dev": "7db17a5416b70db2baa358c9f0f5169dd062798b8352824ff8b2405db9370742",
+      "ppt": "171142bd3e14b385e6340e5a19650d25e4b8a5bf4cb97c0396ccd8d592cbef80",
+      "prod": "c275c2e7cd9e4cbece5003665bc0f0a3b389d79fafbc8175e7e19f5474c29f0f",
+      "test": "dd620fc406a6eb10ec7653381796daebb3e3a96454c269e4deb685149e966589"
+    },
+    "derived_sha": "b3bcc81b7cf7192ea226042e4b8b553bed609ffe60b273e5eefdb7c8565e8da3",
+    "logic_sha": "7670e3f090e052e55dd405354651a743845136acfbe1478777d3ccb3a18c1365"
+  },
+  "lock_version": 1,
+  "logic": {
+    "integrations": {
+      "apis": [],
+      "destinations": [
+        {
+          "allowed_types": [
+            "https",
+            "s3",
+            "sftp"
+          ],
+          "id": "x",
+          "label": "Destination x (primary delivery, chosen in the portal)",
+          "required": true,
+          "resolve": {
+            "endpoint": "delivery_targets",
+            "via": "portal"
+          }
+        },
+        {
+          "allowed_types": [
+            "s3",
+            "sftp"
+          ],
+          "id": "y",
+          "label": "Destination y (archive copy, chosen in the portal)",
+          "required": true,
+          "resolve": {
+            "endpoint": "delivery_targets",
+            "via": "portal"
+          }
+        }
+      ],
+      "portal": {
+        "auth": {
+          "client": "portal_client",
+          "scopes": [
+            "delivery-targets.read"
+          ],
+          "token_path": "/oauth2/token",
+          "type": "oauth2_client_credentials"
+        },
+        "endpoints": [
+          {
+            "id": "delivery_targets",
+            "mapping": {
+              "destinations": {
+                "x": "targets[?slot=='x' && active] | [0].uri",
+                "y": "targets[?slot=='y' && active] | [0].uri"
+              },
+              "expect": [
+                {
+                  "equals": "{study_id}",
+                  "path": "study_id"
+                }
+              ],
+              "values": {}
+            },
+            "method": "GET",
+            "pagination": {
+              "type": "none"
+            },
+            "path": "/api/v1/studies/{study_id}/delivery-targets",
+            "query": {
+              "status": "active"
+            },
+            "response": {
+              "fields": {
+                "study_id": {
+                  "fields": null,
+                  "items": null,
+                  "max_items": null,
+                  "max_length": null,
+                  "maximum": null,
+                  "minimum": null,
+                  "pattern": null,
+                  "required": true,
+                  "type": "string",
+                  "values": null
+                },
+                "targets": {
+                  "fields": null,
+                  "items": {
+                    "fields": {
+                      "active": {
+                        "fields": null,
+                        "items": null,
+                        "max_items": null,
+                        "max_length": null,
+                        "maximum": null,
+                        "minimum": null,
+                        "pattern": null,
+                        "required": true,
+                        "type": "boolean",
+                        "values": null
+                      },
+                      "slot": {
+                        "fields": null,
+                        "items": null,
+                        "max_items": null,
+                        "max_length": null,
+                        "maximum": null,
+                        "minimum": null,
+                        "pattern": null,
+                        "required": true,
+                        "type": "enum",
+                        "values": [
+                          "x",
+                          "y"
+                        ]
+                      },
+                      "uri": {
+                        "fields": null,
+                        "items": null,
+                        "max_items": null,
+                        "max_length": 1024,
+                        "maximum": null,
+                        "minimum": null,
+                        "pattern": null,
+                        "required": true,
+                        "type": "string",
+                        "values": null
+                      }
+                    },
+                    "items": null,
+                    "max_items": null,
+                    "max_length": null,
+                    "maximum": null,
+                    "minimum": null,
+                    "pattern": null,
+                    "required": true,
+                    "type": "object",
+                    "values": null
+                  },
+                  "max_items": 10,
+                  "max_length": null,
+                  "maximum": null,
+                  "minimum": null,
+                  "pattern": null,
+                  "required": true,
+                  "type": "list",
+                  "values": null
+                }
+              },
+              "unknown_fields": "ignore"
+            }
+          }
+        ],
+        "label": "Self-service portal",
+        "reliability": {
+          "backoff_base": 1,
+          "backoff_max": 30,
+          "breaker_failure_threshold": 5,
+          "breaker_reset_after": 60,
+          "connect_timeout": 5,
+          "honour_retry_after": true,
+          "max_attempts": 5,
+          "rate_limit_per_second": 5,
+          "read_timeout": 30,
+          "retry_on_status": [
+            429,
+            500,
+            502,
+            503,
+            504
+          ]
+        }
+      },
+      "secrets": {
+        "cro_upload_token": {
+          "key": "token",
+          "kind": "api_key",
+          "path": "clinops/{env}/cro-upload",
+          "provider": "aws_secrets_manager",
+          "version": null
+        },
+        "partner_sftp_key": {
+          "key": "private_key",
+          "kind": "ssh_private_key",
+          "path": "clinops/{env}/partner-sftp",
+          "provider": "vault",
+          "version": null
+        },
+        "portal_client": {
+          "key": null,
+          "kind": "oauth_client",
+          "path": "clinops/{env}/portal-client",
+          "provider": "aws_secrets_manager",
+          "version": null
+        }
+      },
+      "sources": [
+        {
+          "id": "landing",
+          "label": "Clinops landing bucket (uploaded study packages)",
+          "location": {
+            "bucket_field": "bucket",
+            "prefix_field": "prefix",
+            "via": "trigger"
+          },
+          "type": "s3"
+        }
+      ]
+    },
+    "pipeline": {
+      "api_version": "factory/v1",
+      "artifacts": {},
+      "cost": {
+        "budget_per_month_usd": "300.00",
+        "budget_per_run_usd": "2.00"
+      },
+      "kind": "Pipeline",
+      "metadata": {
+        "description": "When a study package has been uploaded to the clinops landing bucket, zip all of its files with a manifest, checksum the zip, and deliver it to the two destinations (x and y) that the self-service portal names.",
+        "name": "Study package delivery",
+        "owners": {
+          "business_owner": "@alice-ba",
+          "data_engineer": "@bob-de",
+          "governance": "@carol-qa",
+          "platform": "@dan-platform"
+        },
+        "pipeline_id": "study_pkg_delivery",
+        "requirements": [
+          "REQ-001",
+          "REQ-002",
+          "REQ-003",
+          "REQ-004",
+          "REQ-005"
+        ],
+        "spec_version": "0.1.0",
+        "tags": {
+          "cost_centre": "CC1234"
+        },
+        "team": "clinops_data"
+      },
+      "observability": {
+        "alerts": {
+          "config": "platform",
+          "data": "clinops_data",
+          "security": "security",
+          "transient": "none"
+        },
+        "sla": 10800
+      },
+      "open_questions": [],
+      "orchestration": {
+        "dag": {
+          "catchup": false,
+          "max_active_runs": 4,
+          "timeout": 14400
+        },
+        "pool": null,
+        "tasks": [
+          {
+            "depends_on": [],
+            "engine": "auto",
+            "label": "Read the request, resolve the destinations, zip the package",
+            "retry": null,
+            "rules": [
+              "r_read_request",
+              "r_portal_lookup",
+              "r_resolve_destinations",
+              "r_list_objects",
+              "r_check_listing",
+              "r_download",
+              "r_zip",
+              "r_manifest"
+            ],
+            "task_id": "t1_collect",
+            "timeout": 5400
+          },
+          {
+            "depends_on": [
+              "t1_collect"
+            ],
+            "engine": "lambda",
+            "label": "Checksum the stored zip",
+            "retry": null,
+            "rules": [
+              "r_checksum"
+            ],
+            "task_id": "t2_checksum",
+            "timeout": 900
+          },
+          {
+            "depends_on": [
+              "t2_checksum"
+            ],
+            "engine": "auto",
+            "label": "Deliver to destinations x and y",
+            "retry": null,
+            "rules": [
+              "r_package_name",
+              "r_upload_x",
+              "r_upload_y"
+            ],
+            "task_id": "t3_upload",
+            "timeout": 7200
+          }
+        ]
+      },
+      "reliability": {
+        "replay_window": 2592000,
+        "retry": {
+          "backoff": "exponential_jitter",
+          "base": 10,
+          "max": 300,
+          "max_attempts": 3
+        },
+        "run_key": "{request_id}"
+      },
+      "schema_version": "1.0.0",
+      "trigger": {
+        "envelope": "raw",
+        "max_receive_count": 5,
+        "message": {
+          "fields": {
+            "bucket": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": null,
+              "minimum": null,
+              "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+              "required": true,
+              "type": "string",
+              "values": null
+            },
+            "file_count": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": 20000,
+              "minimum": 1,
+              "pattern": null,
+              "required": true,
+              "type": "integer",
+              "values": null
+            },
+            "package_id": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": null,
+              "minimum": null,
+              "pattern": "^PKG[0-9]{4,8}$",
+              "required": true,
+              "type": "string",
+              "values": null
+            },
+            "prefix": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": 900,
+              "maximum": null,
+              "minimum": null,
+              "pattern": null,
+              "required": true,
+              "type": "string",
+              "values": null
+            },
+            "request_id": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": null,
+              "minimum": null,
+              "pattern": "^[A-Za-z0-9-]{8,64}$",
+              "required": true,
+              "type": "string",
+              "values": null
+            },
+            "study_id": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": null,
+              "minimum": null,
+              "pattern": "^[A-Z]{3}[0-9]{3,5}$",
+              "required": true,
+              "type": "string",
+              "values": null
+            },
+            "total_bytes": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": null,
+              "minimum": 1,
+              "pattern": null,
+              "required": true,
+              "type": "integer",
+              "values": null
+            },
+            "uploaded_by": {
+              "fields": null,
+              "items": null,
+              "max_items": null,
+              "max_length": null,
+              "maximum": null,
+              "minimum": null,
+              "pattern": null,
+              "required": false,
+              "type": "string",
+              "values": null
+            }
+          },
+          "unknown_fields": "ignore"
+        },
+        "mode": "dispatch",
+        "queue": "package_ready",
+        "type": "sqs"
+      },
+      "variables": {
+        "expected_bytes": "trigger.message.total_bytes",
+        "expected_files": "trigger.message.file_count",
+        "package_id": "trigger.message.package_id",
+        "request_id": "trigger.message.request_id",
+        "study_id": "trigger.message.study_id"
+      },
+      "workload": {
+        "bytes_per_run": {
+          "max": 10000000000,
+          "p50": 1000000000,
+          "p95": 6000000000
+        },
+        "files_per_run": {
+          "max": 20000,
+          "p50": 400,
+          "p95": 5000
+        },
+        "runs_per_day": 6
+      }
+    },
+    "rules": {
+      "rules": [
+        {
+          "category": "validate",
+          "implementation": {
+            "cel": "artifacts.listing.count == vars.expected_files && artifacts.listing.total_bytes == vars.expected_bytes",
+            "kind": "expression"
+          },
+          "inputs": [
+            "listing"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [],
+          "plain_english": "The number of files and their total size must equal what the message announced.",
+          "preconditions": [],
+          "requirements": [
+            "REQ-002"
+          ],
+          "rule_id": "r_check_listing",
+          "test_cases": [
+            {
+              "expect": {
+                "result": "pass"
+              },
+              "given": {
+                "artifacts": {
+                  "listing": {
+                    "count": 3,
+                    "total_bytes": 1200
+                  }
+                },
+                "vars": {
+                  "expected_bytes": 1200,
+                  "expected_files": 3
+                }
+              },
+              "name": "complete_upload"
+            },
+            {
+              "expect": {
+                "result": "fail"
+              },
+              "given": {
+                "artifacts": {
+                  "listing": {
+                    "count": 2,
+                    "total_bytes": 800
+                  }
+                },
+                "vars": {
+                  "expected_bytes": 1200,
+                  "expected_files": 3
+                }
+              },
+              "name": "missing_file"
+            }
+          ]
+        },
+        {
+          "category": "checksum",
+          "implementation": {
+            "kind": "builtin",
+            "op": "checksum.compute",
+            "params": {
+              "algorithms": [
+                "md5",
+                "sha256"
+              ],
+              "compare_with_manifest": true
+            }
+          },
+          "inputs": [
+            "package",
+            "manifest"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "package_checksum"
+          ],
+          "plain_english": "Re-read the stored zip and compute its MD5 and SHA-256; both must equal the values recorded while zipping.",
+          "preconditions": [],
+          "requirements": [
+            "REQ-003"
+          ],
+          "rule_id": "r_checksum",
+          "test_cases": []
+        },
+        {
+          "category": "extract",
+          "implementation": {
+            "kind": "builtin",
+            "op": "s3.download",
+            "params": {
+              "concurrency": 8,
+              "verify": "size_and_etag"
+            }
+          },
+          "inputs": [
+            "listing"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "files"
+          ],
+          "plain_english": "Read each listed object as a stream, checking its size and ETag against the listing.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_download",
+          "test_cases": []
+        },
+        {
+          "category": "extract",
+          "implementation": {
+            "kind": "builtin",
+            "op": "s3.list",
+            "params": {
+              "exclude": [
+                "**/.DS_Store",
+                "**/Thumbs.db"
+              ],
+              "include": [
+                "**/*"
+              ],
+              "max_objects": 20000,
+              "max_total_bytes": 10000000000,
+              "recursive": true,
+              "source": "landing"
+            }
+          },
+          "inputs": [
+            "request"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "listing"
+          ],
+          "plain_english": "List every object under the bucket and folder named in the message, including sub-folders.",
+          "preconditions": [],
+          "requirements": [
+            "REQ-001"
+          ],
+          "rule_id": "r_list_objects",
+          "test_cases": []
+        },
+        {
+          "category": "package",
+          "implementation": {
+            "kind": "builtin",
+            "op": "manifest.build",
+            "params": {
+              "file_algorithms": [
+                "sha256"
+              ],
+              "format": "json",
+              "package_algorithms": [
+                "md5",
+                "sha256"
+              ]
+            }
+          },
+          "inputs": [
+            "package",
+            "listing"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "manifest"
+          ],
+          "plain_english": "List every file in the zip with its path, size and SHA-256, plus the zip's own MD5 and SHA-256.",
+          "preconditions": [],
+          "requirements": [
+            "REQ-003"
+          ],
+          "rule_id": "r_manifest",
+          "test_cases": []
+        },
+        {
+          "category": "naming",
+          "implementation": {
+            "kind": "builtin",
+            "op": "naming.render",
+            "params": {
+              "template": "{study_id}_{package_id}.zip"
+            }
+          },
+          "inputs": [],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "package_name"
+          ],
+          "plain_english": "Name the delivered zip <study>_<package>.zip, for example ONC101_PKG0042.zip.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_package_name",
+          "test_cases": [
+            {
+              "expect": {
+                "value": "ONC101_PKG0042.zip"
+              },
+              "given": {
+                "vars": {
+                  "package_id": "PKG0042",
+                  "study_id": "ONC101"
+                }
+              },
+              "name": "example"
+            }
+          ]
+        },
+        {
+          "category": "integration",
+          "implementation": {
+            "kind": "builtin",
+            "op": "portal.lookup",
+            "params": {
+              "endpoint": "delivery_targets"
+            }
+          },
+          "inputs": [
+            "request"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "config"
+          },
+          "outputs": [
+            "portal_answer"
+          ],
+          "plain_english": "Ask the self-service portal where this study's packages must be delivered (destinations x and y).",
+          "preconditions": [],
+          "requirements": [
+            "REQ-004"
+          ],
+          "rule_id": "r_portal_lookup",
+          "test_cases": []
+        },
+        {
+          "category": "integration",
+          "implementation": {
+            "kind": "builtin",
+            "op": "sqs.read",
+            "params": {}
+          },
+          "inputs": [],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "request"
+          ],
+          "plain_english": "Take the package-ready message that started this run, exactly as it was received.",
+          "preconditions": [],
+          "requirements": [
+            "REQ-001"
+          ],
+          "rule_id": "r_read_request",
+          "test_cases": []
+        },
+        {
+          "category": "integration",
+          "implementation": {
+            "kind": "builtin",
+            "op": "destination.resolve",
+            "params": {
+              "slots": [
+                "x",
+                "y"
+              ]
+            }
+          },
+          "inputs": [
+            "portal_answer",
+            "request"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "security"
+          },
+          "outputs": [
+            "destinations"
+          ],
+          "plain_english": "Accept each destination from the portal only if it matches a destination approved for this environment and this study; otherwise stop the run and alert security.",
+          "preconditions": [],
+          "requirements": [
+            "REQ-004"
+          ],
+          "rule_id": "r_resolve_destinations",
+          "test_cases": [
+            {
+              "expect": {
+                "x": "test_delivery_s3",
+                "y": "test_stub_sftp"
+              },
+              "given": {
+                "env": "test",
+                "portal": {
+                  "x": "s3://acme-clinops-delivery-test/studies/ONC101/in/",
+                  "y": "sftp://sftp-stub.test.acme.example/inbound/ONC101/"
+                },
+                "vars": {
+                  "study_id": "ONC101"
+                }
+              },
+              "name": "approved_destinations"
+            },
+            {
+              "expect": {
+                "code": "destination_not_allowed",
+                "error_class": "security"
+              },
+              "given": {
+                "env": "test",
+                "portal": {
+                  "x": "s3://acme-clinops-delivery-test/studies/ONC999/in/",
+                  "y": "sftp://sftp-stub.test.acme.example/inbound/ONC101/"
+                },
+                "vars": {
+                  "study_id": "ONC101"
+                }
+              },
+              "name": "other_study_rejected"
+            }
+          ]
+        },
+        {
+          "category": "upload",
+          "implementation": {
+            "kind": "builtin",
+            "op": "destination.deliver",
+            "params": {
+              "manifest": true,
+              "object_name": "package_name",
+              "sidecars": [
+                "md5",
+                "sha256"
+              ],
+              "slot": "x",
+              "verify_after_write": true
+            }
+          },
+          "inputs": [
+            "package",
+            "manifest",
+            "package_checksum",
+            "package_name",
+            "destinations"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "delivered_x"
+          ],
+          "plain_english": "Deliver the zip, its manifest and its .md5 and .sha256 files to destination x; never overwrite a file that is already there, and re-check the delivered zip.",
+          "preconditions": [],
+          "requirements": [
+            "REQ-005"
+          ],
+          "rule_id": "r_upload_x",
+          "test_cases": []
+        },
+        {
+          "category": "upload",
+          "implementation": {
+            "kind": "builtin",
+            "op": "destination.deliver",
+            "params": {
+              "manifest": true,
+              "object_name": "package_name",
+              "sidecars": [
+                "md5",
+                "sha256"
+              ],
+              "slot": "y",
+              "verify_after_write": true
+            }
+          },
+          "inputs": [
+            "package",
+            "manifest",
+            "package_checksum",
+            "package_name",
+            "destinations"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "delivered_y"
+          ],
+          "plain_english": "Deliver the same files to destination y, under the same rules as destination x.",
+          "preconditions": [],
+          "requirements": [
+            "REQ-005"
+          ],
+          "rule_id": "r_upload_y",
+          "test_cases": []
+        },
+        {
+          "category": "package",
+          "implementation": {
+            "kind": "builtin",
+            "op": "package.zip",
+            "params": {
+              "compression": "deflate",
+              "level": 6,
+              "paths": "relative_to_prefix",
+              "store_if_compressed": true,
+              "zip64": "auto"
+            }
+          },
+          "inputs": [
+            "files"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "package"
+          ],
+          "plain_english": "Zip all files, keeping their folder structure below the message's folder, in a fixed order so that the same files always give the same zip.",
+          "preconditions": [],
+          "requirements": [
+            "REQ-003"
+          ],
+          "rule_id": "r_zip",
+          "test_cases": []
+        }
+      ]
+    },
+    "security": {
+      "security_and_access": {
+        "audit": {
+          "enabled": true,
+          "events": [
+            "delivery",
+            "destination_resolution",
+            "portal_call",
+            "rule_result",
+            "secret_access"
+          ],
+          "evidence_retention": "10y"
+        },
+        "checksums": {
+          "delivery_sidecars": [
+            "md5",
+            "sha256"
+          ],
+          "manifest": [
+            "sha256"
+          ]
+        },
+        "data_classification": "restricted",
+        "encryption_at_rest": {
+          "s3_destinations": "sse_kms",
+          "staging": "sse_kms"
+        },
+        "gxp_tier": "gxp_indirect",
+        "package_encryption": "none",
+        "residency": {
+          "allowed_regions": [
+            "eu-west-1"
+          ]
+        },
+        "retention": {
+          "run_logs": "400d",
+          "staging_after_failure": "30d",
+          "staging_after_success": "7d"
+        }
+      }
+    }
+  },
+  "pipeline_id": "study_pkg_delivery",
+  "schema_version": "1.0.0",
+  "spec_version": "0.1.0"
+}
