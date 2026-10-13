@@ -19,7 +19,7 @@ from factory_core import cel, units
 from ..catalog import engine_table, op_catalog
 from ..codes import issue
 from ..derive import ArtifactGraph, derive_artifacts
-from ..estimate import estimate_lambda_seconds
+from ..estimate import allowed_engines, estimate_lambda_seconds
 from ..files import SPEC_DIR, SPEC_FILES
 from ..imports import check_plugin_source
 from ..repo import Repo
@@ -801,20 +801,6 @@ def check_environments(ctx: Context) -> Iterable[Issue]:
 # ---------------------------------------------------------------- engines and workload
 
 
-def _allowed_engines(task_rules: list[Any]) -> set[str]:
-    allowed = {"lambda", "eks_pod", "eks_pod_spot", "mwaa", "fivetran_native", "fivetran_sdk"}
-    for r in task_rules:
-        impl = r.implementation
-        if impl.kind == "builtin" and impl.op in op_catalog() and op_catalog()[impl.op].status == "available":
-            engines = set(op_catalog()[impl.op].allowed_engines)
-            if "eks_pod" in engines:
-                engines.add("eks_pod_spot")
-            allowed &= engines
-        else:
-            allowed &= {"lambda", "eks_pod", "eks_pod_spot"}
-    return allowed
-
-
 def check_engines(ctx: Context) -> Iterable[Issue]:
     sp = ctx.spec
     table = engine_table()
@@ -832,7 +818,7 @@ def check_engines(ctx: Context) -> Iterable[Issue]:
             continue
         loc = f"orchestration.tasks[{t.task_id}].engine"
         rules = [r for r in (sp.rule(x) for x in t.rules) if r is not None]
-        allowed = _allowed_engines(rules)
+        allowed = allowed_engines(rules)
         if t.engine not in allowed:
             yield issue(
                 "engine_not_allowed",

@@ -13,6 +13,26 @@ from typing import Any
 from .catalog import engine_table, op_catalog
 from .spec import PipelineSpec
 
+ALL_ENGINES = ("lambda", "eks_pod", "eks_pod_spot", "mwaa", "fivetran_native", "fivetran_sdk")
+BUNDLE_ENGINES = frozenset({"lambda", "eks_pod", "eks_pod_spot"})  # engines that run the runtime image and bundle
+
+
+def allowed_engines(task_rules: list[Any]) -> set[str]:
+    """Engines every rule of the task can run on: the catalog's allowed engines (spot wherever eks_pod is allowed);
+    expressions and custom code need the runtime (Lambda or a pod)."""
+    allowed = set(ALL_ENGINES)
+    for r in task_rules:
+        impl = r.implementation
+        c = op_catalog().get(impl.op) if impl.kind == "builtin" else None
+        if c is not None and c.status == "available":
+            engines = set(c.allowed_engines)
+            if "eks_pod" in engines:
+                engines.add("eks_pod_spot")
+            allowed &= engines
+        else:
+            allowed &= BUNDLE_ENGINES
+    return allowed
+
 
 def _delivery_bps(spec: PipelineSpec, slot_id: str) -> int:
     table = engine_table()

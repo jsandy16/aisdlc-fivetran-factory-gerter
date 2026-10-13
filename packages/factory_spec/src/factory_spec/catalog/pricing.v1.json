@@ -1,0 +1,28 @@
+{
+  "currency": "USD",
+  "default_region": "eu-west-1",
+  "mwaa_task_marginal": "0",
+  "pod_utilisation": "0.35",
+  "regions": {
+    "eu-west-1": {
+      "lambda_gb_second": "0.0000166667",
+      "lambda_request": "0.0000002",
+      "pod_gb_hour": "0.004865",
+      "pod_vcpu_hour": "0.04456"
+    },
+    "us-east-1": {
+      "lambda_gb_second": "0.0000166667",
+      "lambda_request": "0.0000002",
+      "pod_gb_hour": "0.004445",
+      "pod_vcpu_hour": "0.04048"
+    }
+  },
+  "sizing": {
+    "control": {"lambda_memory_mb": 512, "pod_memory_gb": "0.5", "pod_vcpu": "0.25"},
+    "data": {"lambda_memory_mb": 2048, "pod_memory_gb": "2", "pod_vcpu": "1"}
+  },
+  "source": "AWS public prices (Lambda x86 per GB-second and request; Fargate vCPU-hour and GB-hour as the pod proxy). PLACEHOLDER until calibrated in Phase 6/8.",
+  "spot_discount": "0.65",
+  "status": "placeholder",
+  "version": "0.1.0"
+}

@@ -6,9 +6,11 @@ from .contracts import (
     ENGINES,
     EngineTable,
     OpContract,
+    Pricing,
     engine_table,
     op_catalog,
     ops_for_category,
+    pricing,
 )
 
 __all__ = [
@@ -17,7 +19,9 @@ __all__ = [
     "ENGINES",
     "EngineTable",
     "OpContract",
+    "Pricing",
     "engine_table",
     "op_catalog",
     "ops_for_category",
+    "pricing",
 ]

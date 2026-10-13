@@ -303,6 +303,29 @@ def remove(
     return _edit("remove", name, file, path, None, keep_invalid)
 
 
+@app.command("plan")
+def plan_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
+    """Print the engine decision of every task (placeholder prices; never written to the lock)."""
+    from .plan.engine import plan
+
+    d = _pipeline_dir(name)
+    res = validate_dir(d)
+    if res.load.spec is None or res.errors:
+        return _emit(
+            Result(command="plan", ok=False, issues=res.errors, data={"error": "fix the validation errors first"})
+        )
+    out = plan(res.load.spec)
+    bad = [x for x in out["engine_decisions"] if x["choice"] is None]
+    issues = [Issue(code="engine_infeasible", msg=f"{x['task_id']}: {x['reason']}", loc=x["task_id"]) for x in bad]
+    if STATE.json:
+        return _emit(Result(command="plan", ok=not bad, issues=issues, data=out))
+    typer.echo(f"plan: {'OK' if not bad else 'PROBLEMS'}  (pricing {out['pricing']})")
+    for x in out["engine_decisions"]:
+        why = f"; filtered {[f['engine'] for f in x['filters']]}" if x["filters"] else ""
+        typer.echo(f"  {x['task_id']:24} {x['requested']:>15} -> {x['choice'] or '-':14} {x['reason']}{why}")
+    return 0 if not bad else 1
+
+
 # ---------------------------------------------------------------- entry point
 
 

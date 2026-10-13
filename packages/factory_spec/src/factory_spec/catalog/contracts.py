@@ -103,6 +103,37 @@ class EngineTable(_M):
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
 
+_DECIMAL = r"^(0|[1-9][0-9]*)(\.[0-9]+)?$"
+
+
+class RegionPrices(_M):
+    lambda_gb_second: str = Field(pattern=_DECIMAL)
+    lambda_request: str = Field(pattern=_DECIMAL)
+    pod_vcpu_hour: str = Field(pattern=_DECIMAL)
+    pod_gb_hour: str = Field(pattern=_DECIMAL)
+
+
+class Sizing(_M):
+    lambda_memory_mb: int
+    pod_vcpu: str = Field(pattern=_DECIMAL)
+    pod_memory_gb: str = Field(pattern=_DECIMAL)
+
+
+class Pricing(_M):
+    """Unit prices for the engine planner. Decimal strings (never floats): canonical JSON and exact arithmetic."""
+
+    version: str
+    status: Literal["placeholder", "calibrated"]
+    source: str
+    currency: Literal["USD"]
+    default_region: str
+    regions: dict[str, RegionPrices]
+    spot_discount: str = Field(pattern=_DECIMAL)
+    pod_utilisation: str = Field(pattern=_DECIMAL)
+    mwaa_task_marginal: str = Field(pattern=_DECIMAL)
+    sizing: dict[Literal["data", "control"], Sizing]
+
+
 def _load(name: str) -> object:
     return json.loads(resources.files("factory_spec.catalog").joinpath(name).read_text(encoding="utf-8"))
 
@@ -119,6 +150,11 @@ def op_catalog() -> dict[str, OpContract]:
 @cache
 def engine_table() -> EngineTable:
     return EngineTable.model_validate(_load("engine_table.v1.json"))
+
+
+@cache
+def pricing() -> Pricing:
+    return Pricing.model_validate(_load("pricing.v1.json"))
 
 
 def ops_for_category(category: str, *, status: str | None = None) -> list[OpContract]:
