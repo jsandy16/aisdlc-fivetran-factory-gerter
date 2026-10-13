@@ -159,6 +159,19 @@ class Receipt(Doc):
     files: list[ReceiptFile] = Field(default_factory=list)
 
 
+class SyncReport(Doc):
+    """What a Fivetran sync did: which connection, whether this run started it, when it finished (fivetran.sync)."""
+
+    kind: Literal["report"] = "report"
+    report_type: Literal["fivetran_sync"] = "fivetran_sync"
+    connection: str
+    connection_id: str
+    outcome: Literal["succeeded", "triggered"]
+    triggered: bool
+    previous_succeeded_at: str | None = None
+    succeeded_at: str | None = None
+
+
 ARTIFACT_MODELS: dict[str, type[Doc]] = {
     "message": TriggerSnapshot,
     "object_listing": ObjectListing,
@@ -168,6 +181,7 @@ ARTIFACT_MODELS: dict[str, type[Doc]] = {
     "manifest": Manifest,
     "checksum": ChecksumRecord,
     "receipt": Receipt,
+    "report": SyncReport,
 }
 
 
@@ -189,6 +203,8 @@ def facet(kind: str, doc: Any) -> Any:
         return {"file_count": doc.file_count, "total_bytes": doc.total_bytes, "package_size": doc.package.size}
     if isinstance(doc, ChecksumRecord):
         return {"size": doc.size, **doc.digests}
+    if isinstance(doc, SyncReport):
+        return {"outcome": doc.outcome, "succeeded_at": doc.succeeded_at}
     if isinstance(doc, Receipt):
         return {"outcome": doc.outcome, "verification": doc.verification, "size": doc.size}
     return {}

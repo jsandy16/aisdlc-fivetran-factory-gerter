@@ -1,0 +1,12 @@
+# environments.yaml: per-environment bindings. Owner: platform. Placement aliases come from the platform settings.
+environments:
+  dev:
+    enabled: true
+    placement: {orchestration: mwaa, workload: team}
+    secrets: {aws_secrets_manager: {prefix: factory/}}
+    sources:
+      crm_db: {fivetran_group: grp_unit_dev}
+    alert_channels:
+      data_owner: {type: sns, topic: unit-data-alerts-dev}
+      platform: {type: sns, topic: unit-platform-alerts-dev}
+      security: {type: sns, topic: unit-security-alerts-dev}

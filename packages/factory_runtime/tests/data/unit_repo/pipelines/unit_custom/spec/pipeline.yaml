@@ -1,0 +1,43 @@
+# Synthetic test pipeline for custom rules (plugin API): a name, then a custom rule that labels it.
+api_version: factory/v1
+kind: Pipeline
+schema_version: 1.0.0
+metadata:
+  pipeline_id: unit_custom
+  name: Unit custom rule pipeline
+  description: Synthetic pipeline used by the runtime tests of the custom-rule plugin interface.
+  team: clinops_data
+  spec_version: 0.1.0
+  owners: {business_owner: "@alice-ba", data_engineer: "@bob-de", governance: "@carol-qa", platform: "@dan-platform"}
+  requirements: []
+  tags: {cost_centre: CC1234}
+variables:
+  request_id: trigger.conf.request_id
+  study_id: trigger.conf.study_id
+trigger:
+  type: manual
+  conf:
+    unknown_fields: reject
+    fields:
+      request_id: {type: string, pattern: "^[A-Za-z0-9-]{8,64}$"}
+      study_id: {type: string, pattern: "^[A-Z]{3}[0-9]{3,5}$"}
+orchestration:
+  dag: {catchup: false, max_active_runs: 1, timeout: 1h}
+  tasks:
+    - task_id: t1_label
+      label: Name the file and label it
+      rules: [r_name, r_label]
+      engine: lambda
+      timeout: 5m
+reliability:
+  run_key: "{request_id}"
+  retry: {max_attempts: 3, backoff: exponential_jitter, base: 10s, max: 5m}
+  replay_window: 7d
+observability:
+  alerts: {transient: none, data: data_owner, config: platform, security: security}
+workload:
+  bytes_per_run: {p50: 1KB, p95: 1KB, max: 1KB}
+  files_per_run: {p50: 0, p95: 0, max: 0}
+  runs_per_day: 1
+cost: {budget_per_run_usd: "0.01", budget_per_month_usd: "1.00"}
+open_questions: []

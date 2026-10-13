@@ -29,6 +29,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["factory_core/tests", "factory_spec/tests", "factory/tests", "factory_runtime/tests", "factory_testing/tests"]
 addopts = "-q --strict-markers -m 'not spike'"
+norecursedirs = ["data", ".*", "build", "dist", "*.egg-info", "node_modules", "__pycache__"]  # tests/data holds spec repos
 markers = [
   "spike: opt-in measurement runs (pytest -m spike)",
   "slow: slower integration tests",

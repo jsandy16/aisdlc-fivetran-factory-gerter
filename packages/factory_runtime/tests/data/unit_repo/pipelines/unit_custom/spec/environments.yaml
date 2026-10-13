@@ -1,0 +1,8 @@
+environments:
+  dev:
+    enabled: true
+    placement: {orchestration: mwaa, workload: team}
+    alert_channels:
+      data_owner: {type: sns, topic: unit-data-alerts-dev}
+      platform: {type: sns, topic: unit-platform-alerts-dev}
+      security: {type: sns, topic: unit-security-alerts-dev}

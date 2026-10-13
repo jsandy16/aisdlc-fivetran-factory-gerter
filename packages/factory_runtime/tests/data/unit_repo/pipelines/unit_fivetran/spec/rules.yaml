@@ -1,0 +1,7 @@
+# rules.yaml: every step in plain English. Owner: business owner / BA.
+rules:
+  - rule_id: r_sync
+    category: integration
+    plain_english: Run the Fivetran sync of the CRM database and wait until it has finished.
+    implementation: {kind: builtin, op: fivetran.sync, params: {connection: crm_db, wait: true, timeout: 2h}}
+    outputs: [sync_report]

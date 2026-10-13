@@ -1,0 +1,260 @@
+{
+  "api_version": "factory/v1",
+  "bindings": {
+    "dev": {
+      "destinations": [],
+      "environment": {
+        "alert_channels": {
+          "data_owner": {
+            "topic": "unit-data-alerts-dev",
+            "type": "sns"
+          },
+          "platform": {
+            "topic": "unit-platform-alerts-dev",
+            "type": "sns"
+          },
+          "security": {
+            "topic": "unit-security-alerts-dev",
+            "type": "sns"
+          }
+        },
+        "apis": {},
+        "enabled": true,
+        "placement": {
+          "orchestration": "mwaa",
+          "workload": "team"
+        },
+        "portal": null,
+        "queues": {},
+        "schedule_cron": null,
+        "secrets": {
+          "aws_secrets_manager": {
+            "prefix": "factory/"
+          },
+          "vault": null
+        },
+        "sources": {
+          "crm_db": {
+            "bucket": null,
+            "buckets": [],
+            "fivetran_group": "grp_unit_dev",
+            "placement": "team",
+            "prefix_roots": []
+          }
+        }
+      }
+    }
+  },
+  "derived": {
+    "artifacts": {
+      "sync_report": {
+        "consumers": [],
+        "durability": "local",
+        "kind": "report",
+        "producer": "r_sync",
+        "task": "t1_sync"
+      }
+    },
+    "op_contracts": {
+      "fivetran.sync": {
+        "contract_sha": "a120ea657d7f1af2c2e3c811a837e28ca9de05598efb2d45d9bc5e525c1c29f0",
+        "version": "1.0.0"
+      }
+    }
+  },
+  "hashes": {
+    "binding_sha": {
+      "dev": "6edbffc576ddfe0a5cd217d590f92142931e9c4b217eb04d8bc9ea62889ecd34"
+    },
+    "derived_sha": "4f8eeb677eca059c641b012daac95177660f2a02256c3a544d0a3ebf1ff24306",
+    "logic_sha": "c8a41e0a318e8be2a534eb4358f9b89a3b1b909efd77a8e180c1f8e9af623dd7"
+  },
+  "lock_version": 1,
+  "logic": {
+    "integrations": {
+      "apis": [],
+      "destinations": [],
+      "portal": null,
+      "secrets": {
+        "crm_db_credentials": {
+          "key": null,
+          "kind": "password",
+          "path": "{team}/{env}/crm-db",
+          "provider": "aws_secrets_manager",
+          "version": null
+        }
+      },
+      "sources": [
+        {
+          "credentials": "crm_db_credentials",
+          "engine": "postgres",
+          "id": "crm_db",
+          "label": "CRM database (read-only user)",
+          "tables": [
+            "public.accounts",
+            "public.contacts"
+          ],
+          "type": "database"
+        }
+      ]
+    },
+    "pipeline": {
+      "api_version": "factory/v1",
+      "artifacts": {},
+      "cost": {
+        "budget_per_month_usd": "120.00",
+        "budget_per_run_usd": "1.00"
+      },
+      "kind": "Pipeline",
+      "metadata": {
+        "description": "Replicate the CRM database tables into the data lake with Fivetran every six hours.",
+        "name": "CRM tables to the lake",
+        "owners": {
+          "business_owner": "@alice-ba",
+          "data_engineer": "@bob-de",
+          "governance": "@carol-qa",
+          "platform": "@dan-platform"
+        },
+        "pipeline_id": "unit_fivetran",
+        "requirements": [],
+        "spec_version": "0.1.0",
+        "tags": {
+          "cost_centre": "CC1234"
+        },
+        "team": "clinops_data"
+      },
+      "observability": {
+        "alerts": {
+          "config": "platform",
+          "data": "data_owner",
+          "security": "security",
+          "transient": "none"
+        },
+        "sla": 10800
+      },
+      "open_questions": [],
+      "orchestration": {
+        "dag": {
+          "catchup": false,
+          "max_active_runs": 2,
+          "timeout": 14400
+        },
+        "pool": null,
+        "tasks": [
+          {
+            "depends_on": [],
+            "engine": "fivetran_native",
+            "label": "Run the Fivetran sync",
+            "retry": null,
+            "rules": [
+              "r_sync"
+            ],
+            "task_id": "t1_sync",
+            "timeout": 7200
+          }
+        ]
+      },
+      "reliability": {
+        "replay_window": 2592000,
+        "retry": {
+          "backoff": "exponential_jitter",
+          "base": 10,
+          "max": 300,
+          "max_attempts": 3
+        },
+        "run_key": "{run_date}"
+      },
+      "schema_version": "1.0.0",
+      "trigger": {
+        "cron": "0 */6 * * *",
+        "type": "schedule"
+      },
+      "variables": {
+        "run_date": "trigger.schedule.run_date"
+      },
+      "workload": {
+        "bytes_per_run": {
+          "max": 5000000000,
+          "p50": 100000000,
+          "p95": 1000000000
+        },
+        "files_per_run": {
+          "max": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "runs_per_day": 4
+      }
+    },
+    "rules": {
+      "rules": [
+        {
+          "category": "integration",
+          "implementation": {
+            "kind": "builtin",
+            "op": "fivetran.sync",
+            "params": {
+              "connection": "crm_db",
+              "timeout": 7200,
+              "wait": true
+            }
+          },
+          "inputs": [],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "sync_report"
+          ],
+          "plain_english": "Run the Fivetran sync of the CRM database and wait until it has finished.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_sync",
+          "test_cases": []
+        }
+      ]
+    },
+    "security": {
+      "security_and_access": {
+        "audit": {
+          "enabled": true,
+          "events": [
+            "delivery",
+            "destination_resolution",
+            "portal_call",
+            "rule_result",
+            "secret_access"
+          ],
+          "evidence_retention": "10y"
+        },
+        "checksums": {
+          "delivery_sidecars": [],
+          "manifest": [
+            "sha256"
+          ]
+        },
+        "data_classification": "internal",
+        "encryption_at_rest": {
+          "s3_destinations": "sse_kms",
+          "staging": "sse_kms"
+        },
+        "gxp_tier": "non_gxp",
+        "package_encryption": "none",
+        "residency": {
+          "allowed_regions": [
+            "eu-west-1"
+          ]
+        },
+        "retention": {
+          "run_logs": "400d",
+          "staging_after_failure": "30d",
+          "staging_after_success": "7d"
+        }
+      }
+    }
+  },
+  "pipeline_id": "unit_fivetran",
+  "schema_version": "1.0.0",
+  "spec_version": "0.1.0"
+}

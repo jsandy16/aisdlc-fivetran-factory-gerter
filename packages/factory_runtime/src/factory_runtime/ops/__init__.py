@@ -57,11 +57,7 @@ def op(name: str) -> Callable[[OpFn], OpFn]:
 
 def load_all() -> dict[str, OpFn]:
     for m in _MODULES:
-        try:
-            importlib.import_module(f"{__name__}.{m}")
-        except ModuleNotFoundError as exc:
-            if exc.name != f"{__name__}.{m}":
-                raise
+        importlib.import_module(f"{__name__}.{m}")
     return REGISTRY
 
 

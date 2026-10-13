@@ -1,0 +1,17 @@
+rules:
+  - rule_id: r_name
+    category: naming
+    plain_english: Name the file <study>_<sequence>.txt, for example ONC101_0001.txt.
+    implementation: {kind: builtin, op: naming.render, params: {template: "{study_id}_{seq:04d}.txt"}}
+    outputs: [file_name]
+  - rule_id: r_label
+    category: transform
+    plain_english: Label the file name as <study>:<sequence>:<length>, for example ONC101:0001:15.
+    implementation: {kind: custom, code_sha256: "86e388e8c04e5c7570eab3fd7a203d6434766913b80ca251660511e2944b71f8", output_kinds: {label: value}}
+    inputs: [file_name]
+    outputs: [label]
+    on_failure: {action: fail, error_class: data}
+    test_cases:
+      - name: example
+        given: {file_name: ONC101_0001.txt}
+        expect: {value: "ONC101:0001:15"}
