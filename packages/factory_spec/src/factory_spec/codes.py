@@ -88,6 +88,9 @@ CODES: dict[str, CodeInfo] = {
     ),
     "trigger_field_missing": CodeInfo("error", "Declare the field in the trigger message as a required string."),
     "recursive_without_include": CodeInfo("error", 'Add at least one include pattern, e.g. ["**/*"].'),
+    "glob_invalid": CodeInfo(
+        "error", "Fix the pattern: *, ?, [abc] and whole-segment ** only, relative, no backslash."
+    ),
     "source_unconstrained": CodeInfo(
         "error", "List the allowed buckets and prefix roots for this source in every environment."
     ),
@@ -153,6 +156,9 @@ CODES: dict[str, CodeInfo] = {
         "error", "Update code_sha256 to the sha256 of rules/<rule_id>/impl.py after review."
     ),
     "custom_rule_untested": CodeInfo("error", "Add rules/<rule_id>/test_impl.py and owner test_cases."),
+    "custom_rule_import_forbidden": CodeInfo(
+        "error", "Use only the plugin API and the allowed standard modules; no I/O, network or dynamic code."
+    ),
     # lock
     "lock_missing": CodeInfo("error", "Run `factory lock <pipeline>` and commit spec.lock.json."),
     "lock_stale": CodeInfo("error", "Run `factory lock <pipeline>`; the spec changed since the lock was written."),

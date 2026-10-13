@@ -478,6 +478,17 @@ CASES["custom_rule_untested"] = (
     "custom_rule_untested",
     lambda d: _make_custom(d, code=b"x = 1\n", sha=hashlib.sha256(b"x = 1\n").hexdigest(), test=False),
 )
+_SOCKET_CODE = b"import socket\n"
+CASES["custom_rule_import_forbidden"] = (
+    "custom_rule_import_forbidden",
+    lambda d: _make_custom(d, code=_SOCKET_CODE, sha=hashlib.sha256(_SOCKET_CODE).hexdigest(), test=True),
+)
+simple(
+    "glob_invalid",
+    "glob_invalid",
+    "rules.yaml",
+    lambda doc: rule(doc, "r_list_objects")["implementation"]["params"].update(include=["data**x"]),
+)
 
 # codes whose cases live in other test modules
 COVERED_ELSEWHERE = {

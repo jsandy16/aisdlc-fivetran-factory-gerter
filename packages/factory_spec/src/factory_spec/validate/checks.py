@@ -10,6 +10,7 @@ from functools import cached_property
 from typing import Any
 
 from factory_core.envelope import Issue
+from factory_core.globmatch import GlobError, check_glob
 from factory_core.pathmatch import may_overlap, parse_path_pattern
 from factory_core.templates import TemplateError, parse_template
 
@@ -18,7 +19,9 @@ from factory_core import cel, units
 from ..catalog import engine_table, op_catalog
 from ..codes import issue
 from ..derive import ArtifactGraph, derive_artifacts
+from ..estimate import estimate_lambda_seconds
 from ..files import SPEC_DIR, SPEC_FILES
+from ..imports import check_plugin_source
 from ..repo import Repo
 from ..sections.fields import FieldSpec
 from ..sections.integrations import PortalResolve, StaticResolve
@@ -447,6 +450,12 @@ def check_trigger_sources(ctx: Context) -> Iterable[Issue]:
                 f"{loc}.include",
                 "a recursive listing needs at least one include pattern",
             )
+        for field_name in ("include", "exclude"):
+            for i, g in enumerate(getattr(p, field_name)):
+                try:
+                    check_glob(g)
+                except GlobError as exc:
+                    yield issue("glob_invalid", R, f"{loc}.{field_name}[{i}]", str(exc))
 
 
 # ---------------------------------------------------------------- portal and destinations
@@ -806,48 +815,6 @@ def _allowed_engines(task_rules: list[Any]) -> set[str]:
     return allowed
 
 
-def estimate_lambda_seconds(ctx: Context, task_rules: list[Any]) -> int:
-    """Seconds for the task on Lambda at workload.max: streaming ops are fused (slowest stage wins), plus overheads."""
-    table = engine_table()
-    nbytes = ctx.spec.pipeline.workload.bytes_per_run.max
-    total = 0.0
-    seg: float | None = None
-    prev_streams = False
-    slots = {s.id: s for s in ctx.spec.integrations.destinations}
-    for r in task_rules:
-        impl = r.implementation
-        c = op_catalog().get(impl.op) if impl.kind == "builtin" else None
-        if c is None or c.status != "available":
-            total += 1
-            continue
-        res = c.resources.get("lambda")
-        total += res.overhead_s if res else 5
-        bps = res.bytes_per_s if res else None
-        if impl.op == "destination.deliver":
-            slot = slots.get(impl.params.slot)
-            types = set(slot.allowed_types) if slot else {"sftp"}
-            entry_types = {
-                e.type for es in ctx.spec.destinations.destinations.values() for e in es if slot and slot.id in e.slots
-            } or types
-            bps = min(table.delivery_bytes_per_s[t] for t in entry_types)
-        streams_in = bool(c.inputs) and c.inputs[0].streaming
-        if bps:
-            if seg is not None and prev_streams and streams_in:
-                seg = min(seg, bps)
-            else:
-                if seg is not None:
-                    total += nbytes / seg
-                seg = bps
-        else:
-            if seg is not None:
-                total += nbytes / seg
-            seg = None
-        prev_streams = bool(c.outputs) and c.outputs[0].streaming
-    if seg is not None:
-        total += nbytes / seg
-    return round(total)
-
-
 def check_engines(ctx: Context) -> Iterable[Issue]:
     sp = ctx.spec
     table = engine_table()
@@ -883,7 +850,7 @@ def check_engines(ctx: Context) -> Iterable[Issue]:
                     f"orchestration.tasks[{t.task_id}].timeout",
                     f"Lambda stops after {lim}s; timeout is {t.timeout}s",
                 )
-            est = estimate_lambda_seconds(ctx, rules)
+            est = estimate_lambda_seconds(ctx.spec, rules)
             safety = table.lambda_.safety_factor
             if est > lim:
                 yield issue(
@@ -983,6 +950,13 @@ def check_custom(ctx: Context) -> Iterable[Issue]:
             continue
         if hashlib.sha256(impl.read_bytes()).hexdigest() != r.implementation.code_sha256:
             yield issue("custom_rule_code_mismatch", R, f"{loc}.code_sha256", "the code changed since it was reviewed")
+        for finding in check_plugin_source(impl.read_text(encoding="utf-8", errors="replace")):
+            yield issue(
+                "custom_rule_import_forbidden",
+                R,
+                loc,
+                f"rules/{r.rule_id}/impl.py line {finding.line}: {finding.msg}",
+            )
         if not (d / "test_impl.py").is_file() or not r.test_cases:
             yield issue("custom_rule_untested", R, loc, "custom rules need test_impl.py and owner test_cases")
 
