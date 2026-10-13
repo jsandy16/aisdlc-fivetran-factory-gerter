@@ -170,7 +170,7 @@ Decisions D1–D10 were made by the user on 2026-10-13. Assumptions still open a
 | Phase | Content | Status |
 |---|---|---|
 | 1 | Architecture, ADRs, repo skeleton | done; amended with D1–D10 |
-| 2 | Spec models, JSON Schema, starters, worked example, validator tests ([design](phase-2-design.md)) | in progress |
+| 2 | Spec models, JSON Schema, starters, worked example, validator tests ([design](phase-2-design.md), [as built](phase-2-design.md#i-as-built-differences-from-this-design-and-why)) | done; awaiting review |
 | 3 | Runtime op library, secret provider, portal client, plugin interface | planned |
 | 4 | Agents, orchestrator, gates, skills | planned |
 | 5 | Generators (DAG, Lambda, EKS, Fivetran) and Terraform/IAM | planned |
