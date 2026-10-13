@@ -1,0 +1,40 @@
+# pipeline.yaml: identity, trigger, tasks, reliability, observability, workload, cost.
+# Owner: data engineer. Fill every <REQUIRED>; `factory validate <id> --allow-unfilled` lists what is left.
+api_version: factory/v1
+kind: Pipeline
+schema_version: 1.0.0
+metadata:
+  pipeline_id: rest_export
+  name: "REST API export"
+  description: "Fetch every page of a vendor API once a day, zip the pages and store them in the landing bucket."
+  team: "<REQUIRED>"
+  spec_version: 0.1.0
+  owners: {business_owner: "<REQUIRED>", data_engineer: "<REQUIRED>", governance: "<REQUIRED>", platform: "<REQUIRED>"}
+  requirements: []
+  tags: {cost_centre: "<REQUIRED>"}
+variables:
+  run_date: trigger.schedule.run_date
+trigger:
+  type: schedule
+  cron: "0 5 * * *"
+orchestration:
+  dag: {catchup: false, max_active_runs: 2, timeout: 4h}
+  tasks:
+    - task_id: t1_fetch_and_store
+      label: Fetch, package and store
+      rules: [r_fetch, r_zip, r_manifest, r_name, r_store]
+      engine: auto
+      timeout: 60m
+reliability:
+  run_key: "{run_date}"
+  retry: {max_attempts: 3, backoff: exponential_jitter, base: 10s, max: 5m}
+  replay_window: 30d
+observability:
+  alerts: {transient: none, data: data_owner, config: platform, security: security}
+  sla: 3h
+workload:
+  bytes_per_run: {p50: 50MB, p95: 500MB, max: 2GB}
+  files_per_run: {p50: 100, p95: 1000, max: 5000}
+  runs_per_day: 1
+cost: {budget_per_run_usd: "<REQUIRED>", budget_per_month_usd: "<REQUIRED>"}
+open_questions: []

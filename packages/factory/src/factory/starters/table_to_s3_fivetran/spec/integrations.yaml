@@ -1,0 +1,10 @@
+# integrations.yaml: sources and secrets. Owner: data engineer. The connector itself is provisioned in Phase 5.
+sources:
+  - id: crm_db
+    type: database
+    label: CRM database (read-only user)
+    engine: postgres
+    credentials: crm_db_credentials
+    tables: ["<REQUIRED>"]
+secrets:
+  crm_db_credentials: {provider: aws_secrets_manager, path: "{team}/{env}/crm-db", kind: password}

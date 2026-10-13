@@ -1,0 +1,1 @@
+description = "S3 event -> server-side copy to an archive bucket (event-driven, Lambda)"

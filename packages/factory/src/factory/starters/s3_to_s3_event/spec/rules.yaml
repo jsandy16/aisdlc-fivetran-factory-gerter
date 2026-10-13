@@ -1,0 +1,19 @@
+# rules.yaml: every step in plain English. Owner: business owner / BA.
+rules:
+  - rule_id: r_read_event
+    category: integration
+    plain_english: Take the S3 event that started this run, exactly as it was received.
+    implementation: {kind: builtin, op: sqs.read}
+    outputs: [event]
+  - rule_id: r_list_object
+    category: extract
+    plain_english: Find the new object named in the event and check that it exists.
+    implementation: {kind: builtin, op: s3.list, params: {source: source_bucket, recursive: false, include: ["*"], max_objects: 1}}
+    inputs: [event]
+    outputs: [objects]
+  - rule_id: r_copy
+    category: upload
+    plain_english: Copy the object to the archive bucket without changing it, and never overwrite an existing copy.
+    implementation: {kind: builtin, op: s3.copy, params: {slot: archive}}
+    inputs: [objects]
+    outputs: [copied]

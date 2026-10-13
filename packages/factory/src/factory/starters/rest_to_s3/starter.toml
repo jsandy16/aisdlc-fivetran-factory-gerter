@@ -1,0 +1,1 @@
+description = "Scheduled REST API export -> zip + manifest -> S3 (static destination)"

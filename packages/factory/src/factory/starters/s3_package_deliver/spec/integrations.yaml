@@ -1,0 +1,59 @@
+# integrations.yaml: sources, the self-service portal, destination slots and secret references.
+# Owner: data engineer (CODEOWNERS). Concrete buckets, URLs and hosts live in environments.yaml / destinations.yaml.
+sources:
+  - id: landing
+    type: s3
+    label: Clinops landing bucket (uploaded study packages)
+    location: {via: trigger, bucket_field: bucket, prefix_field: prefix}
+portal:
+  label: Self-service portal
+  auth: {type: oauth2_client_credentials, token_path: /oauth2/token, client: portal_client, scopes: [delivery-targets.read]}
+  reliability:
+    connect_timeout: 5s
+    read_timeout: 30s
+    max_attempts: 5
+    backoff_base: 1s
+    backoff_max: 30s
+    retry_on_status: [429, 500, 502, 503, 504]
+    honour_retry_after: true
+    breaker_failure_threshold: 5
+    breaker_reset_after: 60s
+    rate_limit_per_second: 5
+  endpoints:
+    - id: delivery_targets
+      method: GET
+      path: "/api/v1/studies/{study_id}/delivery-targets"
+      query: {status: active}
+      pagination: {type: none}
+      response:
+        unknown_fields: ignore
+        fields:
+          study_id: {type: string}
+          targets:
+            type: list
+            max_items: 10
+            items:
+              type: object
+              fields:
+                slot: {type: enum, values: [x, y]}
+                uri: {type: string, max_length: 1024}
+                active: {type: boolean}
+      mapping:
+        destinations:
+          x: "targets[?slot=='x' && active] | [0].uri"
+          y: "targets[?slot=='y' && active] | [0].uri"
+        expect:
+          - {path: study_id, equals: "{study_id}"}    # the portal must answer for the study we asked about
+destinations:
+  - id: x
+    label: Destination x (primary delivery, chosen in the portal)
+    resolve: {via: portal, endpoint: delivery_targets}
+    allowed_types: [https, s3, sftp]
+    required: true
+  - id: y
+    label: Destination y (archive copy, chosen in the portal)
+    resolve: {via: portal, endpoint: delivery_targets}
+    allowed_types: [s3, sftp]
+    required: true
+secrets:
+  portal_client: {provider: aws_secrets_manager, path: "{team}/{env}/portal-client", kind: oauth_client}

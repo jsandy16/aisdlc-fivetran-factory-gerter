@@ -1,0 +1,6 @@
+# destinations.yaml: approved delivery targets per environment (none: Fivetran writes to its lake destination).
+destinations:
+  dev: []
+  test: []
+  ppt: []
+  prod: []

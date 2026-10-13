@@ -1,0 +1,30 @@
+# rules.yaml: every step in plain English. Owner: business owner / BA.
+rules:
+  - rule_id: r_fetch
+    category: extract
+    plain_english: Fetch every page of the vendor's items endpoint and keep each page as a JSON file.
+    implementation: {kind: builtin, op: rest.fetch, params: {api: vendor_api, endpoint: items, format: json}}
+    outputs: [pages]
+  - rule_id: r_zip
+    category: package
+    plain_english: Zip all pages in a fixed order so the same pages always give the same zip.
+    implementation: {kind: builtin, op: package.zip, params: {paths: full_key}}
+    inputs: [pages]
+    outputs: [package]
+  - rule_id: r_manifest
+    category: package
+    plain_english: List every page in the zip with its size and SHA-256, plus the zip's own checksums.
+    implementation: {kind: builtin, op: manifest.build}
+    inputs: [package]
+    outputs: [manifest]
+  - rule_id: r_name
+    category: naming
+    plain_english: Name the stored zip items_<date>.zip, for example items_2026-10-13.zip.
+    implementation: {kind: builtin, op: naming.render, params: {template: "items_{run_date}.zip"}}
+    outputs: [package_name]
+  - rule_id: r_store
+    category: upload
+    plain_english: Store the zip in the landing bucket; never overwrite a zip that is already there.
+    implementation: {kind: builtin, op: s3.put, params: {slot: landing, object_name: package_name}}
+    inputs: [package, package_name]
+    outputs: [stored]

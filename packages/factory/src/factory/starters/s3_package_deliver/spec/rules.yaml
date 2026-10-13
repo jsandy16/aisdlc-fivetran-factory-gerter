@@ -1,0 +1,127 @@
+# rules.yaml: every step in plain English plus its structured implementation.
+# Owner: business owner / BA (CODEOWNERS).
+rules:
+  - rule_id: r_read_request
+    category: integration
+    plain_english: Take the package-ready message that started this run, exactly as it was received.
+    implementation: {kind: builtin, op: sqs.read}
+    outputs: [request]
+    requirements: [REQ-001]
+  - rule_id: r_portal_lookup
+    category: integration
+    plain_english: Ask the self-service portal where this study's packages must be delivered (destinations x and y).
+    implementation: {kind: builtin, op: portal.lookup, params: {endpoint: delivery_targets}}
+    inputs: [request]
+    outputs: [portal_answer]
+    on_failure: {action: fail, error_class: config}
+    requirements: [REQ-004]
+  - rule_id: r_resolve_destinations
+    category: integration
+    plain_english: >-
+      Accept each destination from the portal only if it matches a destination approved for this environment and
+      this study; otherwise stop the run and alert security.
+    implementation: {kind: builtin, op: destination.resolve, params: {slots: [x, y]}}
+    inputs: [portal_answer, request]
+    outputs: [destinations]
+    on_failure: {action: fail, error_class: security}
+    requirements: [REQ-004]
+    test_cases:
+      - name: approved_destinations
+        given: {env: test, vars: {study_id: ONC101}, portal: {x: "s3://acme-clinops-delivery-test/studies/ONC101/in/", y: "sftp://sftp-stub.test.acme.example/inbound/ONC101/"}}
+        expect: {x: test_delivery_s3, y: test_stub_sftp}
+      - name: other_study_rejected
+        given: {env: test, vars: {study_id: ONC101}, portal: {x: "s3://acme-clinops-delivery-test/studies/ONC999/in/", y: "sftp://sftp-stub.test.acme.example/inbound/ONC101/"}}
+        expect: {error_class: security, code: destination_not_allowed}
+  - rule_id: r_list_objects
+    category: extract
+    plain_english: List every object under the bucket and folder named in the message, including sub-folders.
+    implementation:
+      kind: builtin
+      op: s3.list
+      params: {source: landing, recursive: true, include: ["**/*"], exclude: ["**/.DS_Store", "**/Thumbs.db"], max_objects: 20000, max_total_bytes: 10GB}
+    inputs: [request]
+    outputs: [listing]
+    requirements: [REQ-001]
+  - rule_id: r_check_listing
+    category: validate
+    plain_english: The number of files and their total size must equal what the message announced.
+    implementation:
+      kind: expression
+      cel: "artifacts.listing.count == vars.expected_files && artifacts.listing.total_bytes == vars.expected_bytes"
+    inputs: [listing]
+    on_failure: {action: fail, error_class: data}
+    requirements: [REQ-002]
+    test_cases:
+      - name: complete_upload
+        given: {artifacts: {listing: {count: 3, total_bytes: 1200}}, vars: {expected_files: 3, expected_bytes: 1200}}
+        expect: {result: pass}
+      - name: missing_file
+        given: {artifacts: {listing: {count: 2, total_bytes: 800}}, vars: {expected_files: 3, expected_bytes: 1200}}
+        expect: {result: fail}
+  - rule_id: r_download
+    category: extract
+    plain_english: Read each listed object as a stream, checking its size and ETag against the listing.
+    implementation: {kind: builtin, op: s3.download, params: {verify: size_and_etag, concurrency: 8}}
+    inputs: [listing]
+    outputs: [files]
+  - rule_id: r_zip
+    category: package
+    plain_english: >-
+      Zip all files, keeping their folder structure below the message's folder, in a fixed order so that the same
+      files always give the same zip.
+    implementation:
+      kind: builtin
+      op: package.zip
+      params: {paths: relative_to_prefix, compression: deflate, level: 6, store_if_compressed: true, zip64: auto}
+    inputs: [files]
+    outputs: [package]
+    requirements: [REQ-003]
+  - rule_id: r_manifest
+    category: package
+    plain_english: List every file in the zip with its path, size and SHA-256, plus the zip's own MD5 and SHA-256.
+    implementation:
+      kind: builtin
+      op: manifest.build
+      params: {file_algorithms: [sha256], package_algorithms: [md5, sha256], format: json}
+    inputs: [package, listing]
+    outputs: [manifest]
+    requirements: [REQ-003]
+  - rule_id: r_checksum
+    category: checksum
+    plain_english: Re-read the stored zip and compute its MD5 and SHA-256; both must equal the values recorded while zipping.
+    implementation: {kind: builtin, op: checksum.compute, params: {algorithms: [md5, sha256], compare_with_manifest: true}}
+    inputs: [package, manifest]
+    outputs: [package_checksum]
+    on_failure: {action: fail, error_class: data}
+    requirements: [REQ-003]
+  - rule_id: r_package_name
+    category: naming
+    plain_english: Name the delivered zip <study>_<package>.zip, for example ONC101_PKG0042.zip.
+    implementation: {kind: builtin, op: naming.render, params: {template: "{study_id}_{package_id}.zip"}}
+    outputs: [package_name]
+    test_cases:
+      - name: example
+        given: {vars: {study_id: ONC101, package_id: PKG0042}}
+        expect: {value: ONC101_PKG0042.zip}
+  - rule_id: r_upload_x
+    category: upload
+    plain_english: >-
+      Deliver the zip, its manifest and its .md5 and .sha256 files to destination x; never overwrite a file that is
+      already there, and re-check the delivered zip.
+    implementation:
+      kind: builtin
+      op: destination.deliver
+      params: {slot: x, object_name: package_name, manifest: true, sidecars: [md5, sha256], verify_after_write: true}
+    inputs: [package, manifest, package_checksum, package_name, destinations]
+    outputs: [delivered_x]
+    requirements: [REQ-005]
+  - rule_id: r_upload_y
+    category: upload
+    plain_english: Deliver the same files to destination y, under the same rules as destination x.
+    implementation:
+      kind: builtin
+      op: destination.deliver
+      params: {slot: y, object_name: package_name, manifest: true, sidecars: [md5, sha256], verify_after_write: true}
+    inputs: [package, manifest, package_checksum, package_name, destinations]
+    outputs: [delivered_y]
+    requirements: [REQ-005]

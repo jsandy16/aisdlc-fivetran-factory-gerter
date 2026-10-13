@@ -1,0 +1,72 @@
+# pipeline.yaml: identity, trigger, tasks, reliability, observability, workload, cost.
+# Owner: data engineer. Fill every <REQUIRED>; `factory validate <id> --allow-unfilled` lists what is left.
+api_version: factory/v1
+kind: Pipeline
+schema_version: 1.0.0
+metadata:
+  pipeline_id: study_pkg_delivery
+  name: Study package delivery
+  description: >-
+    When a study package has been uploaded to the clinops landing bucket, zip all of its files with a manifest,
+    checksum the zip, and deliver it to the two destinations (x and y) that the self-service portal names.
+  team: "<REQUIRED>"
+  spec_version: 0.1.0
+  owners: {business_owner: "<REQUIRED>", data_engineer: "<REQUIRED>", governance: "<REQUIRED>", platform: "<REQUIRED>"}
+  requirements: [REQ-001, REQ-002, REQ-003, REQ-004, REQ-005]
+  tags: {cost_centre: "<REQUIRED>"}
+variables:                          # the only names templates, destination patterns and CEL `vars` may use
+  request_id: trigger.message.request_id
+  study_id: trigger.message.study_id
+  package_id: trigger.message.package_id
+  expected_files: trigger.message.file_count
+  expected_bytes: trigger.message.total_bytes
+trigger:
+  type: sqs
+  mode: dispatch                    # a Lambda snapshots + dedupes the message, then starts the run (dag_run_id = run_key)
+  queue: package_ready
+  max_receive_count: 5
+  envelope: raw
+  message:                          # S3 package metadata sent when a package upload completes
+    unknown_fields: ignore
+    fields:
+      request_id: {type: string, pattern: "^[A-Za-z0-9-]{8,64}$"}
+      study_id: {type: string, pattern: "^[A-Z]{3}[0-9]{3,5}$"}
+      package_id: {type: string, pattern: "^PKG[0-9]{4,8}$"}
+      bucket: {type: string, pattern: "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"}
+      prefix: {type: string, max_length: 900}
+      file_count: {type: integer, minimum: 1, maximum: 20000}
+      total_bytes: {type: integer, minimum: 1}
+      uploaded_by: {type: string, required: false}
+orchestration:
+  dag: {catchup: false, max_active_runs: 4, timeout: 4h}
+  tasks:
+    - task_id: t1_collect
+      label: Read the request, resolve the destinations, zip the package
+      rules: [r_read_request, r_portal_lookup, r_resolve_destinations, r_list_objects, r_check_listing, r_download, r_zip, r_manifest]
+      engine: auto
+      timeout: 90m
+    - task_id: t2_checksum
+      label: Checksum the stored zip
+      depends_on: [t1_collect]
+      rules: [r_checksum]
+      engine: lambda                # explicit: must pass the Lambda feasibility check at workload.max
+      timeout: 15m
+    - task_id: t3_upload
+      label: Deliver to destinations x and y
+      depends_on: [t2_checksum]
+      rules: [r_package_name, r_upload_x, r_upload_y]
+      engine: auto
+      timeout: 2h
+reliability:
+  run_key: "{request_id}"
+  retry: {max_attempts: 3, backoff: exponential_jitter, base: 10s, max: 5m}
+  replay_window: 30d
+observability:
+  alerts: {transient: none, data: data_owner, config: platform, security: security}
+  sla: 3h
+workload:
+  bytes_per_run: {p50: 1GB, p95: 6GB, max: 10GB}
+  files_per_run: {p50: 400, p95: 5000, max: 20000}
+  runs_per_day: 6
+cost: {budget_per_run_usd: "<REQUIRED>", budget_per_month_usd: "<REQUIRED>"}
+open_questions: []

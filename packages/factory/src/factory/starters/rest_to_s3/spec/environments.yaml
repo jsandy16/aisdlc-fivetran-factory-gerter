@@ -1,0 +1,42 @@
+# environments.yaml: per-environment bindings. Owner: platform. Placement aliases come from the platform settings.
+environments:
+  dev:
+    enabled: true
+    placement: {orchestration: mwaa, workload: team}
+    secrets: {aws_secrets_manager: {prefix: factory/}}
+    apis:
+      vendor_api: {base_url: "<REQUIRED>"}
+    alert_channels:
+      data_owner: {type: sns, topic: "<REQUIRED>"}
+      platform: {type: sns, topic: "<REQUIRED>"}
+      security: {type: sns, topic: "<REQUIRED>"}
+  test:
+    enabled: true
+    placement: {orchestration: mwaa, workload: team}
+    secrets: {aws_secrets_manager: {prefix: factory/}}
+    apis:
+      vendor_api: {base_url: "<REQUIRED>"}
+    alert_channels:
+      data_owner: {type: sns, topic: "<REQUIRED>"}
+      platform: {type: sns, topic: "<REQUIRED>"}
+      security: {type: sns, topic: "<REQUIRED>"}
+  ppt:
+    enabled: true
+    placement: {orchestration: mwaa, workload: team}
+    secrets: {aws_secrets_manager: {prefix: factory/}}
+    apis:
+      vendor_api: {base_url: "<REQUIRED>"}
+    alert_channels:
+      data_owner: {type: sns, topic: "<REQUIRED>"}
+      platform: {type: sns, topic: "<REQUIRED>"}
+      security: {type: sns, topic: "<REQUIRED>"}
+  prod:
+    enabled: true
+    placement: {orchestration: mwaa, workload: team}
+    secrets: {aws_secrets_manager: {prefix: factory/}}
+    apis:
+      vendor_api: {base_url: "<REQUIRED>"}
+    alert_channels:
+      data_owner: {type: sns, topic: "<REQUIRED>"}
+      platform: {type: sns, topic: "<REQUIRED>"}
+      security: {type: sns, topic: "<REQUIRED>"}

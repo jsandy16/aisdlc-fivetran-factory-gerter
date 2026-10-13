@@ -1,0 +1,10 @@
+# destinations.yaml: approved delivery targets per environment (ADR-0024). Owner: governance.
+destinations:
+  dev:
+    - {id: landing_s3, type: s3, slots: [landing], bucket: "<REQUIRED>", prefix_pattern: "vendor/**", placement: team, kms_key: "<REQUIRED>", max_classification: "<REQUIRED>"}
+  test:
+    - {id: landing_s3, type: s3, slots: [landing], bucket: "<REQUIRED>", prefix_pattern: "vendor/**", placement: team, kms_key: "<REQUIRED>", max_classification: "<REQUIRED>"}
+  ppt:
+    - {id: landing_s3, type: s3, slots: [landing], bucket: "<REQUIRED>", prefix_pattern: "vendor/**", placement: team, kms_key: "<REQUIRED>", max_classification: "<REQUIRED>"}
+  prod:
+    - {id: landing_s3, type: s3, slots: [landing], bucket: "<REQUIRED>", prefix_pattern: "vendor/**", placement: team, kms_key: "<REQUIRED>", max_classification: "<REQUIRED>"}

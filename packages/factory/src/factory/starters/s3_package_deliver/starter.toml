@@ -1,0 +1,1 @@
+description = "S3 package (SQS metadata) -> zip + manifest -> checksum -> deliver to portal-chosen destinations"

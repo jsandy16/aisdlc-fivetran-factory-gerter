@@ -1,0 +1,22 @@
+# integrations.yaml: APIs, destination slots, secrets. Owner: data engineer.
+apis:
+  - id: vendor_api
+    label: Vendor REST API
+    auth: {type: api_key, secret: vendor_api_key, send_in: header, name: X-Api-Key}
+    endpoints:
+      - id: items
+        method: GET
+        path: /v1/items
+        pagination: {type: cursor, cursor_param: cursor, next: meta.next_cursor}
+        response:
+          unknown_fields: ignore
+          fields:
+            items: {type: list, items: {type: object, fields: {id: {type: string}}}}
+destinations:
+  - id: landing
+    label: Landing bucket
+    resolve: {via: static, entry: landing_s3, path: "vendor/items/"}
+    allowed_types: [s3]
+    required: true
+secrets:
+  vendor_api_key: {provider: aws_secrets_manager, path: "{team}/{env}/vendor-api", key: api_key, kind: api_key}

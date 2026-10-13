@@ -1,0 +1,13 @@
+# security.yaml: governance decisions. Owner: governance / QA (CODEOWNERS).
+security_and_access:
+  gxp_tier: "<REQUIRED>"
+  data_classification: "<REQUIRED>"
+  encryption_at_rest: {staging: sse_kms, s3_destinations: sse_kms}
+  package_encryption: none          # application-level encryption is done outside the pipeline for now (ADR-0012)
+  checksums: {manifest: [sha256], delivery_sidecars: [md5, sha256]}
+  audit:
+    enabled: true
+    events: [delivery, destination_resolution, portal_call, rule_result, secret_access]
+    evidence_retention: 10y
+  retention: {staging_after_success: 7d, staging_after_failure: 30d, run_logs: 400d}
+  residency: {allowed_regions: ["<REQUIRED>"]}

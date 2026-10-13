@@ -1,0 +1,13 @@
+# integrations.yaml: sources, destination slots, secrets. Owner: data engineer.
+sources:
+  - id: source_bucket
+    type: s3
+    label: Bucket that receives new objects
+    location: {via: trigger, bucket_field: bucket, prefix_field: key}
+destinations:
+  - id: archive
+    label: Archive bucket
+    resolve: {via: static, entry: archive_s3, path: "copies/{env}/"}
+    allowed_types: [s3]
+    required: true
+secrets: {}
