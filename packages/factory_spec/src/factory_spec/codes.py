@@ -106,6 +106,9 @@ CODES: dict[str, CodeInfo] = {
         "error", "Make the overlapping allow-list entries disjoint (different hosts or folders)."
     ),
     "classification_target_mismatch": CodeInfo("error", "Use a destination approved for this data classification."),
+    "destination_write_once_unsupported": CodeInfo(
+        "error", "Use method PUT with write_once: if_none_match, or set write_once: none for POST endpoints."
+    ),
     # engines and workload
     "engine_not_allowed": CodeInfo("error", "Pick an engine every op in the task supports (or engine: auto)."),
     "task_timeout_exceeds_engine": CodeInfo(

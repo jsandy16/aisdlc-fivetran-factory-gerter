@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from factory_core.pathmatch import PatternError, parse_path_pattern
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from ..common import StrictModel, ba
 from ..fieldtypes import (
@@ -60,6 +60,9 @@ class SftpEntry(_Entry):
     path_pattern: str = ba("Path pattern", "e.g. /inbound/acme/{study_id}/**")
     username: str = ba("User name", "", pattern=r"^[A-Za-z0-9._-]{1,64}$")
     private_key_secret: Identifier = ba("Private key secret", "Secret name holding the SSH private key")
+    host_key_algorithm: Literal["ssh-ed25519", "ecdsa-sha2-nistp256", "rsa-sha2-256", "rsa-sha2-512"] = ba(
+        "Host key type", "Type of the pinned host key; only this type is negotiated"
+    )
     host_key_fingerprint: HostKeyFingerprint = ba("Pinned host key", "SHA256 fingerprint; a change needs a reviewed PR")
     at_rest_attestation: Attestation | None = ba(
         "At-rest attestation", "Evidence id that the server encrypts at rest", default=None
@@ -100,6 +103,15 @@ class HttpsEntry(_Entry):
     @classmethod
     def _p(cls, v: str) -> str:
         return _pattern(v, absolute=True)
+
+    @model_validator(mode="after")
+    def _write_once(self) -> HttpsEntry:
+        if self.method == "POST" and self.write_once == "if_none_match":
+            raise coded_error(
+                "destination_write_once_unsupported",
+                "If-None-Match write-once needs PUT to the object URL; use method PUT or write_once: none",
+            )
+        return self
 
 
 AllowedDestination = Annotated[S3Entry | SftpEntry | HttpsEntry, Field(discriminator="type")]

@@ -19,7 +19,8 @@
         {
           "at_rest_attestation": "DEV-STUB-NOT-GXP",
           "host": "sftp-stub.dev.acme.example",
-          "host_key_fingerprint": "SHA256:zEA/dDcrIBhmGJxUY8UzlHhbXcFIZNehohInWBQWWmQ",
+          "host_key_algorithm": "ssh-ed25519",
+          "host_key_fingerprint": "SHA256:BL9HMgxr4b/72m2LW/tyfQGKDHqpHsMVCNKcVoCOVCs",
           "id": "dev_stub_sftp",
           "max_classification": "restricted",
           "path_pattern": "/inbound/{study_id}/**",
@@ -112,7 +113,7 @@
           "id": "cro_https_upload",
           "max_classification": "restricted",
           "method": "PUT",
-          "path_pattern": "/api/v2/studies/{study_id}/packages/*",
+          "path_pattern": "/api/v2/studies/{study_id}/packages",
           "port": 443,
           "slots": [
             "x"
@@ -123,6 +124,7 @@
         {
           "at_rest_attestation": "QA-ATT-2026-017",
           "host": "sftp-uat.partner-cro.example.com",
+          "host_key_algorithm": "ssh-ed25519",
           "host_key_fingerprint": "SHA256:fEEcwQkJ8AiU1i85Rj0zuzl8pWghGQgeVP+/5P5p9b8",
           "id": "partner_sftp",
           "max_classification": "restricted",
@@ -216,7 +218,7 @@
           "id": "cro_https_upload",
           "max_classification": "restricted",
           "method": "PUT",
-          "path_pattern": "/api/v2/studies/{study_id}/packages/*",
+          "path_pattern": "/api/v2/studies/{study_id}/packages",
           "port": 443,
           "slots": [
             "x"
@@ -227,6 +229,7 @@
         {
           "at_rest_attestation": "QA-ATT-2026-017",
           "host": "sftp.partner-cro.example.com",
+          "host_key_algorithm": "ssh-ed25519",
           "host_key_fingerprint": "SHA256:o2K6iOZLOrmaihUq2iIr8t8LMSXuBKBiG9Ve+XKxDbE",
           "id": "partner_sftp",
           "max_classification": "restricted",
@@ -313,7 +316,8 @@
         {
           "at_rest_attestation": "TEST-STUB-NOT-GXP",
           "host": "sftp-stub.test.acme.example",
-          "host_key_fingerprint": "SHA256:igOmd94YxOamC/64sh+ZrG6zcyR7ROoprczu5GCx/VY",
+          "host_key_algorithm": "ssh-ed25519",
+          "host_key_fingerprint": "SHA256:yLwTzQzPMd+NXF7TN8E9M2yGXTsXaScylHQnVkj1ixw",
           "id": "test_stub_sftp",
           "max_classification": "restricted",
           "path_pattern": "/inbound/{study_id}/**",
@@ -537,10 +541,10 @@
   },
   "hashes": {
     "binding_sha": {
-      "dev": "7db17a5416b70db2baa358c9f0f5169dd062798b8352824ff8b2405db9370742",
-      "ppt": "171142bd3e14b385e6340e5a19650d25e4b8a5bf4cb97c0396ccd8d592cbef80",
-      "prod": "c275c2e7cd9e4cbece5003665bc0f0a3b389d79fafbc8175e7e19f5474c29f0f",
-      "test": "dd620fc406a6eb10ec7653381796daebb3e3a96454c269e4deb685149e966589"
+      "dev": "236b27c560194f16315dabab113e0d9c58d46cbf0bffdae230b38570e1ab9493",
+      "ppt": "00b770ba76bc8f9f04991a6b24174465cb38aabe2d9aef7cd3aadafc8fdd63f5",
+      "prod": "72c03c088cdf2145276f89e941f89a59079370e9ee1e947cc708babf8f0e8377",
+      "test": "7428dc7c62709e5b499e38eca2bebc8b8a932fc001eb37028d98787761096924"
     },
     "derived_sha": "b3bcc81b7cf7192ea226042e4b8b553bed609ffe60b273e5eefdb7c8565e8da3",
     "logic_sha": "7670e3f090e052e55dd405354651a743845136acfbe1478777d3ccb3a18c1365"

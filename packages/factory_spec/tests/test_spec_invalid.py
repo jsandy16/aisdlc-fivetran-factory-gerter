@@ -321,6 +321,12 @@ simple(
     "destinations.yaml",
     lambda doc: doc["destinations"]["dev"][0].update(max_classification="internal"),
 )
+simple(
+    "destination_write_once_unsupported",
+    "destination_write_once_unsupported",
+    "destinations.yaml",
+    lambda doc: doc["destinations"]["ppt"][2].update(method="POST"),
+)
 
 # ---------------------------------------------------------------- engines and workload
 simple(

@@ -268,11 +268,9 @@
           "x-ba-label": "Address"
         },
         "auth_method": {
+          "const": "aws",
           "default": "aws",
-          "enum": [
-            "aws",
-            "approle"
-          ],
+          "description": "AWS IAM auth with the workload role (AppRole is deferred)",
           "type": "string",
           "x-ba-label": "Auth method"
         },
@@ -282,6 +280,27 @@
           "pattern": "^[a-z0-9_-]{1,64}$",
           "type": "string",
           "x-ba-label": "Auth mount"
+        },
+        "iam_server_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9.-]{1,253}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value of X-Vault-AWS-IAM-Server-ID, bound in the Vault auth config (replay protection)",
+          "x-ba-label": "IAM server id"
+        },
+        "role_pattern": {
+          "default": "factory-{team}-{pipeline_id}",
+          "description": "Vault AWS-auth role per pipeline, bound to its workload role ARN",
+          "pattern": "^[a-z0-9_{}-]{1,128}$",
+          "type": "string",
+          "x-ba-label": "Vault role"
         }
       },
       "required": [

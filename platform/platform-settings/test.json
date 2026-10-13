@@ -57,6 +57,8 @@
   "vault": {
     "address": "https://vault.test.acme.example:8200",
     "auth_method": "aws",
-    "auth_mount": "aws"
+    "auth_mount": "aws",
+    "iam_server_id": "vault.test.acme.example",
+    "role_pattern": "factory-{team}-{pipeline_id}"
   }
 }

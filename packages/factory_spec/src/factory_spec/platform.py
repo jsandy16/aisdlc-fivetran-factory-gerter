@@ -68,8 +68,22 @@ class IdentitySettings(StrictModel):
 
 class VaultSettings(StrictModel):
     address: str = ba("Address", "", pattern=r"^https://[a-z0-9.-]+(:\d{1,5})?$")
-    auth_method: Literal["aws", "approle"] = "aws"
+    auth_method: Literal["aws"] = ba(
+        "Auth method", "AWS IAM auth with the workload role (AppRole is deferred)", default="aws"
+    )
     auth_mount: str = ba("Auth mount", "", default="aws", pattern=r"^[a-z0-9_-]{1,64}$")
+    role_pattern: str = ba(
+        "Vault role",
+        "Vault AWS-auth role per pipeline, bound to its workload role ARN",
+        default="factory-{team}-{pipeline_id}",
+        pattern=r"^[a-z0-9_{}-]{1,128}$",
+    )
+    iam_server_id: str | None = ba(
+        "IAM server id",
+        "Value of X-Vault-AWS-IAM-Server-ID, bound in the Vault auth config (replay protection)",
+        default=None,
+        pattern=r"^[a-z0-9.-]{1,253}$",
+    )
 
 
 class PlatformSettings(StrictModel):

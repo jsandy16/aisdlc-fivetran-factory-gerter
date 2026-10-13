@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "factory-testing"
+version = "0.2.0.dev0"
+description = "Pipeline Factory test stand-ins (dev only): moto, fake Vault, mock portal/API/Fivetran, SFTP and HTTPS servers, harness"
+requires-python = ">=3.11"
+dependencies = [
+  "factory-runtime",
+  "moto[s3,sqs,dynamodb,secretsmanager,sts]==5.2.4",   # only the services the stand-ins need
+  "flask>=3,<4",                                        # moto ThreadedMotoServer
+  "flask-cors>=5,<7",
+  "asyncssh==2.24.1",
+  "cryptography>=44",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/factory_testing"]

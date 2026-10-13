@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "factory-runtime"
+version = "0.2.0.dev0"
+description = "Pipeline Factory runtime: op library, secret provider, portal client, delivery, dispatcher and plugin API (pods and Lambda)"
+requires-python = ">=3.11"
+dependencies = [
+  "factory-spec",
+  "boto3==1.43.111",       # pinned with botocore: the runtime image and pf connectors use the same pair
+  "botocore==1.43.111",
+  "httpx==0.28.1",         # every HTTP call (portal, APIs, HTTPS delivery, Vault) goes through one TLS policy
+  "certifi",
+  "paramiko==5.0.0",
+]
+
+[project.scripts]
+factory-runtime = "factory_runtime.run:console"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/factory_runtime"]

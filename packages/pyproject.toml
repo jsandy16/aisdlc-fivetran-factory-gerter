@@ -6,12 +6,14 @@
 required-version = ">=0.11.32,<0.12"
 
 [tool.uv.workspace]
-members = ["factory_core", "factory_spec", "factory"]   # factory_runtime / factory_airflow join in later phases
+members = ["factory_core", "factory_spec", "factory", "factory_runtime", "factory_testing"]   # factory_airflow joins in Phase 5
 
 [tool.uv.sources]
 factory-core = { workspace = true }
 factory-spec = { workspace = true }
 factory = { workspace = true }
+factory-runtime = { workspace = true }
+factory-testing = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -21,17 +23,22 @@ dev = [
   "ruff==0.17.0",
   "types-jmespath",
   "jsonschema>=4.23,<5",
+  "factory-testing",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["factory_core/tests", "factory_spec/tests", "factory/tests"]
-addopts = "-q --strict-markers"   # default prepend import mode; test file names are unique across packages (test_core_*, test_spec_*, test_cli_*)
+testpaths = ["factory_core/tests", "factory_spec/tests", "factory/tests", "factory_runtime/tests", "factory_testing/tests"]
+addopts = "-q --strict-markers -m 'not spike'"
+markers = [
+  "spike: opt-in measurement runs (pytest -m spike)",
+  "slow: slower integration tests",
+]   # default prepend import mode; test file names are unique across packages (test_core_*, test_spec_*, test_cli_*)
 
 [tool.mypy]
 strict = true
 python_version = "3.11"
 plugins = ["pydantic.mypy"]
-files = ["factory_core/src", "factory_spec/src", "factory/src"]
+files = ["factory_core/src", "factory_spec/src", "factory/src", "factory_runtime/src", "factory_testing/src"]
 
 [tool.pydantic-mypy]
 init_forbid_extra = true
@@ -39,7 +46,7 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [[tool.mypy.overrides]]
-module = ["celpy", "celpy.*", "lark", "lark.*", "ruamel", "ruamel.*"]
+module = ["celpy", "celpy.*", "lark", "lark.*", "ruamel", "ruamel.*", "boto3", "boto3.*", "botocore", "botocore.*", "paramiko", "paramiko.*", "asyncssh", "asyncssh.*", "moto", "moto.*"]
 ignore_missing_imports = true
 
 [tool.ruff]

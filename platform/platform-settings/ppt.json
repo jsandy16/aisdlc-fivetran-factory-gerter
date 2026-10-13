@@ -64,6 +64,8 @@
   "vault": {
     "address": "https://vault.ppt.acme.example:8200",
     "auth_method": "aws",
-    "auth_mount": "aws"
+    "auth_mount": "aws",
+    "iam_server_id": "vault.ppt.acme.example",
+    "role_pattern": "factory-{team}-{pipeline_id}"
   }
 }
