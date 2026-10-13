@@ -1,0 +1,105 @@
+
+== SFTP: oncology_labs (zip packages, 10 structural checks, English rule, originals archive)
+  PASS repointed spec validates (English rule stays accepted: only connection values changed)
+  PASS pf build
+  PASS pf build --check is deterministic
+  PASS pf test: 23 break-and-verify cases, every enforced check fires
+  PASS sync 1: fivetran debug exits 0
+  PASS sync 1: 54 distinct lab results upserted (48 + 6 new keys; 6 re-sent keys updated)
+  PASS subject ids are pseudonymised (no clear vendor id in the lake)
+  PASS sync 1: both deliveries audited as loaded
+  PASS every row carries lineage (package, sha256, run id)
+  PASS originals: 2 deliveries archived byte-for-byte (write-once, object lock)
+  PASS originals: a write-once loaded marker and delivery evidence per delivery (survive Fivetran re-syncs)
+  PASS originals: archived object is under COMPLIANCE retention
+  PASS sync 2: exits 0 (a rejected delivery does not fail the sync)
+  PASS sync 2: bad checksum rejected with its rule id
+  PASS sync 2: next good delivery still loads
+  PASS sync 2: 6 new rows (visit 4), nothing from the rejected delivery
+  PASS sync 3: no changes -> nothing re-emitted (idempotent)
+  PASS sync 4: sidecar fixed after a newer delivery loaded -> retried, then refused as late (cannot overwrite newer rows)
+  PASS owner admits the late delivery in source.yaml (reviewed spec change, flagged with a warning)
+  PASS sync 4b: the admitted late delivery loads once
+  PASS sync 5: loaded delivery re-sent with different content is rejected (on_redelivery)
+  PASS post-load quality checks pass on the tester warehouse
+  PASS rule results recorded for every delivery (audit evidence)
+  PASS quarantine evidence holds no data values
+
+== FTPS: site_monitoring (scaffold + requirement document intake + owner edits)
+  PASS intake drafted values from the requirement document
+  PASS intake listed open questions for owners
+  PASS every drafted value carries evidence
+  PASS single-value constraints became deterministic checks (regex, allowed_values, range)
+  PASS only cross-column rules stayed in English (2)
+  owners still to fill: 25
+  PASS owner reworded report_finalised_within_10_days to answer the open questions
+  PASS owner reworded cov_zero_open_issues to answer the open questions
+  PASS owner reviewed and enforced the proposed check site_no_format
+  PASS owner reviewed and enforced the proposed check visit_type_values
+  PASS owner reviewed and enforced the proposed check open_issues_non_negative
+  PASS owner labelled 3 examples for report_finalised_within_10_days
+  PASS owner labelled 3 examples for cov_zero_open_issues
+  PASS spec complete after owner edits (pf set keeps comments, rolls back invalid edits)
+  PASS an invalid edit is refused and rolled back
+  PASS English rules compiled to CEL with generated boundary cases
+  PASS an agent session cannot accept a rule
+  PASS report_finalised_within_10_days: no open questions left after the owner's rewording
+  PASS report_finalised_within_10_days: every generated and owner case verified
+  PASS owner accepted report_finalised_within_10_days: row.report_date == null || (row.visit_date != null && row.visit_date <= row.report_date &&
+  PASS cov_zero_open_issues: no open questions left after the owner's rewording
+  PASS cov_zero_open_issues: every generated and owner case verified
+  PASS owner accepted cov_zero_open_issues: row.visit_type == null || row.visit_type != "COV" || (row.open_issues != null && row.open_
+  PASS pf build
+  PASS pf test on owner-written fixtures
+  PASS FTPS sync: exits 0 over verified TLS (pinned CA)
+  PASS FTPS sync: 39 distinct visits (re-issue _02 overlapped 6 visits and updated them by primary key)
+  PASS FTPS sync: loaded in date, sequence order; the 2-minute-old file waits for readiness
+  PASS FTPS without the CA: the self-signed server is refused (no silent MITM)
+
+== RDS (PostgreSQL 16): trial_sites (incremental cursor, docx requirement)
+  PASS intake from a .docx requirement (tables included)
+  PASS intake found the incremental cursor column
+  PASS ssl_mode disable is flagged (dry run only)
+  PASS owner answered and labelled activated_on_required_when_active
+  PASS RDS spec complete after owner edits
+  PASS activated_on_required_when_active: no open questions left
+  PASS owner accepted activated_on_required_when_active: row.status != "ACTIVE" || row.activated_on != null
+  PASS pf build
+  PASS pf test (RDS fixtures)
+  PASS RDS sync 1: exits 0 (read-only session, server-side cursor)
+  PASS RDS sync 1: all 250 rows loaded (seed data satisfies every rule)
+  PASS RDS sync 2: changed and new rows picked up by the cursor
+  PASS RDS sync 2: incremental read (only rows at/after the cursor)
+  PASS the database role used by the connector cannot write
+
+== Release and Git-driven deploy (mock Fivetran API)
+  PASS release --check fails until a release record is committed
+  PASS pf release writes the immutable artefact and the release record
+  PASS release --check passes once the record is committed
+  PASS artefact uploaded write-once
+  PASS re-upload of the same version is idempotent (same sha accepted)
+  PASS an agent session cannot deploy
+  PASS deploy refuses when a secret is missing
+  PASS destination created (managed_data_lake, Glue, Iceberg) through the API
+  PASS deploy --dry-run shows the command with secrets masked
+  PASS deploy: official `fivetran deploy` uploads the package and creates the connection; schedule applied
+  PASS package upload seen by the API
+  PASS connection configuration (secrets_list) carries pf_environment=dev
+  PASS dev connection receives only dev secrets
+  PASS new connection is created paused (SDK default)
+  PASS schedule from pipeline.yaml applied (dev: daily 02:00, paused)
+  PASS no drift right after deploy
+  PASS generated GitHub workflow deploys per environment gate
+  PASS CODEOWNERS routes policy changes to governance only (one owner)
+
+== Failure drills (runtime against the real servers)
+  PASS wrong pinned host key: sync stops before any data (MITM protection)
+  PASS bad private key: configuration error, no data
+  PASS SFTP down: retried, then the sync fails loudly
+  PASS originals store down: nothing is loaded without its archived original
+  PASS missing pseudonymisation key: sync refuses to start
+  PASS unknown environment in configuration is refused
+  PASS oversized delivery rejected before download
+
+91 passed, 0 failed
+exit 0

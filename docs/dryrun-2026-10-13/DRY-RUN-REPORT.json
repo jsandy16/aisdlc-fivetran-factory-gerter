@@ -1,0 +1,741 @@
+{
+  "passed": 91,
+  "failed": 0,
+  "checks": [
+    {
+      "scenario": "sftp",
+      "check": "repointed spec validates (English rule stays accepted: only connection values changed)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "sftp",
+      "check": "pf build",
+      "ok": true,
+      "detail": {
+        "files": 38,
+        "build": "pipelines/oncology_labs/build",
+        "foundation": [
+          "dev",
+          "prod"
+        ]
+      }
+    },
+    {
+      "scenario": "sftp",
+      "check": "pf build --check is deterministic",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "sftp",
+      "check": "pf test: 23 break-and-verify cases, every enforced check fires",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 1: fivetran debug exits 0",
+      "ok": true,
+      "detail": "                       Operation       | Counts    \n                                   ----------------+------------\n                                   Upserts         | 172       \n                                   Updates         | 0         \n                                   Deletes         | 0         \n                                   Truncates       | 0         \n                                   Schema changes  | 6         \n                                   Checkpoints     | 1         \n                                   File uploads    | 0         \n                                   \n07:31:29.490 INFO     \u26a1 debugger  debug results in duckdb view using `duckdb -ui files/warehouse.db`\n07:31:29.939 INFO     \u26a1 sdk       connector process memory usage: average 21.42 MB, peak 32.12 MB\n"
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 1: 54 distinct lab results upserted (48 + 6 new keys; 6 re-sent keys updated)",
+      "ok": true,
+      "detail": [
+        54,
+        4
+      ]
+    },
+    {
+      "scenario": "sftp",
+      "check": "subject ids are pseudonymised (no clear vendor id in the lake)",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 1: both deliveries audited as loaded",
+      "ok": true,
+      "detail": [
+        [
+          "20240301/LB_ONC101_001.zip",
+          "loaded"
+        ],
+        [
+          "20240302/LB_ONC101_002.zip",
+          "loaded"
+        ]
+      ]
+    },
+    {
+      "scenario": "sftp",
+      "check": "every row carries lineage (package, sha256, run id)",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scenario": "sftp",
+      "check": "originals: 2 deliveries archived byte-for-byte (write-once, object lock)",
+      "ok": true,
+      "detail": [
+        "originals/oncology_labs/20240301/LB_ONC101_001.zip/a2bfe17c5d81e5ec1e97b841cb9a56c5cf350a4bc1e37afc7423ff72147b4c98",
+        "originals/oncology_labs/20240302/LB_ONC101_002.zip/b338c38200d54086933b036463e09a59c647f3fd46719e71080d80bc4d6c160f"
+      ]
+    },
+    {
+      "scenario": "sftp",
+      "check": "originals: a write-once loaded marker and delivery evidence per delivery (survive Fivetran re-syncs)",
+      "ok": true,
+      "detail": [
+        "originals/oncology_labs/_evidence/dev/fc6c9b9355eb49ccb7ed126cd639fc22/a2bfe17c5d81e5ec1e97b841cb9a56c5.json",
+        "originals/oncology_labs/_evidence/dev/fc6c9b9355eb49ccb7ed126cd639fc22/b338c38200d54086933b036463e09a59.json",
+        "originals/oncology_labs/_loaded/a2bfe17c5d81e5ec1e97b841cb9a56c5cf350a4bc1e37afc7423ff72147b4c98",
+        "originals/oncology_labs/_loaded/b338c38200d54086933b036463e09a59c647f3fd46719e71080d80bc4d6c160f"
+      ]
+    },
+    {
+      "scenario": "sftp",
+      "check": "originals: archived object is under COMPLIANCE retention",
+      "ok": true,
+      "detail": "COMPLIANCE"
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 2: exits 0 (a rejected delivery does not fail the sync)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 2: bad checksum rejected with its rule id",
+      "ok": true,
+      "detail": {
+        "20240301/LB_ONC101_001.zip": "loaded:",
+        "20240302/LB_ONC101_002.zip": "loaded:",
+        "20240303/LB_ONC101_003.zip": "rejected:package_checksum",
+        "20240304/LB_ONC101_004.zip": "loaded:"
+      }
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 2: next good delivery still loads",
+      "ok": true,
+      "detail": {
+        "20240301/LB_ONC101_001.zip": "loaded:",
+        "20240302/LB_ONC101_002.zip": "loaded:",
+        "20240303/LB_ONC101_003.zip": "rejected:package_checksum",
+        "20240304/LB_ONC101_004.zip": "loaded:"
+      }
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 2: 6 new rows (visit 4), nothing from the rejected delivery",
+      "ok": true,
+      "detail": 60
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 3: no changes -> nothing re-emitted (idempotent)",
+      "ok": true,
+      "detail": [
+        4,
+        4
+      ]
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 4: sidecar fixed after a newer delivery loaded -> retried, then refused as late (cannot overwrite newer rows)",
+      "ok": true,
+      "detail": [
+        [
+          "rejected",
+          "package_checksum"
+        ],
+        [
+          "rejected",
+          "late_data"
+        ]
+      ]
+    },
+    {
+      "scenario": "sftp",
+      "check": "owner admits the late delivery in source.yaml (reviewed spec change, flagged with a warning)",
+      "ok": true,
+      "detail": [
+        {
+          "severity": "warning",
+          "file": "source.yaml",
+          "loc": "source.package.admit_late",
+          "msg": "late deliveries are admitted: an older delivery can overwrite newer upserted rows; remove the entries once they are loaded",
+          "code": "invalid"
+        }
+      ]
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 4b: the admitted late delivery loads once",
+      "ok": true,
+      "detail": [
+        [
+          "rejected"
+        ],
+        [
+          "rejected"
+        ],
+        [
+          "loaded"
+        ]
+      ]
+    },
+    {
+      "scenario": "sftp",
+      "check": "sync 5: loaded delivery re-sent with different content is rejected (on_redelivery)",
+      "ok": true,
+      "detail": [
+        [
+          "loaded",
+          ""
+        ],
+        [
+          "rejected",
+          "on_redelivery"
+        ]
+      ]
+    },
+    {
+      "scenario": "sftp",
+      "check": "post-load quality checks pass on the tester warehouse",
+      "ok": true,
+      "detail": {
+        "lab_results_lake_rows": "pass",
+        "lab_results_lake_unique": "pass",
+        "lab_results_fresh": "pass",
+        "lab_results_reconciled": "pass"
+      }
+    },
+    {
+      "scenario": "sftp",
+      "check": "rule results recorded for every delivery (audit evidence)",
+      "ok": true,
+      "detail": 125
+    },
+    {
+      "scenario": "sftp",
+      "check": "quarantine evidence holds no data values",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scenario": "ftp",
+      "check": "intake drafted values from the requirement document",
+      "ok": true,
+      "detail": 14
+    },
+    {
+      "scenario": "ftp",
+      "check": "intake listed open questions for owners",
+      "ok": true,
+      "detail": [
+        "Sync frequency every 6 hours is stated, but the schedule.dev/prod sync_frequency format and daily_sync_time were not proposed; owner to confirm values per environment.",
+        "quality.yaml ticket_route is not stated.",
+        "quality.yaml checks.1.max_hours: the freshness threshold was not stated beyond the 6-hour refresh; confirm."
+      ]
+    },
+    {
+      "scenario": "ftp",
+      "check": "every drafted value carries evidence",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "ftp",
+      "check": "single-value constraints became deterministic checks (regex, allowed_values, range)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "ftp",
+      "check": "only cross-column rules stayed in English (2)",
+      "ok": true,
+      "detail": 2
+    },
+    {
+      "scenario": "ftp",
+      "check": "owner reworded report_finalised_within_10_days to answer the open questions",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "owner reworded cov_zero_open_issues to answer the open questions",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "owner reviewed and enforced the proposed check site_no_format",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "owner reviewed and enforced the proposed check visit_type_values",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "owner reviewed and enforced the proposed check open_issues_non_negative",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "owner labelled 3 examples for report_finalised_within_10_days",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "owner labelled 3 examples for cov_zero_open_issues",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "spec complete after owner edits (pf set keeps comments, rolls back invalid edits)",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "an invalid edit is refused and rolled back",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "ftp",
+      "check": "English rules compiled to CEL with generated boundary cases",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "an agent session cannot accept a rule",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "ftp",
+      "check": "report_finalised_within_10_days: no open questions left after the owner's rewording",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "report_finalised_within_10_days: every generated and owner case verified",
+      "ok": true,
+      "detail": "passed"
+    },
+    {
+      "scenario": "ftp",
+      "check": "owner accepted report_finalised_within_10_days: row.report_date == null || (row.visit_date != null && row.visit_date <= row.report_date &&",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "cov_zero_open_issues: no open questions left after the owner's rewording",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "cov_zero_open_issues: every generated and owner case verified",
+      "ok": true,
+      "detail": "passed"
+    },
+    {
+      "scenario": "ftp",
+      "check": "owner accepted cov_zero_open_issues: row.visit_type == null || row.visit_type != \"COV\" || (row.open_issues != null && row.open_",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "pf build",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "ftp",
+      "check": "pf test on owner-written fixtures",
+      "ok": true,
+      "detail": [
+        "these checks never fired in a bad fixture (break-and-verify): ['package_name', 'package_not_duplicate', 'package_not_empty', 'package_size']"
+      ]
+    },
+    {
+      "scenario": "ftp",
+      "check": "FTPS sync: exits 0 over verified TLS (pinned CA)",
+      "ok": true,
+      "detail": "                Updates         | 0         \n                                   Deletes         | 0         \n                                   Truncates       | 0         \n                                   Schema changes  | 6         \n                                   Checkpoints     | 1         \n                                   File uploads    | 0         \n                                   \n07:32:35.210 INFO     \u26a1 debugger  debug results in duckdb view using `duckdb -ui files/warehouse.db`\n07:32:35.665 INFO     \u26a1 sdk       connector process memory usage: average 19.08 MB, peak 28.67 MB\n"
+    },
+    {
+      "scenario": "ftp",
+      "check": "FTPS sync: 39 distinct visits (re-issue _02 overlapped 6 visits and updated them by primary key)",
+      "ok": true,
+      "detail": [
+        39
+      ]
+    },
+    {
+      "scenario": "ftp",
+      "check": "FTPS sync: loaded in date, sequence order; the 2-minute-old file waits for readiness",
+      "ok": true,
+      "detail": [
+        [
+          "SMV_20240301_01.csv",
+          "loaded"
+        ],
+        [
+          "SMV_20240301_02.csv",
+          "loaded"
+        ],
+        [
+          "SMV_20240302_01.csv",
+          "loaded"
+        ]
+      ]
+    },
+    {
+      "scenario": "ftp",
+      "check": "FTPS without the CA: the self-signed server is refused (no silent MITM)",
+      "ok": true,
+      "detail": "                                File uploads    | 0         \n                                   \n                                   \n                                   Error: Connector Sdk Task. Message: Configuration error: FTPS server certificate is not trusted (self-signed certificate)\n                                   \n07:32:40.029 SEVERE   \u26a1 sdk       \u2717 connector tester failed with exit code: 1\n07:32:40.031 INFO     \u26a1 sdk       connector process memory usage: average 0.02 MB, peak 0.02 MB\n"
+    },
+    {
+      "scenario": "rds",
+      "check": "intake from a .docx requirement (tables included)",
+      "ok": true,
+      "detail": 6
+    },
+    {
+      "scenario": "rds",
+      "check": "intake found the incremental cursor column",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "rds",
+      "check": "ssl_mode disable is flagged (dry run only)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "rds",
+      "check": "owner answered and labelled activated_on_required_when_active",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "rds",
+      "check": "RDS spec complete after owner edits",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "rds",
+      "check": "activated_on_required_when_active: no open questions left",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "rds",
+      "check": "owner accepted activated_on_required_when_active: row.status != \"ACTIVE\" || row.activated_on != null",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "rds",
+      "check": "pf build",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "rds",
+      "check": "pf test (RDS fixtures)",
+      "ok": true,
+      "detail": [
+        "these checks never fired in a bad fixture (break-and-verify): ['activated_on_required_when_active', 'sites_has_rows']"
+      ]
+    },
+    {
+      "scenario": "rds",
+      "check": "RDS sync 1: exits 0 (read-only session, server-side cursor)",
+      "ok": true,
+      "detail": "                 Updates         | 0         \n                                   Deletes         | 0         \n                                   Truncates       | 0         \n                                   Schema changes  | 6         \n                                   Checkpoints     | 1         \n                                   File uploads    | 0         \n                                   \n07:33:07.826 INFO     \u26a1 debugger  debug results in duckdb view using `duckdb -ui files/warehouse.db`\n07:33:08.307 INFO     \u26a1 sdk       connector process memory usage: average 9.11 MB, peak 11.48 MB\n"
+    },
+    {
+      "scenario": "rds",
+      "check": "RDS sync 1: all 250 rows loaded (seed data satisfies every rule)",
+      "ok": true,
+      "detail": [
+        250,
+        0
+      ]
+    },
+    {
+      "scenario": "rds",
+      "check": "RDS sync 2: changed and new rows picked up by the cursor",
+      "ok": true,
+      "detail": {
+        "0001": "CLOSED",
+        "0002": "CLOSED",
+        "0999": "PLANNED"
+      }
+    },
+    {
+      "scenario": "rds",
+      "check": "RDS sync 2: incremental read (only rows at/after the cursor)",
+      "ok": true,
+      "detail": [
+        [
+          4
+        ]
+      ]
+    },
+    {
+      "scenario": "rds",
+      "check": "the database role used by the connector cannot write",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "deploy",
+      "check": "release --check fails until a release record is committed",
+      "ok": true,
+      "detail": [
+        {
+          "severity": "error",
+          "file": "",
+          "loc": "",
+          "msg": "no release record for 1.0.0: run `pf release oncology_labs` and commit releases/1.0.0.json",
+          "code": "version"
+        }
+      ]
+    },
+    {
+      "scenario": "deploy",
+      "check": "pf release writes the immutable artefact and the release record",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "deploy",
+      "check": "release --check passes once the record is committed",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "deploy",
+      "check": "artefact uploaded write-once",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "deploy",
+      "check": "re-upload of the same version is idempotent (same sha accepted)",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "deploy",
+      "check": "an agent session cannot deploy",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "deploy",
+      "check": "deploy refuses when a secret is missing",
+      "ok": true,
+      "detail": [
+        {
+          "severity": "error",
+          "file": "",
+          "loc": "",
+          "msg": "deploy needs every configuration value; missing or empty: ['PF_SECRET_ORIGINALS_ACCESS_KEY_ID_DEV', 'PF_SECRET_ORIGINALS_SECRET_ACCESS_KEY_DEV', 'PF_SECRET_SFTP_PRIVATE_KEY', 'PF_SECRET_SUBJECT_KEY_SALT']",
+          "code": "missing_secrets"
+        }
+      ]
+    },
+    {
+      "scenario": "deploy",
+      "check": "destination created (managed_data_lake, Glue, Iceberg) through the API",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "deploy",
+      "check": "deploy --dry-run shows the command with secrets masked",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "deploy",
+      "check": "deploy: official `fivetran deploy` uploads the package and creates the connection; schedule applied",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scenario": "deploy",
+      "check": "package upload seen by the API",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "deploy",
+      "check": "connection configuration (secrets_list) carries pf_environment=dev",
+      "ok": true,
+      "detail": [
+        "originals_access_key_id_dev",
+        "originals_secret_access_key_dev",
+        "pf_environment",
+        "sftp_private_key",
+        "subject_key_salt"
+      ]
+    },
+    {
+      "scenario": "deploy",
+      "check": "dev connection receives only dev secrets",
+      "ok": true,
+      "detail": [
+        "originals_access_key_id_dev",
+        "originals_secret_access_key_dev",
+        "pf_environment",
+        "sftp_private_key",
+        "subject_key_salt"
+      ]
+    },
+    {
+      "scenario": "deploy",
+      "check": "new connection is created paused (SDK default)",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "deploy",
+      "check": "schedule from pipeline.yaml applied (dev: daily 02:00, paused)",
+      "ok": true,
+      "detail": [
+        {
+          "method": "PATCH",
+          "path": "/v1/connections/con_bd062632b6",
+          "accept": "application/json;version=2",
+          "content_type": "application/json",
+          "json": {
+            "paused": true,
+            "sync_frequency": 1440,
+            "schedule_type": "auto",
+            "daily_sync_time": "02:00",
+            "run_setup_tests": false
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "deploy",
+      "check": "no drift right after deploy",
+      "ok": true,
+      "detail": {
+        "status": "in_sync",
+        "connection_id": "con_bd062632b6",
+        "diff": {},
+        "sync_state": "scheduled",
+        "setup_state": "connected"
+      }
+    },
+    {
+      "scenario": "deploy",
+      "check": "generated GitHub workflow deploys per environment gate",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scenario": "deploy",
+      "check": "CODEOWNERS routes policy changes to governance only (one owner)",
+      "ok": true,
+      "detail": [
+        [
+          "/pipelines/oncology_labs/policy.yaml",
+          "@rd-data-governance"
+        ]
+      ]
+    },
+    {
+      "scenario": "drills",
+      "check": "wrong pinned host key: sync stops before any data (MITM protection)",
+      "ok": true,
+      "detail": [
+        "Configuration error: SFTP host key does not match the pinned source.host_key"
+      ]
+    },
+    {
+      "scenario": "drills",
+      "check": "bad private key: configuration error, no data",
+      "ok": true,
+      "detail": [
+        "Configuration error: SFTP private key could not be parsed (SSHException, SSHException, SSHException)"
+      ]
+    },
+    {
+      "scenario": "drills",
+      "check": "SFTP down: retried, then the sync fails loudly",
+      "ok": true,
+      "detail": [
+        "Source or originals store unavailable after retries (TransientError: SFTP connect failed (NoValidConnectionsError)). Completed deliveries and incremental tables resume from the last checkpoint; a full-reload table is re-read next sync."
+      ]
+    },
+    {
+      "scenario": "drills",
+      "check": "originals store down: nothing is loaded without its archived original",
+      "ok": true,
+      "detail": [
+        "Source or originals store unavailable after retries (EndpointConnectionError: Could not connect to the endpoint URL: \"http://127.0.0.1:1/az-rd-originals-dev?list-type=2&prefix=originals%2Foncology_labs%2F_loaded%2F&encoding-type=url\"). Completed deliveries and incremental tables resume from the last checkpoint; a full-reload table is re-read next sync."
+      ]
+    },
+    {
+      "scenario": "drills",
+      "check": "missing pseudonymisation key: sync refuses to start",
+      "ok": true,
+      "detail": [
+        "Configuration error: configuration keys missing or empty: ['subject_key_salt']"
+      ]
+    },
+    {
+      "scenario": "drills",
+      "check": "unknown environment in configuration is refused",
+      "ok": true,
+      "detail": [
+        "Configuration error: configuration key pf_environment must be one of ['dev', 'prod']"
+      ]
+    },
+    {
+      "scenario": "drills",
+      "check": "oversized delivery rejected before download",
+      "ok": true,
+      "detail": [
+        [
+          "rejected",
+          "max_package_bytes"
+        ],
+        [
+          "rejected",
+          "max_package_bytes"
+        ]
+      ]
+    }
+  ]
+}
