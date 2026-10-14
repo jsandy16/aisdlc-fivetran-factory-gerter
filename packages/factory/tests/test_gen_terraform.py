@@ -116,3 +116,32 @@ def test_offline_terraform_validate_and_checkov(tmp_path: Path, repo: Path, pid:
 
     open_findings = [f"{f['check_id']} {f['resource']}" for f in failed if not waived(f)]
     assert open_findings == []
+
+
+@pytest.mark.iac
+@pytest.mark.skipif(not IAC, reason="set FACTORY_IAC_TOOLS (scripts/install-iac-tools.sh)")
+def test_sandbox_platform_stack_validates_and_passes_checkov(tmp_path: Path) -> None:
+    """Phase 8: the hand-written sandbox stack is valid offline and every checkov finding has a reviewed waiver."""
+    tools = Path(str(IAC))
+    src = ROOT / "platform" / "sandbox"
+    shutil.copytree(src, tmp_path / "sandbox")
+    work = tmp_path / "sandbox"
+    tf = str(tools / "bin" / "terraform")
+    assert subprocess.run([tf, "fmt", "-check", "-recursive"], cwd=work, capture_output=True).returncode == 0
+    subprocess.run([tf, "init", "-backend=false", "-input=false", "-no-color", f"-plugin-dir={tools / 'plugins'}"],
+                   cwd=work, check=True, capture_output=True, timeout=300)  # fmt: skip
+    v = subprocess.run([tf, "validate", "-json", "-no-color"], cwd=work, capture_output=True, text=True, timeout=300)
+    assert json.loads(v.stdout)["valid"], v.stdout
+    shutil.rmtree(work / ".terraform")
+    out = subprocess.run([str(tools / "ckv" / "bin" / "checkov"), "-d", str(work), "--framework", "terraform",
+                          "--skip-download", "-o", "json"], capture_output=True, text=True, timeout=600)  # fmt: skip
+    report = json.loads(out.stdout)
+    report = report[0] if isinstance(report, list) else report
+    waivers = yamlio.to_plain(yamlio.load_path(src / "iac-waivers.yaml"))["waivers"]
+    assert all(w["reason"].strip() and w["owner"] for w in waivers)
+
+    def waived(f: dict[str, Any]) -> bool:
+        name = f["resource"].rsplit(".", 1)[-1]
+        return any(w["check"] == f["check_id"] and fnmatch.fnmatch(name, w["resources"]) for w in waivers)
+
+    assert [f"{f['check_id']} {f['resource']}" for f in report["results"]["failed_checks"] if not waived(f)] == []

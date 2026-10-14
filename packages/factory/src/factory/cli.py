@@ -430,12 +430,21 @@ def change_plan_cmd(
     name: Annotated[str, typer.Argument(help="Pipeline id")],
     base: Annotated[str, typer.Option(help="Git ref (e.g. origin/main) or a folder holding the previous pipeline")],
     record: Annotated[str | None, typer.Option(help="Write changes/<n>.json with this request text")] = None,
+    tf_plan: Annotated[
+        list[str] | None, typer.Option(help="ENV=FILE: `terraform show -json` of that environment's plan (repeatable)")
+    ] = None,
 ) -> int:
     """Semantic diff, files, Terraform resources, rules to re-review, tests, DAG strategy, approvals, cost delta."""
     from .change.plan import change_plan, record_change
 
     d = _pipeline_dir(name)
-    out = change_plan(load_repo(d.parent.parent), d, base)
+    plans = {}
+    for item in tf_plan or []:
+        env, sep, file = item.partition("=")
+        if not sep:
+            raise CommandError(f"--tf-plan takes ENV=FILE, not '{item}'", "usage")
+        plans[env] = json.loads(Path(file).read_text(encoding="utf-8"))
+    out = change_plan(load_repo(d.parent.parent), d, base, plans)
     issues = [Issue(code=i["code"], msg=i["msg"]) for i in out["issues"]]
     data = out["plan"]
     if record is not None:

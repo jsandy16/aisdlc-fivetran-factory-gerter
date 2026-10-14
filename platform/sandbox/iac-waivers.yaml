@@ -1,0 +1,61 @@
+# Reviewed checkov waivers for the SANDBOX platform stack only (lifetime: hours; synthetic data). Real stages keep
+# these controls. Same format as platform/iac-waivers.yaml.
+waivers:
+  - check: CKV2_AWS_6
+    resources: "store*"
+    reason: Configured by aws_s3_bucket_public_access_block.store (same for_each); checkov does not resolve for_each links.
+    owner: platform
+  - check: CKV2_AWS_61
+    resources: "store*"
+    reason: >-
+      Configured by aws_s3_bucket_lifecycle_configuration.store (same for_each), except audit, which is under Object
+      Lock and must not expire before its retention.
+    owner: platform
+  - check: CKV_AWS_21
+    resources: "store*"
+    reason: Configured by aws_s3_bucket_versioning.store (same for_each); checkov does not resolve for_each links.
+    owner: platform
+  - check: CKV_AWS_145
+    resources: "store*"
+    reason: Configured by aws_s3_bucket_server_side_encryption_configuration.store with KMS keys (same for_each).
+    owner: platform
+  - check: CKV_AWS_18
+    resources: "store*"
+    reason: Sandbox lives for hours; CloudTrail data events cover access during the spikes. Real stages log access.
+    owner: platform
+  - check: CKV2_AWS_62
+    resources: "store*"
+    reason: Event notifications are wired per pipeline by the generated stack (s3_event triggers), not by the platform.
+    owner: platform
+  - check: CKV_AWS_144
+    resources: "store*"
+    reason: Cross-region replication is a real-stage DR control; the sandbox holds synthetic data for hours.
+    owner: platform
+  - check: CKV2_AWS_11
+    resources: "main"
+    reason: VPC flow logs are a real-stage control; the sandbox egress is checked by spike S5 and the generated egress list.
+    owner: platform
+  - check: CKV_AWS_38
+    resources: "main"
+    reason: The public endpoint is limited to var.admin_cidrs (checkov cannot see the variable); private access is on.
+    owner: platform
+  - check: CKV_AWS_39
+    resources: "main"
+    reason: The operator runs kubectl from outside the VPC (no VPN in a sandbox); limited to var.admin_cidrs.
+    owner: platform
+  - check: CKV2_AWS_66
+    resources: "main"
+    reason: The MWAA UI is IAM-authenticated; a sandbox has no private network path for the operator.
+    owner: platform
+  - check: CKV_AWS_111
+    resources: "key"
+    reason: The standard KMS key policy delegating to IAM; "*" in a key policy means this key only.
+    owner: platform
+  - check: CKV_AWS_356
+    resources: "key"
+    reason: The standard KMS key policy delegating to IAM; "*" in a key policy means this key only.
+    owner: platform
+  - check: CKV_AWS_109
+    resources: "key"
+    reason: The standard KMS key policy delegating to IAM; "*" in a key policy means this key only.
+    owner: platform

@@ -9,3 +9,6 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+
+# Local build outputs (runtime image context, MWAA plugins.zip)
+/build/

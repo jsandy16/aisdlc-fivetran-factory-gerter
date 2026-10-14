@@ -174,3 +174,26 @@ def test_generated_docs(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert "| data | 65 | fails at once (not retried) | `clinops_data` |" in alerts
     for text in (runbook, lineage, alerts):
         assert "SHA256:" not in text  # no host keys, no secret material: ids and names only
+
+
+def test_terraform_plan_json_drives_the_infrastructure_delta(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Phase 8: with a real `terraform show -json`, replacements are visible and stateful ones need approval."""
+    plan_json = {"resource_changes": [
+        {"address": "aws_lambda_function.t1_collect", "change": {"actions": ["update"]}},
+        {"address": "aws_sqs_queue.dlq", "change": {"actions": ["delete", "create"]}},
+        {"address": "aws_iam_role.t9", "change": {"actions": ["create"]}},
+        {"address": "aws_iam_role.old", "change": {"actions": ["delete"]}},
+        {"address": "data.aws_caller_identity.me", "change": {"actions": ["read"]}},
+        {"address": "aws_s3_object.x", "change": {"actions": ["no-op"]}},
+    ]}  # fmt: skip
+    f = tmp_path / "dev-plan.json"
+    f.write_text(json.dumps(plan_json))
+    plan = _run(repo, monkeypatch, "change", "plan", PID, "--base", str(tmp_path / "base"), "--tf-plan", f"dev={f}")
+    assert plan["data"]["terraform"]["dev"] == {
+        "create": ["aws_iam_role.t9"], "update": ["aws_lambda_function.t1_collect"],
+        "replace": ["aws_sqs_queue.dlq"], "destroy": ["aws_iam_role.old"], "source": ["terraform plan"]}  # fmt: skip
+    assert {"who": "platform", "why": "replaces stateful aws_sqs_queue.dlq in dev"} in plan["data"]["requires_approval"]
+    bad = _run(repo, monkeypatch, "change", "plan", PID, "--base", str(tmp_path / "base"), "--tf-plan", "dev")
+    assert bad["_code"] != 0

@@ -131,7 +131,22 @@ def _money(a: dict[str, Any], b: dict[str, Any], key: str, q: str) -> dict[str, 
     return {"before": a[key], "after": b[key], "delta": str((db - da).quantize(Decimal(q)))}
 
 
-def change_plan(repo: Repo, pipeline_dir: Path, base: str) -> dict[str, Any]:
+def tf_from_plan(doc: dict[str, Any]) -> dict[str, list[str]]:
+    """Actions from `terraform show -json <planfile>`: what Terraform will really do against the live state."""
+    out: dict[str, list[str]] = {"create": [], "update": [], "replace": [], "destroy": []}
+    for rc in doc.get("resource_changes", []):
+        actions = rc.get("change", {}).get("actions", [])
+        kind = ("replace" if {"create", "delete"} <= set(actions) else "create" if actions == ["create"]
+                else "update" if actions == ["update"] else "destroy" if actions == ["delete"] else None)  # fmt: skip
+        if kind:
+            out[kind].append(str(rc["address"]))
+    return {k: sorted(v) for k, v in out.items()}
+
+
+def change_plan(
+    repo: Repo, pipeline_dir: Path, base: str, tf_plans: dict[str, dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    """`tf_plans`: env -> `terraform show -json` output; replaces the offline resource diff for that environment."""
     head = validate_dir(pipeline_dir, repo)
     if head.errors:  # a plan explains a valid change; an invalid spec gets its validation errors instead
         return {"ok": False, "plan": {}, "issues": [{"code": i.code, "msg": f"{i.file} {i.loc}: {i.msg}".strip()}
@@ -160,7 +175,9 @@ def change_plan(repo: Repo, pipeline_dir: Path, base: str) -> dict[str, Any]:
     if material and _version(hv) <= _version(bv):
         issues.append({"code": "spec_version_not_bumped", "msg": f"the spec changed; raise spec_version above {bv}"})
     files = _files(before, after)
-    tf = _tf(before, after)
+    tf: dict[str, dict[str, list[str]]] = _tf(before, after)
+    for env, doc in (tf_plans or {}).items():
+        tf[env] = tf_from_plan(doc) | {"source": ["terraform plan"]}
     bdag, hdag = dag_id(bspec.pipeline_id, bv), dag_id(hspec.pipeline_id, hv)
     touched_rules = sorted({c.path.split("[", 1)[1].split("]", 1)[0] for c in changes if c.path.startswith("rules.")})
     head_rules = {r.rule_id: r for r in hspec.rules.rules}
@@ -170,9 +187,10 @@ def change_plan(repo: Repo, pipeline_dir: Path, base: str) -> dict[str, Any]:
         if c.approver:
             approvals[(c.approver, f"{c.area}: {c.path}")] = None
     for env, d in tf.items():
-        for addr in d["destroy"]:
-            if addr.split(".", 1)[0] in STATEFUL:
-                approvals[("platform", f"destroys stateful {addr} in {env}")] = None
+        for verb in ("destroy", "replace"):
+            for addr in d.get(verb, []):
+                if addr.split(".", 1)[0] in STATEFUL:
+                    approvals[("platform", f"{verb}s stateful {addr} in {env}")] = None
     bc, hc = cost_report(bspec, repo.prices), cost_report(hspec, repo.prices)
     plan = {
         "pipeline_id": hspec.pipeline_id,
