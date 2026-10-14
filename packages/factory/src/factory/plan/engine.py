@@ -3,7 +3,8 @@
 Per task: candidates (intersection of the ops' allowed engines) → policy filters (recorded) → estimates (p95, max) →
 feasibility → the lowest monthly cost; ties break lambda < mwaa < eks_pod_spot < eks_pod. A task made only of
 fivetran.sync goes to fivetran_native. Explicit engines win when feasible, otherwise they are an error. Decisions are
-printed (`factory plan`), never written to the lock (P3-8). Prices are placeholders (catalog/pricing.v1.json).
+printed (`factory plan`), never written to the lock (P3-8). Prices: the catalog placeholders unless
+the platform supplies calibrated ones (`prices`).
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from factory_spec.catalog import engine_table, op_catalog, pricing
+from factory_spec.catalog import Pricing, engine_table, op_catalog, pricing
 from factory_spec.estimate import allowed_engines, estimate_seconds
 from factory_spec.spec import PipelineSpec
 
@@ -24,7 +25,8 @@ def _ops(rules: list[Any]) -> list[Any]:
     return [op_catalog().get(r.implementation.op) for r in rules if r.implementation.kind == "builtin"]
 
 
-def plan_task(spec: PipelineSpec, task: Any) -> dict[str, Any]:
+def plan_task(spec: PipelineSpec, task: Any, prices: Pricing | None = None) -> dict[str, Any]:
+    pr = prices or pricing()
     rules = [spec.rule(x) for x in task.rules]
     ops = [c for c in _ops(rules) if c is not None]
     candidates = sorted(allowed_engines(rules), key=ORDER.index)
@@ -44,10 +46,10 @@ def plan_task(spec: PipelineSpec, task: Any) -> dict[str, Any]:
 
     wl = spec.pipeline.workload
     data = any(r.bytes_per_s for c in ops for r in c.resources.values())
-    size = pricing().sizing["data" if data else "control"]
-    region = next((r for r in spec.security.security_and_access.residency.allowed_regions if r in pricing().regions),
-                  pricing().default_region)  # fmt: skip
-    prices = pricing().regions[region]
+    size = pr.sizing["data" if data else "control"]
+    region = next((r for r in spec.security.security_and_access.residency.allowed_regions if r in pr.regions),
+                  pr.default_region)  # fmt: skip
+    rp = pr.regions[region]
     lam = engine_table().lambda_
     est: dict[str, dict[str, int]] = {}
     feasible: dict[str, str | None] = {}  # None = feasible, else why not
@@ -65,17 +67,17 @@ def plan_task(spec: PipelineSpec, task: Any) -> dict[str, Any]:
             why = f"{p95} s at p95 > 3600 s"
         feasible[e] = why
         if e == "lambda":
-            unit = Decimal(p95) * Decimal(size.lambda_memory_mb) / 1024 * Decimal(prices.lambda_gb_second)
-            unit += Decimal(prices.lambda_request)
+            unit = Decimal(p95) * Decimal(size.lambda_memory_mb) / 1024 * Decimal(rp.lambda_gb_second)
+            unit += Decimal(rp.lambda_request)
         elif e in ("eks_pod", "eks_pod_spot"):
-            per_h = Decimal(size.pod_vcpu) * Decimal(prices.pod_vcpu_hour) + Decimal(size.pod_memory_gb) * Decimal(
-                prices.pod_gb_hour
+            per_h = Decimal(size.pod_vcpu) * Decimal(rp.pod_vcpu_hour) + Decimal(size.pod_memory_gb) * Decimal(
+                rp.pod_gb_hour
             )
-            unit = Decimal(p95) * per_h / 3600 / Decimal(pricing().pod_utilisation)
+            unit = Decimal(p95) * per_h / 3600 / Decimal(pr.pod_utilisation)
             if e == "eks_pod_spot":
-                unit *= 1 - Decimal(pricing().spot_discount)
+                unit *= 1 - Decimal(pr.spot_discount)
         else:  # mwaa, fivetran_*: fixed or external cost; nothing at the margin
-            unit = Decimal(pricing().mwaa_task_marginal)
+            unit = Decimal(pr.mwaa_task_marginal)
         cost[e] = str((unit * runs).quantize(CENT))
 
     ok = [e for e in candidates if feasible[e] is None]
@@ -104,9 +106,10 @@ def plan_task(spec: PipelineSpec, task: Any) -> dict[str, Any]:
     }
 
 
-def plan(spec: PipelineSpec) -> dict[str, Any]:
+def plan(spec: PipelineSpec, prices: Pricing | None = None) -> dict[str, Any]:
+    pr = prices or pricing()
     return {
         "pipeline_id": spec.pipeline_id,
-        "pricing": f"{pricing().version} ({pricing().status})",
-        "engine_decisions": [plan_task(spec, t) for t in spec.pipeline.orchestration.tasks],
+        "pricing": f"{pr.version} ({pr.status})",
+        "engine_decisions": [plan_task(spec, t, pr) for t in spec.pipeline.orchestration.tasks],
     }

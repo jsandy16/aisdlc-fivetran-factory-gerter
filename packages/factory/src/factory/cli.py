@@ -306,7 +306,7 @@ def remove(
 
 @app.command("plan")
 def plan_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
-    """Print the engine decision of every task (placeholder prices; never written to the lock)."""
+    """Print the engine decision of every task (catalog or calibrated prices; never written to the lock)."""
     from .plan.engine import plan
 
     d = _pipeline_dir(name)
@@ -315,7 +315,7 @@ def plan_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
         return _emit(
             Result(command="plan", ok=False, issues=res.errors, data={"error": "fix the validation errors first"})
         )
-    out = plan(res.load.spec)
+    out = plan(res.load.spec, load_repo(d.parent.parent).prices)
     bad = [x for x in out["engine_decisions"] if x["choice"] is None]
     issues = [Issue(code="engine_infeasible", msg=f"{x['task_id']}: {x['reason']}", loc=x["task_id"]) for x in bad]
     if STATE.json:
@@ -329,14 +329,14 @@ def plan_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
 
 @app.command("cost")
 def cost_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
-    """Monthly and per-run cost from the planner (placeholder prices) against the spec's budget."""
+    """Monthly and per-run cost from the planner against the spec's budget; says which price basis it used."""
     from .gen.cost import cost_report
 
     d = _pipeline_dir(name)
     res = validate_dir(d)
     if res.load.spec is None or res.errors:
         return _emit(Result(command="cost", ok=False, issues=res.errors))
-    rep = cost_report(res.load.spec)
+    rep = cost_report(res.load.spec, load_repo(d.parent.parent).prices)
     issues = [] if rep["within_budget"] else [Issue(code="over_budget", msg="the estimate exceeds the budget")]
     return _emit(Result(command="cost", ok=rep["within_budget"], issues=issues, data=rep))
 
@@ -407,6 +407,43 @@ def build_cmd(
     root = d.parent.parent
     out = build(load_repo(root), d, root / "build", image=image)
     return _emit(Result(command="build", ok=True, data=out))
+
+
+@app.command("verify")
+def verify_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
+    """Regenerate in memory and compare with build/<pipeline>: hand edits, stale, missing or unexpected files."""
+    from .gen.verify import verify
+
+    d = _pipeline_dir(name)
+    root = d.parent.parent
+    rep = verify(load_repo(root), d, root / "build")
+    issues = [Issue(code=i["code"], msg=f"{i['file']}: {i['msg']}", loc=i["file"]) for i in rep.pop("issues")]
+    return _emit(Result(command="verify", ok=rep["ok"], issues=issues, data=rep))
+
+
+change_app = typer.Typer(help="Incremental change (ADR-0018): what a spec change does, before it ships.")
+app.add_typer(change_app, name="change")
+
+
+@change_app.command("plan")
+def change_plan_cmd(
+    name: Annotated[str, typer.Argument(help="Pipeline id")],
+    base: Annotated[str, typer.Option(help="Git ref (e.g. origin/main) or a folder holding the previous pipeline")],
+    record: Annotated[str | None, typer.Option(help="Write changes/<n>.json with this request text")] = None,
+) -> int:
+    """Semantic diff, files, Terraform resources, rules to re-review, tests, DAG strategy, approvals, cost delta."""
+    from .change.plan import change_plan, record_change
+
+    d = _pipeline_dir(name)
+    out = change_plan(load_repo(d.parent.parent), d, base)
+    issues = [Issue(code=i["code"], msg=i["msg"]) for i in out["issues"]]
+    data = out["plan"]
+    if record is not None:
+        if not out["ok"]:
+            issues.append(Issue(code="change_not_recorded", msg="fix the issues before recording the change"))
+        else:
+            data = {**data, "recorded": str(record_change(d, record, out["plan"]))}
+    return _emit(Result(command="change plan", ok=out["ok"], issues=issues, data=data))
 
 
 agent_app = typer.Typer(

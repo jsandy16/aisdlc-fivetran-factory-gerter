@@ -20,7 +20,7 @@ from urllib.parse import urlsplit
 
 from factory_core.pathmatch import parse_path_pattern
 from factory_core.templates import parse_template, render
-from factory_spec.catalog import op_catalog, pricing
+from factory_spec.catalog import Pricing, op_catalog, pricing
 from factory_spec.platform import PlatformSettings
 from factory_spec.spec import PipelineSpec
 
@@ -283,10 +283,12 @@ def _env_vars(c: _Ctx, *, poll: bool) -> dict[str, str]:
     return {k: v[k] for k in sorted(v) if v[k] != ""}
 
 
-def generate_terraform(spec: PipelineSpec, platform: PlatformSettings, deploy: Deploy) -> dict[str, Any]:
+def generate_terraform(
+    spec: PipelineSpec, platform: PlatformSettings, deploy: Deploy, prices: Pricing | None = None
+) -> dict[str, Any]:
     c = _Ctx(spec, platform, deploy)
     p = spec.pipeline
-    decisions = {d["task_id"]: d for d in plan(spec)["engine_decisions"]}
+    decisions = {d["task_id"]: d for d in plan(spec, prices)["engine_decisions"]}
     retention = _retention_days(spec.security.security_and_access.retention.run_logs)
     pod_identity = platform.identity.default == "pod_identity"
     res: dict[str, dict[str, Any]] = defaultdict(dict)
@@ -335,7 +337,7 @@ def generate_terraform(spec: PipelineSpec, platform: PlatformSettings, deploy: D
             fn = names.lambda_function(c.team, c.pid, t.task_id)
             poll = engine in ("mwaa", "fivetran_native", "fivetran_sdk")
             data = any(e.get("seconds_max", 0) > 60 for e in decisions[t.task_id]["estimates"].values())
-            size = pricing().sizing["data" if data else "control"]
+            size = (prices or pricing()).sizing["data" if data else "control"]
             res["aws_cloudwatch_log_group"][key] = {
                 "name": f"/aws/lambda/{fn}",
                 "retention_in_days": retention,
@@ -474,7 +476,7 @@ def _dispatcher(c: _Ctx, res: dict[str, dict[str, Any]], variables: dict[str, An
     env = _env_vars(c, poll=False) | {
         "FACTORY_BUNDLE_URI": c.deploy.bundle_uri,
         "FACTORY_BUNDLE_SHA256": c.deploy.bundle_sha256,
-        "FACTORY_DAG_ID": c.pid,
+        "FACTORY_DAG_ID": names.dag_id(c.pid, c.spec.pipeline.metadata.spec_version),
         "FACTORY_MWAA_ENV": c.platform.mwaa.environment_name,
         "FACTORY_TRIGGER_ROLE_ARN": trigger_role,
     }

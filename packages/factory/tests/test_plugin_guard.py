@@ -36,6 +36,7 @@ def decide(event: object) -> str:
         ("Write", {"file_path": "/repo/pipelines/p/rules/r_x/impl.lock.json"}, "deny"),
         ("Write", {"file_path": "/repo/pipelines/p/spec.lock.json"}, "deny"),
         ("Edit", {"file_path": "/repo/pipelines/p/audit/agent-decisions.jsonl"}, "deny"),
+        ("Write", {"file_path": "/repo/pipelines/p/changes/0003.json"}, "deny"),
         ("Edit", {"file_path": "/repo/pipelines/p/spec/rules.yaml"}, "allow"),
         ("Read", {"file_path": "/home/u/.env"}, "deny"),
         ("Read", {"file_path": "/repo/certs/client.pem"}, "deny"),

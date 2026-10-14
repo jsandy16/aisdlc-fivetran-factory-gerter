@@ -18,6 +18,12 @@ def _kebab(s: str) -> str:
     return re.sub(r"[^a-z0-9-]", "-", s.lower())
 
 
+def dag_id(pipeline_id: str, spec_version: str) -> str:
+    """ADR-0018: a breaking change bumps the major version and gets a new DAG; majors 0 and 1 keep the plain id."""
+    major = int(spec_version.split(".", 1)[0])
+    return pipeline_id if major <= 1 else f"{pipeline_id}__v{major}"
+
+
 def lambda_function(team: str, pipeline_id: str, task_id: str) -> str:
     return _clip(_kebab(f"factory-{team}-{pipeline_id}-{task_id}"), 64)
 

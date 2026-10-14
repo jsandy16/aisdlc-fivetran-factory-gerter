@@ -10,11 +10,13 @@ from pathlib import Path
 from factory_core.envelope import CommandError
 from pydantic import ValidationError
 
+from .catalog import Pricing, pricing
 from .common import StrictModel, ba
 from .fieldtypes import EnvName, Identifier
 from .platform import PlatformSettings
 
 MARKER = "factory.toml"
+PRICING_FILE = "pricing.json"
 DEFAULT_ENVIRONMENTS = ("dev", "test", "ppt", "prod")
 
 
@@ -36,6 +38,11 @@ class Repo:
     config: RepoConfig
     platform: dict[str, PlatformSettings] = field(default_factory=dict)
     platform_issues: list[str] = field(default_factory=list)
+    calibrated: Pricing | None = None  # the platform team's calibrated prices; never mixed with the placeholders
+
+    @property
+    def prices(self) -> Pricing:
+        return self.calibrated or pricing()
 
     @property
     def environments(self) -> list[str]:
@@ -70,4 +77,13 @@ def load_repo(start: Path | None = None) -> Repo:
                 repo.platform[env] = PlatformSettings.model_validate(json.loads(f.read_text(encoding="utf-8")))
             except (json.JSONDecodeError, ValidationError) as exc:
                 repo.platform_issues.append(f"platform settings {f.name} are invalid: {str(exc).splitlines()[0]}")
+        prices = d / PRICING_FILE
+        if prices.is_file():
+            try:
+                repo.calibrated = Pricing.model_validate(json.loads(prices.read_text(encoding="utf-8")))
+            except (json.JSONDecodeError, ValidationError) as exc:
+                raise CommandError(f"{PRICING_FILE} is invalid: {str(exc).splitlines()[0]}", "config") from None
+            if repo.calibrated.status != "calibrated":
+                raise CommandError(f"{PRICING_FILE} must say status: calibrated (placeholders live in the catalog)",
+                                   "config")  # fmt: skip
     return repo

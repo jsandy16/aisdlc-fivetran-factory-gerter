@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from factory_spec.catalog import Pricing
 from factory_spec.spec import PipelineSpec
 
 from ..plan.engine import plan
@@ -57,9 +58,9 @@ def _schedule(spec: PipelineSpec, env: str) -> str | None:
     return None
 
 
-def generate_dag(spec: PipelineSpec, deploy: Deploy, logic_sha: str) -> str:
+def generate_dag(spec: PipelineSpec, deploy: Deploy, logic_sha: str, prices: Pricing | None = None) -> str:
     p = spec.pipeline
-    decisions = {d["task_id"]: d for d in plan(spec)["engine_decisions"]}
+    decisions = {d["task_id"]: d for d in plan(spec, prices)["engine_decisions"]}
     sec = spec.security.security_and_access
     retry = p.reliability.retry
     conf = _conf(spec)
@@ -75,7 +76,7 @@ def generate_dag(spec: PipelineSpec, deploy: Deploy, logic_sha: str) -> str:
     out.append(f"RUNTIME = {_py(runtime)}\n\n")
     out.append(
         "with DAG(\n"
-        f"    dag_id={spec.pipeline_id!r},\n"
+        f"    dag_id={names.dag_id(spec.pipeline_id, p.metadata.spec_version)!r},\n"
         f"    schedule={_schedule(spec, deploy.env)!r},\n"
         "    start_date=None,\n"
         f"    catchup={p.orchestration.dag.catchup!r},\n"

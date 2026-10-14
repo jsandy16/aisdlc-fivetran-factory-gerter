@@ -2,8 +2,8 @@
 """PreToolUse guard for Pipeline Factory sessions (fail-closed; stdlib only).
 
 Denies: running `factory accept` (a person's sign-off, never an agent's), editing generated or recorded files
-(build/, DAG and Terraform output, locks, acceptance and review records, the agent audit trail), and reading or
-fetching secrets (.env, keys, cloud credentials, secret-store reads). Anything it cannot parse is denied.
+(build/, DAG and Terraform output, locks, acceptance and review records, the agent audit trail, the changelog),
+and reading or fetching secrets (.env, keys, cloud credentials, secret-store reads). Anything it cannot parse is denied.
 """
 
 from __future__ import annotations
@@ -39,7 +39,8 @@ def deny(reason: str) -> None:
 
 def generated(path: str) -> bool:
     p = PurePosixPath(path.replace("\\", "/"))
-    return "build" in p.parts or p.name in GENERATED_NAMES or p.name.endswith(".tf.json")
+    changelog = p.parent.name == "changes" and re.fullmatch(r"\d{4}\.json", p.name) is not None
+    return "build" in p.parts or p.name in GENERATED_NAMES or p.name.endswith(".tf.json") or changelog
 
 
 def main() -> None:
