@@ -195,7 +195,7 @@ class DestinationSlot(StrictModel):
 class SecretRef(StrictModel):
     """A reference to a secret; the value is never in a spec."""
 
-    provider: Literal["vault", "aws_secrets_manager"] | None = ba(
+    provider: Literal["vault", "aws_secrets_manager", "dataops_vault"] | None = ba(
         "Secret store",
         "Fallback store; each environment's binding (environments.yaml → secrets) decides where it is read from",
         default=None,

@@ -15,6 +15,100 @@
       ],
       "type": "object"
     },
+    "DataopsSettings": {
+      "additionalProperties": false,
+      "description": "Per-environment settings of the dataops layout: where run state lives, how secrets are read.",
+      "properties": {
+        "project_entity": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{1,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vault project entity; default: segments 2-5 of the AWS_ROLE_ARN the container receives",
+          "x-ba-label": "Project entity"
+        },
+        "state_bucket": {
+          "description": "Run state, staging, audit and bundles (under the state prefix)",
+          "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+          "type": "string",
+          "x-ba-label": "State bucket"
+        },
+        "state_prefix": {
+          "default": "_factory/",
+          "description": "State prefix",
+          "pattern": "^[A-Za-z0-9_./-]{1,64}/$",
+          "type": "string",
+          "x-ba-label": "State prefix"
+        },
+        "vault": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataopsVaultSettings"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For secrets read from the DataOps Vault",
+          "x-ba-label": "Vault"
+        }
+      },
+      "required": [
+        "state_bucket"
+      ],
+      "type": "object"
+    },
+    "DataopsVaultSettings": {
+      "additionalProperties": false,
+      "description": "Vault behind the DataOps platform: a project token in Secrets Manager, secrets in KV v2 (ADR-0026).",
+      "properties": {
+        "address": {
+          "description": "Address",
+          "pattern": "^https://[a-z0-9.-]+(:\\d{1,5})?$",
+          "type": "string",
+          "x-ba-label": "Address"
+        },
+        "kv_path": {
+          "default": "secret/data/{entity_path}/base/{path}",
+          "description": "Path of a secret under v1/; {entity_path} (the entity with '/' for '-') and {path} are filled in",
+          "pattern": "^[A-Za-z0-9/_{}.-]{1,256}$",
+          "type": "string",
+          "x-ba-label": "KV path"
+        },
+        "service_env": {
+          "default": "prd",
+          "description": "Vault service environment of the token",
+          "pattern": "^[a-z0-9-]{1,32}$",
+          "type": "string",
+          "x-ba-label": "Service environment"
+        },
+        "token_region": {
+          "default": "eu-west-1",
+          "description": "Region of the token secret",
+          "pattern": "^[a-z]{2}(-gov)?-[a-z]+-\\d$",
+          "type": "string",
+          "x-ba-label": "Token region"
+        },
+        "token_secret": {
+          "default": "/{service_env}/pcp/{entity}/vault-token",
+          "description": "Secrets Manager id of the project's Vault token; {service_env} and {entity} are filled in",
+          "pattern": "^[A-Za-z0-9/_+=.@{}-]{1,256}$",
+          "type": "string",
+          "x-ba-label": "Token secret"
+        }
+      },
+      "required": [
+        "address"
+      ],
+      "type": "object"
+    },
     "IdentitySettings": {
       "additionalProperties": false,
       "properties": {
@@ -202,6 +296,7 @@
           "x-ba-label": "EKS"
         },
         "kms_aliases": {
+          "description": "Team keys by purpose",
           "patternProperties": {
             "^[a-z][a-z0-9_]*$": {
               "pattern": "^alias/[A-Za-z0-9/_-]{1,250}$",
@@ -212,17 +307,24 @@
             "maxLength": 63
           },
           "type": "object",
-          "x-ba-label": "Kms aliases"
+          "x-ba-label": "KMS aliases"
         },
         "stores": {
-          "$ref": "#/$defs/TeamStores",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TeamStores"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run-state, staging, bundle and audit stores (mwaa layout)",
           "x-ba-label": "Stores"
         }
       },
       "required": [
-        "account",
-        "stores",
-        "kms_aliases"
+        "account"
       ],
       "type": "object"
     },
@@ -339,6 +441,19 @@
       "type": "boolean",
       "x-ba-label": "Local secrets"
     },
+    "dataops": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DataopsSettings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The dataops layout's settings",
+      "x-ba-label": "DataOps"
+    },
     "environment": {
       "pattern": "^[a-z][a-z0-9]{1,9}$",
       "type": "string",
@@ -355,8 +470,17 @@
       "x-ba-label": "Limits"
     },
     "mwaa": {
-      "$ref": "#/$defs/MwaaSettings",
-      "x-ba-label": "Mwaa"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MwaaSettings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The mwaa layout's Airflow environment",
+      "x-ba-label": "MWAA"
     },
     "placements": {
       "patternProperties": {
@@ -412,7 +536,6 @@
     "account_model",
     "accounts",
     "placements",
-    "mwaa",
     "teams"
   ],
   "type": "object",

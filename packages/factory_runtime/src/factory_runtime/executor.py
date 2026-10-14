@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, NoReturn
 
 from factory_core.errors import (
     ConfigError,
@@ -85,7 +85,7 @@ def classified(exc: BaseException, where: str) -> FactoryError:
     return err
 
 
-def _check_environment(bundle: LoadedBundle, services: Services, task_id: str) -> None:
+def check_environment_binding(bundle: LoadedBundle, services: Services, task_id: str) -> None:
     spec, cfg = bundle.spec, services.config
     binding = spec.environments.environments.get(cfg.env)
     if binding is None or not binding.enabled:
@@ -192,6 +192,24 @@ def _apply_on_failure(ctx: RuleContext, failure: CheckFailed) -> FactoryError | 
     return err
 
 
+def pinned(services: Services, bundle: LoadedBundle, rdir: str) -> tuple[LoadedBundle, Pin]:
+    """The bundle a run is pinned to: the first attempt pins the one it started with; later attempts use that one."""
+    cfg = services.config
+    candidate = Pin(
+        bundle_sha=bundle.sha256,
+        image_digest=cfg.image_digest,
+        logic_sha=bundle.hashes["logic_sha"],
+        binding_sha=bundle.hashes["binding_sha"].get(cfg.env, ""),
+        pinned_at=int(services.clock()),
+    )
+    _, pin = establish_pin(services.state, rdir, candidate)
+    check_image(pin, cfg.image_digest)
+    if pin.bundle_sha != bundle.sha256:
+        services.log.event("run_pinned_bundle", pinned=pin.bundle_sha[:12], requested=bundle.sha256[:12])
+        bundle = load_bundle(services.aws, cfg, bundle_uri(cfg, pin.bundle_sha), pin.bundle_sha)
+    return bundle, pin
+
+
 def execute(services: Services, req: TaskRequest) -> TaskOutcome:
     cfg = services.config
     rdir = run_dir(req.run_key)
@@ -205,89 +223,128 @@ def execute(services: Services, req: TaskRequest) -> TaskOutcome:
         run_key=run_key_hash(req.run_key),
     ):
         bundle = load_bundle(services.aws, cfg, req.bundle, req.sha256)
-        _check_environment(bundle, services, req.task_id)
-        candidate = Pin(
-            bundle_sha=bundle.sha256,
-            image_digest=cfg.image_digest,
-            logic_sha=bundle.hashes["logic_sha"],
-            binding_sha=bundle.hashes["binding_sha"].get(cfg.env, ""),
-            pinned_at=int(services.clock()),
-        )
-        _, pin = establish_pin(services.state, rdir, candidate)
-        check_image(pin, cfg.image_digest)
-        if pin.bundle_sha != bundle.sha256:
-            services.log.event("run_pinned_bundle", pinned=pin.bundle_sha[:12], requested=bundle.sha256[:12])
-            bundle = load_bundle(services.aws, cfg, bundle_uri(cfg, pin.bundle_sha), pin.bundle_sha)
+        check_environment_binding(bundle, services, req.task_id)
+        bundle, pin = pinned(services, bundle, rdir)
         with bind(bundle_sha=bundle.sha256[:12], image_digest=cfg.image_digest):
             return _execute_task(services, req, bundle, pin, rdir)
 
 
 def _execute_task(services: Services, req: TaskRequest, bundle: LoadedBundle, pin: Pin, rdir: str) -> TaskOutcome:
-    cfg, spec = services.config, bundle.spec
-    log = services.log
-    sec = spec.security.security_and_access
-    staging = Staging(services.aws, cfg.staging_bucket, cfg.staging_kms_key, cfg.pipeline_id, rdir)
-    audit = AuditLog(
-        services.aws,
-        cfg.audit_store,
-        cfg.audit_kms_key,
-        f"{cfg.pipeline_id}/{rdir}/",
-        frozenset(sec.audit.events) if sec.audit.enabled else frozenset(),
-        base={"pipeline_id": cfg.pipeline_id, "env": cfg.env, "run": run_key_hash(req.run_key), "task_id": req.task_id},
-        clock=services.clock,
-    )
-    done = services.state.get(rdir, f"TASK#{req.task_id}")
-    if done is not None:
-        log.event("task_already_done", attempt_done=done.doc.get("attempt"))
-        return TaskOutcome(req.task_id, "already_done")
-    if services.state.get(rdir, NO_WORK) is not None:
-        log.event("run_has_no_work")
-        return TaskOutcome(req.task_id, "no_work")
-    trigger = _trigger_snapshot(bundle, staging, req.conf)
-    graph = derive_artifacts(spec)
-    store = ArtifactStore(graph, staging)
-    run = RunInfo(
-        run_key=req.run_key,
-        run_dir=rdir,
-        run_key_hash=run_key_hash(req.run_key),
-        env=cfg.env,
-        pipeline_id=cfg.pipeline_id,
-        team=cfg.team,
-        attempt=req.attempt,
-        run_id=req.run_id or rdir,
-        pinned_at=pin.pinned_at,
-        run_date=run_date_of(pin.pinned_at, trigger),
-    )
-    vars_ = Vars(spec, trigger, _portal_lookup(bundle, store))
-    workdir = cfg.workdir / "runs" / rdir / req.task_id
-    workdir.mkdir(parents=True, exist_ok=True)
-    secrets = build_secrets(services, spec, cfg.env, audit.record)
-    rules = [r for t, r in spec.ordered_rules() if t.task_id == req.task_id]
-    log.event("task_start", rules=len(rules))
-    t0 = time.monotonic()
-    ran: list[str] = []
+    session = TaskSession(services, req, bundle, pin, rdir)
+    if session.skipped:
+        return session.outcome()
     try:
-        for rule in rules:
-            ctx = RuleContext(rule, req.task_id, spec, services, run, vars_, store, staging, audit, workdir, secrets)
-            with bind(rule_id=rule.rule_id):
-                ran.append(_one_rule(ctx, services, rdir, req.task_id))
-        services.state.put(rdir, f"TASK#{req.task_id}", {"attempt": req.attempt, "rules": ran})
-        log.event("task_end", duration_ms=int((time.monotonic() - t0) * 1000))
-        return TaskOutcome(req.task_id, "succeeded", ran, audit.flush(f"{req.task_id}/attempt-{req.attempt}"))
+        for rule in session.rules:
+            session.run_rule(rule.rule_id)
+        return session.complete()
     except NoWork as nothing:
-        services.state.put(rdir, NO_WORK, {"task_id": req.task_id, "reason": str(nothing)})
-        services.state.put(rdir, f"TASK#{req.task_id}", {"attempt": req.attempt, "rules": ran, "no_work": True})
-        log.event("run_has_no_work", reason=str(nothing))
-        return TaskOutcome(req.task_id, "no_work", ran, audit.flush(f"{req.task_id}/attempt-{req.attempt}"))
+        return session.no_work(nothing)
     except BaseException as exc:
-        err = classified(exc, req.task_id)
-        log.event("task_failed", level="ERROR", error_class=str(err.error_class), code=err.code)
+        session.fail(exc)
+        raise  # pragma: no cover - fail() always raises
+
+
+class TaskSession:
+    """One task of one run, driven rule by rule: by `execute` (all rules, in order) or by a generated task.py in the
+    dataops layout, which calls `run_rule` once per step. Rules must be run in the spec's order; a finished task (or a
+    run with no work) makes every call a no-op."""
+
+    def __init__(self, services: Services, req: TaskRequest, bundle: LoadedBundle, pin: Pin, rdir: str) -> None:
+        cfg, spec = services.config, bundle.spec
+        self.services, self.req, self.rdir = services, req, rdir
+        log = services.log
+        sec = spec.security.security_and_access
+        self.staging = Staging(services.aws, cfg.staging_bucket, cfg.staging_kms_key, cfg.staging_root, rdir)
+        self.audit = AuditLog(
+            services.aws,
+            cfg.audit_store,
+            cfg.audit_kms_key,
+            f"{cfg.audit_root}/{rdir}/",
+            frozenset(sec.audit.events) if sec.audit.enabled else frozenset(),
+            base={"pipeline_id": cfg.pipeline_id, "env": cfg.env, "run": run_key_hash(req.run_key),
+                  "task_id": req.task_id},
+            clock=services.clock,
+        )  # fmt: skip
+        self.skipped: str | None = None
+        self.rules = [r for t, r in spec.ordered_rules() if t.task_id == req.task_id]
+        self.ran: list[str] = []
+        done = services.state.get(rdir, f"TASK#{req.task_id}")
+        if done is not None:
+            log.event("task_already_done", attempt_done=done.doc.get("attempt"))
+            self.skipped = "already_done"
+            return
+        if services.state.get(rdir, NO_WORK) is not None:
+            log.event("run_has_no_work")
+            self.skipped = "no_work"
+            return
+        trigger = _trigger_snapshot(bundle, self.staging, req.conf)
+        graph = derive_artifacts(spec)
+        self.store = ArtifactStore(graph, self.staging)
+        self.run = RunInfo(
+            run_key=req.run_key,
+            run_dir=rdir,
+            run_key_hash=run_key_hash(req.run_key),
+            env=cfg.env,
+            pipeline_id=cfg.pipeline_id,
+            team=cfg.team,
+            attempt=req.attempt,
+            run_id=req.run_id or rdir,
+            pinned_at=pin.pinned_at,
+            run_date=run_date_of(pin.pinned_at, trigger),
+        )
+        self.vars = Vars(spec, trigger, _portal_lookup(bundle, self.store))
+        self.workdir = cfg.workdir / "runs" / rdir / req.task_id
+        self.workdir.mkdir(parents=True, exist_ok=True)
+        self.spec = spec
+        self.secrets = build_secrets(services, spec, cfg.env, self.audit.record)
+        log.event("task_start", rules=len(self.rules))
+        self.t0 = time.monotonic()
+
+    def outcome(self) -> TaskOutcome:
+        return TaskOutcome(self.req.task_id, self.skipped or "succeeded", list(self.ran))
+
+    def run_rule(self, rule_id: str) -> None:
+        if self.skipped:
+            return
+        i = len(self.ran)
+        if i >= len(self.rules) or self.rules[i].rule_id != rule_id:
+            expected = self.rules[i].rule_id if i < len(self.rules) else "none"
+            raise ConfigError("rule_out_of_order", f"{rule_id} was called where the spec runs {expected}")
+        rule = self.rules[i]
+        ctx = RuleContext(rule, self.req.task_id, self.spec, self.services, self.run, self.vars, self.store,
+                          self.staging, self.audit, self.workdir, self.secrets)  # fmt: skip
+        with bind(rule_id=rule.rule_id):
+            self.ran.append(_one_rule(ctx, self.services, self.rdir, self.req.task_id))
+
+    def _flush(self) -> str | None:
+        return self.audit.flush(f"{self.req.task_id}/attempt-{self.req.attempt}")
+
+    def complete(self) -> TaskOutcome:
+        if self.skipped:
+            return self.outcome()
+        if len(self.ran) != len(self.rules):
+            missing = [r.rule_id for r in self.rules[len(self.ran) :]]
+            raise ConfigError("task_incomplete", f"task {self.req.task_id} did not run {', '.join(missing)}")
+        self.services.state.put(self.rdir, f"TASK#{self.req.task_id}", {"attempt": self.req.attempt, "rules": self.ran})
+        self.services.log.event("task_end", duration_ms=int((time.monotonic() - self.t0) * 1000))
+        return TaskOutcome(self.req.task_id, "succeeded", list(self.ran), self._flush())
+
+    def no_work(self, nothing: NoWork) -> TaskOutcome:
+        state, rdir, task_id = self.services.state, self.rdir, self.req.task_id
+        state.put(rdir, NO_WORK, {"task_id": task_id, "reason": str(nothing)})
+        state.put(rdir, f"TASK#{task_id}", {"attempt": self.req.attempt, "rules": self.ran, "no_work": True})
+        self.services.log.event("run_has_no_work", reason=str(nothing))
+        return TaskOutcome(task_id, "no_work", list(self.ran), self._flush())
+
+    def fail(self, exc: BaseException) -> NoReturn:
+        err = classified(exc, self.req.task_id)
+        self.services.log.event("task_failed", level="ERROR", error_class=str(err.error_class), code=err.code)
         try:
-            audit.flush(f"{req.task_id}/attempt-{req.attempt}")
+            self._flush()
         except Exception:  # the original failure matters more than the audit flush
-            log.event("audit_flush_failed", level="ERROR")
+            self.services.log.event("audit_flush_failed", level="ERROR")
         if err is exc:
-            raise
+            raise exc
         raise err from exc
 
 

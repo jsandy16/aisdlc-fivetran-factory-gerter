@@ -69,7 +69,7 @@ git add -A && git commit && git push              # PR: verify job; merge: deplo
 | `examples/` | a pipelines repository with three complete pipelines (SFTP zip packages, FTPS CSV, RDS PostgreSQL) |
 | `tests/` | pytest suite; `tests/llm-fixtures` recorded LLM answers; `tests/fixture_builders` synthetic data |
 | `dryrun/` | end-to-end rehearsal against local SFTP/FTPS/Postgres/S3 stand-ins and the official Fivetran tester |
-| `docs/` | [architecture](docs/architecture.md), [operations](docs/operations.md) |
+| `docs/` | [architecture](docs/architecture.md), [operations](docs/operations.md), [local development](docs/local-development.md), [DataOps layout](docs/dataops-layout.md) |
 
 ## Dry run (end to end, locally)
 

@@ -126,7 +126,7 @@ def _kms_alias(c: _Ctx, aliases: list[tuple[str, str]], actions: list[str]) -> d
 
 
 def _baseline(c: _Ctx) -> list[dict[str, Any]]:
-    stores = c.team_settings.stores
+    stores = c.platform.team_stores(c.team)
     s3 = f"arn:{c.part}:s3:::"
     table = f"arn:{c.part}:dynamodb:{c.region}:{c.account}:table/{stores.run_state_table}"
     kms = [(c.account, c.team_settings.kms_aliases[k]) for k in sorted(c.team_settings.kms_aliases)]
@@ -281,7 +281,7 @@ def runtime_env(spec: PipelineSpec, platform: PlatformSettings, deploy: Deploy) 
 
 
 def _env_vars(c: _Ctx, *, poll: bool) -> dict[str, str]:
-    stores = c.team_settings.stores
+    stores = c.platform.team_stores(c.team)
     v = {
         "FACTORY_ENV": c.deploy.env,
         "FACTORY_TEAM": c.team,
@@ -464,7 +464,9 @@ def _dispatcher(c: _Ctx, res: dict[str, dict[str, Any]], variables: dict[str, An
     qname = c.binding.queues[trig.queue].name
     fn = names.dispatcher_function(c.team, c.pid)
     mwaa_account = c.platform.accounts[c.platform.placements["mwaa"].account].account_id
-    trigger_role = f"arn:{c.part}:iam::{mwaa_account}:role/" + c.platform.mwaa.trigger_role_pattern.format(team=c.team)
+    trigger_role = f"arn:{c.part}:iam::{mwaa_account}:role/" + c.platform.mwaa_settings.trigger_role_pattern.format(
+        team=c.team
+    )
     q_arn = f"arn:{c.part}:sqs:{c.region}:{c.account}:{qname}"
     res["aws_sqs_queue"]["dlq"] = {
         "name": f"{qname}-dlq",
@@ -530,7 +532,7 @@ def _dispatcher(c: _Ctx, res: dict[str, dict[str, Any]], variables: dict[str, An
         "FACTORY_BUNDLE_URI": c.deploy.bundle_uri,
         "FACTORY_BUNDLE_SHA256": c.deploy.bundle_sha256,
         "FACTORY_DAG_ID": names.dag_id(c.pid, c.spec.pipeline.metadata.spec_version),
-        "FACTORY_MWAA_ENV": c.platform.mwaa.environment_name,
+        "FACTORY_MWAA_ENV": c.platform.mwaa_settings.environment_name,
         "FACTORY_TRIGGER_ROLE_ARN": trigger_role,
     }
     res["aws_cloudwatch_log_group"]["dispatcher"] = {

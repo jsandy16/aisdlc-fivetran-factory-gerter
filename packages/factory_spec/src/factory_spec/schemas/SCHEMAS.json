@@ -1,11 +1,11 @@
 {
   "files": {
     "destinations.schema.json": "0756f5b8ed929f315c70d782c2d59aa00919d2f245acec66a29d42e459d38cbd",
-    "environments.schema.json": "376da6aa45e8ca6d4078ddee0b494016e9662e9603cd12a3a96bb50fd794bf01",
-    "factory-toml.schema.json": "8c5e6d8cddf5acd3754db9a31c794c062eebd43c03010ad5b8e50d3b819b9a77",
-    "integrations.schema.json": "8fc7c60936a833e49223d4d8a6179cfa3cb0e2bc6daea6b5bb459d727569da50",
+    "environments.schema.json": "ffa253ed11dd222a73a7d704e072064d1f09288b854a805d6b2790ee6fccbf39",
+    "factory-toml.schema.json": "a1bb79e46bf792d525a2044f7241333d0f7d1633ce858be34804ff00796e4856",
+    "integrations.schema.json": "056bd0149863c6fbd2370b271a4406dd17de39f9a47dfa2d835eab37588e6f22",
     "pipeline.schema.json": "c3a34547b7622663f28831ab2cd87fb1c028eebe5b55bcf89cf29a17faea61e3",
-    "platform-settings.schema.json": "4bd856e75bd5158a4ba2a34af726561514ce4f56a98ca5a4c85f51cf3f5b4488",
+    "platform-settings.schema.json": "4bca665ff080c852806c14cc9f4dc63a3938765eb57bac5c3f2c3224434fe468",
     "rules.schema.json": "b05aa7c4e29bee07dad406c77b5f1d541816ef2467e2f18ff817f2abb54fa8fd",
     "security.schema.json": "4137e393421c03faa8c903dbe9092a66358c83ee8492aed9499002b208f804ed"
   },

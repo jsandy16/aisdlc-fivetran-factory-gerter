@@ -74,7 +74,7 @@ class Deploy:
 
 def deploy_for(platform: Any, team: str, pipeline_id: str, bundle_sha256: str, image: str | None = None) -> Deploy:
     """Deploy facts from the platform settings (stores, region); the image digest arrives with the release."""
-    t = platform.teams[team].stores
+    t = platform.team_stores(team)
     return Deploy(
         env=platform.environment,
         team=team,

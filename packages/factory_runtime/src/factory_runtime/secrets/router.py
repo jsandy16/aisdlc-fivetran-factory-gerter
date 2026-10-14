@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from collections.abc import Callable
 from dataclasses import replace
@@ -15,6 +16,7 @@ from ..services import Services
 from ..tls import http_client, ssl_context
 from .aws_sm import AwsSecretsManagerProvider
 from .cache import CachedProvider
+from .dataops_vault import DataopsVaultProvider, project_entity
 from .local_file import LocalFileProvider
 from .provider import ResolvedRef, SecretProvider, resolve_ref
 from .value import SecretValue
@@ -125,6 +127,22 @@ def build_secrets(services: Services, spec: Any, env: str, on_event: Callable[..
             return VaultProvider(client, vb.mount)
 
         factories["vault"] = vault
+    if cfg.dataops_vault_address:
+        address = cfg.dataops_vault_address
+
+        def dataops_vault() -> SecretProvider:
+            return DataopsVaultProvider(
+                http_client(ssl_context(extra_ca=services.extra_ca_pem), connect_timeout=5, read_timeout=15),
+                services.aws,
+                address=address,
+                entity=lambda: project_entity(cfg.project_entity, os.environ),
+                service_env=cfg.dataops_vault_service_env,
+                token_secret=cfg.dataops_vault_token_secret,
+                token_region=cfg.dataops_vault_token_region,
+                kv_path=cfg.dataops_vault_kv_path,
+            )
+
+        factories["dataops_vault"] = dataops_vault
     local = None
     if cfg.local_secrets_file is not None:
         if env in STRICT_ENVS:

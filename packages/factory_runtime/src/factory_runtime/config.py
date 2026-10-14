@@ -10,10 +10,10 @@ import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from factory_core.errors import ConfigError
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 _ID = r"^[a-z][a-z0-9_]*$"
 _BUCKET = r"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
@@ -27,7 +27,9 @@ class RuntimeConfig(BaseModel):
     pipeline_id: str = Field(pattern=_ID)
     region: str = Field(pattern=r"^[a-z]{2}(-gov)?-[a-z]+-\d$")
     staging_bucket: str = Field(pattern=_BUCKET)
-    run_state_table: str = Field(pattern=r"^[A-Za-z0-9_.-]{3,255}$")
+    run_state_table: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.-]{3,255}$")
+    state_store: Literal["dynamodb", "s3"] = "dynamodb"  # s3: the dataops layout (ADR-0026), one bucket for all
+    store_prefix: str = Field(default="", pattern=r"^([A-Za-z0-9_./-]{1,64}/)?$")
     bundle_store: str = Field(pattern=_BUCKET)
     audit_store: str = Field(pattern=_BUCKET)
     staging_kms_key: str | None = None
@@ -40,6 +42,15 @@ class RuntimeConfig(BaseModel):
     vault_role: str | None = None
     vault_iam_server_id: str | None = None
     fivetran_api_secret: str | None = None  # Secrets Manager id of the platform's Fivetran API key (fivetran.sync)
+    # the dataops layout: the image's corporate CA (trusted for HTTPS) and the proxy/CA variables it legitimately sets
+    trusted_ca_file: Path | None = None
+    allowed_env: dict[str, str] = Field(default_factory=dict)
+    dataops_vault_address: str | None = Field(default=None, pattern=r"^https://[a-z0-9.-]+(:\d{1,5})?$")
+    dataops_vault_service_env: str = "prd"
+    dataops_vault_token_secret: str = "/{service_env}/pcp/{entity}/vault-token"  # noqa: S105 - a secret's id
+    dataops_vault_token_region: str = "eu-west-1"  # noqa: S105 - a region
+    dataops_vault_kv_path: str = "secret/data/{entity_path}/base/{path}"
+    project_entity: str | None = Field(default=None, pattern=r"^[a-z0-9][a-z0-9-]{1,127}$")
     poll_budget_s: int | None = Field(default=None, ge=30, le=840)  # waits per invocation (Lambda behind a sensor)
     # the dispatcher Lambda only: the deployed bundle it validates messages against, and where it starts runs
     bundle_uri: str | None = None
@@ -53,9 +64,30 @@ class RuntimeConfig(BaseModel):
     # local runs only (`factory run`): every secret comes from the developer's file; refused in ppt and prod
     local_secrets_file: Path | None = None
 
+    @model_validator(mode="after")
+    def _state(self) -> RuntimeConfig:
+        if self.state_store == "dynamodb" and not self.run_state_table:
+            raise ValueError("run_state_table is required for the DynamoDB run state")
+        return self
+
     @property
     def bundle_prefix(self) -> str:
+        if self.store_prefix:
+            return f"{self.store_prefix}bundles/{self.team}/{self.pipeline_id}/"
         return f"{self.team}/{self.pipeline_id}/"
+
+    @property
+    def staging_root(self) -> str:
+        """Key prefix of this pipeline's staging (and quarantine) objects."""
+        return f"{self.store_prefix}staging/{self.pipeline_id}" if self.store_prefix else self.pipeline_id
+
+    @property
+    def audit_root(self) -> str:
+        return f"{self.store_prefix}audit/{self.pipeline_id}" if self.store_prefix else self.pipeline_id
+
+    @property
+    def state_root(self) -> str:
+        return f"{self.store_prefix}state/{self.pipeline_id}/"
 
 
 _ENV_MAP = {

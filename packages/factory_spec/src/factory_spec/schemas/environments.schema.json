@@ -370,7 +370,8 @@
             {
               "enum": [
                 "vault",
-                "aws_secrets_manager"
+                "aws_secrets_manager",
+                "dataops_vault"
               ],
               "type": "string"
             },
@@ -388,7 +389,8 @@
             "^[a-z][a-z0-9_]*$": {
               "enum": [
                 "vault",
-                "aws_secrets_manager"
+                "aws_secrets_manager",
+                "dataops_vault"
               ],
               "type": "string"
             }

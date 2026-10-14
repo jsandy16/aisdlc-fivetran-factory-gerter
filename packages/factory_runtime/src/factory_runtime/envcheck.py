@@ -25,7 +25,7 @@ HAZARDOUS = (
     "FACTORY_LOCAL_SECRETS_FILE",  # local runs only: secrets from a developer's file
 )
 HAZARDOUS_PREFIXES = ("AWS_ENDPOINT_URL",)
-STRICT_ENVS = frozenset({"ppt", "prod"})
+STRICT_ENVS = frozenset({"ppt", "prod", "prd"})
 
 
 def hazardous_settings(environ: Mapping[str, str]) -> list[str]:
@@ -34,10 +34,13 @@ def hazardous_settings(environ: Mapping[str, str]) -> list[str]:
     return sorted(set(found))
 
 
-def check_environment(env: str, environ: Mapping[str, str]) -> None:
+def check_environment(env: str, environ: Mapping[str, str], allowed: Mapping[str, str] | None = None) -> None:
+    """`allowed`: variables the image declares with these exact values (the dataops layout's corporate proxy and
+    CA bundle, from factory.toml); the same variable with any other value is still refused."""
     if env not in STRICT_ENVS:
         return
-    found = hazardous_settings(environ)
+    ok = allowed or {}
+    found = [k for k in hazardous_settings(environ) if k not in ok or environ.get(k) != ok[k]]
     if found:
         raise SecurityError(
             "environment_not_allowed",

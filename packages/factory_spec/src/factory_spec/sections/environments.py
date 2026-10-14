@@ -30,7 +30,7 @@ class SecretsManagerBinding(StrictModel):
     )
 
 
-SecretStore = Literal["vault", "aws_secrets_manager"]
+SecretStore = Literal["vault", "aws_secrets_manager", "dataops_vault"]
 
 
 class SecretStores(StrictModel):

@@ -148,6 +148,7 @@ CODES: dict[str, CodeInfo] = {
     "env_missing": CodeInfo("error", "Add bindings for every environment listed in factory.toml."),
     "env_unknown": CodeInfo("error", "Remove the environment or add it to factory.toml."),
     "binding_missing": CodeInfo("error", "Add the binding for this environment (see the message)."),
+    "layout_unsupported": CodeInfo("error", "Change the spec as the message says; this layout cannot run it."),
     "env_resource_shared": CodeInfo("error", "Use a different queue or bucket per environment."),
     "unknown_placement_alias": CodeInfo("error", "Use a placement alias defined in the platform settings."),
     "unknown_team": CodeInfo("error", "The team must be defined in the platform settings of every environment."),

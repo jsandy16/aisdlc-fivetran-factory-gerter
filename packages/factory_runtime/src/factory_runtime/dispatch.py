@@ -133,7 +133,7 @@ class Dispatcher:
 
     def _staging(self, rdir: str) -> Staging:
         cfg = self.services.config
-        return Staging(self.services.aws, cfg.staging_bucket, cfg.staging_kms_key, cfg.pipeline_id, rdir)
+        return Staging(self.services.aws, cfg.staging_bucket, cfg.staging_kms_key, cfg.staging_root, rdir)
 
     def snapshots(self, raw: str) -> list[TriggerSnapshot]:
         if self.trig.type == "s3_event":
@@ -245,7 +245,7 @@ def handle(
     reset_bound()
     env = os.environ if environ is None else environ
     cfg = from_environ(env)
-    check_environment(cfg.env, env)
+    check_environment(cfg.env, env, cfg.allowed_env)
     services = Services.build(cfg, overrides)
     with bind(pipeline_id=cfg.pipeline_id, team=cfg.team, env=cfg.env):
         dispatcher = build(services, trigger_factory(services) if trigger_factory else None)

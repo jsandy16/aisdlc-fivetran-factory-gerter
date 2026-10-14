@@ -80,7 +80,7 @@ def main(
     try:
         req = parse_request(argv)
         cfg = config or from_environ(environ)
-        check_environment(cfg.env, environ)
+        check_environment(cfg.env, environ, cfg.allowed_env)
         services = Services.build(cfg, overrides, state=state, log=log)
         outcome = execute(services, req)
         log.event("run_exit", exit_code=0, status=outcome.status)

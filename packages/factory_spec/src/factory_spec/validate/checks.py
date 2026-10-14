@@ -44,6 +44,7 @@ SCHEDULE_FIELDS = frozenset({"data_interval_start", "run_date"})
 NAMING_BUILTINS = frozenset({"pipeline_id", "team", "env", "run_date", "seq", "rev"})
 SECRET_PATH_TOKENS = frozenset({"env", "team", "pipeline_id"})
 _SAFE_SCHEDULE = frozenset({"data_interval_start", "run_date"})
+_CRON = re.compile(r"^(\S+\s){4}\S+$")
 
 
 @dataclass
@@ -738,6 +739,14 @@ def check_secrets(ctx: Context) -> Iterable[Issue]:
                 f"environments.{env}.secrets.aws_secrets_manager",
                 f"Secrets Manager secrets are used but {env} has no binding",
             )
+        ps = ctx.repo.platform.get(env)
+        if "dataops_vault" in providers.values() and ps is not None and (ps.dataops is None or not ps.dataops.vault):
+            yield issue(
+                "binding_missing",
+                E,
+                f"environments.{env}.secrets",
+                f"DataOps Vault secrets are used but the {env} platform settings have no dataops.vault",
+            )
     spec_dir = ctx.spec.path / SPEC_DIR
     for fname in SPEC_FILES:
         spec_file = spec_dir / fname
@@ -886,6 +895,56 @@ def check_engines(ctx: Context) -> Iterable[Issue]:
                 )
 
 
+# ---------------------------------------------------------------- the dataops layout (ADR-0026)
+
+# fivetran.sync needs the platform's Fivetran key and runs where Fivetran pipelines are deployed (git + connector SDK)
+DATAOPS_UNSUPPORTED_OPS = frozenset({"fivetran.sync"})
+
+
+def check_layout(ctx: Context) -> Iterable[Issue]:
+    if ctx.repo.config.layout != "dataops":
+        return
+    sp = ctx.spec
+    for r in sp.rules.rules:
+        if r.implementation.kind == "builtin" and r.implementation.op in DATAOPS_UNSUPPORTED_OPS:
+            yield issue(
+                "layout_unsupported",
+                R,
+                f"rules[{r.rule_id}].implementation.op",
+                f"{r.implementation.op} does not run in the dataops layout (deploy Fivetran pipelines with git and "
+                "the connector SDK)",
+            )
+    if sp.environments.resources:
+        yield issue(
+            "layout_unsupported",
+            E,
+            "resources",
+            "resources by configuration need the Terraform stack of the mwaa layout; ask the infra team for them",
+        )
+    trig = sp.pipeline.trigger
+    if trig.type == "sqs" and trig.mode != "dispatch":
+        yield issue(
+            "layout_unsupported",
+            P,
+            "trigger.mode",
+            "in the dataops layout the container polls the queue itself: use mode: dispatch",
+        )
+    for env in ctx.enabled_envs:
+        ps = ctx.repo.platform.get(env)
+        if ps is not None and ps.dataops is None:
+            yield issue(
+                "binding_missing", E, f"environments.{env}", f"the {env} platform settings have no dataops section"
+            )
+        cron = sp.environments.environments[env].schedule_cron
+        if cron is not None and not _CRON.match(cron.strip()):
+            yield issue(
+                "invalid_value",
+                E,
+                f"environments.{env}.schedule_cron",
+                "write a five-field cron expression, e.g. '*/5 * * * *'",
+            )
+
+
 # ---------------------------------------------------------------- GxP, retention, checksums
 
 
@@ -1002,6 +1061,7 @@ CHECKS: tuple[Check, ...] = (
     check_resources,
     check_environments,
     check_engines,
+    check_layout,
     check_gxp,
     check_custom,
 )

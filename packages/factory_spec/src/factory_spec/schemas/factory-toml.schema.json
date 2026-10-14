@@ -1,4 +1,106 @@
 {
+  "$defs": {
+    "DataopsRepo": {
+      "additionalProperties": false,
+      "description": "The DataOps layout (ADR-0026): what the generated repository, image and DAG files have in common.",
+      "properties": {
+        "base_image": {
+          "description": "FROM image of docker/Dockerfile",
+          "pattern": "^[A-Za-z0-9./:@_-]{3,255}$",
+          "type": "string",
+          "x-ba-label": "Base image"
+        },
+        "ca_bundle": {
+          "anyOf": [
+            {
+              "pattern": "^/[A-Za-z0-9._/-]{1,250}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Trusted CA file inside the image (corporate CA), trusted for HTTPS",
+          "x-ba-label": "CA bundle"
+        },
+        "dag_version": {
+          "default": "v3",
+          "description": "The DataOps DAG JSON version",
+          "pattern": "^v\\d{1,3}$",
+          "type": "string",
+          "x-ba-label": "DAG format version"
+        },
+        "dist_bucket": {
+          "description": "Bucket the containers sync src/ from (deployments/<branch>)",
+          "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$",
+          "type": "string",
+          "x-ba-label": "Deployment bucket"
+        },
+        "env_var": {
+          "default": "project_env",
+          "description": "Names the environment inside the container",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+          "type": "string",
+          "x-ba-label": "Environment variable"
+        },
+        "no_proxy": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9.,*-]{1,1000}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hosts that bypass the proxy",
+          "x-ba-label": "No proxy"
+        },
+        "project": {
+          "description": "Project name in the DataOps platform, e.g. rd-dpl-studydata",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,62}$",
+          "type": "string",
+          "x-ba-label": "Project"
+        },
+        "proxy": {
+          "anyOf": [
+            {
+              "pattern": "^https?://[A-Za-z0-9.-]+(:\\d{1,5})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "HTTP(S) proxy the image sets",
+          "x-ba-label": "Proxy"
+        },
+        "python": {
+          "default": "python3.13",
+          "description": "Interpreter in the image",
+          "pattern": "^python3\\.\\d{1,2}$",
+          "type": "string",
+          "x-ba-label": "Python"
+        },
+        "uv_version": {
+          "default": "0.11.26",
+          "description": "Installed in the image",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "type": "string",
+          "x-ba-label": "uv version"
+        }
+      },
+      "required": [
+        "project",
+        "dist_bucket",
+        "base_image"
+      ],
+      "type": "object"
+    }
+  },
   "$id": "urn:pipeline-factory:spec:v1:factory-toml",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -10,6 +112,19 @@
       "type": "string",
       "x-ba-label": "API version"
     },
+    "dataops": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DataopsRepo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Settings of the dataops layout",
+      "x-ba-label": "DataOps"
+    },
     "environments": {
       "description": "Environments every pipeline must bind",
       "items": {
@@ -19,6 +134,16 @@
       "minItems": 1,
       "type": "array",
       "x-ba-label": "Environments"
+    },
+    "layout": {
+      "default": "mwaa",
+      "description": "mwaa: Python DAGs, Lambda and pods; dataops: DAG JSON and containers (ADR-0026)",
+      "enum": [
+        "mwaa",
+        "dataops"
+      ],
+      "type": "string",
+      "x-ba-label": "Layout"
     },
     "platform_settings": {
       "anyOf": [

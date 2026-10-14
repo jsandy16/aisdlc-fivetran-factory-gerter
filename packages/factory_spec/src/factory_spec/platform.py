@@ -47,8 +47,8 @@ class TeamEks(StrictModel):
 class TeamSettings(StrictModel):
     account: Identifier
     eks: TeamEks | None = ba("EKS", "Only when the team has pipelines that need pods", default=None)
-    stores: TeamStores
-    kms_aliases: dict[Identifier, KmsAlias]
+    stores: TeamStores | None = ba("Stores", "Run-state, staging, bundle and audit stores (mwaa layout)", default=None)
+    kms_aliases: dict[Identifier, KmsAlias] = ba("KMS aliases", "Team keys by purpose", default_factory=dict)
 
 
 class LambdaLimitsSettings(StrictModel):
@@ -86,6 +86,41 @@ class VaultSettings(StrictModel):
     )
 
 
+class DataopsVaultSettings(StrictModel):
+    """Vault behind the DataOps platform: a project token in Secrets Manager, secrets in KV v2 (ADR-0026)."""
+
+    address: str = ba("Address", "", pattern=r"^https://[a-z0-9.-]+(:\d{1,5})?$")
+    service_env: str = ba("Service environment", "Vault service environment of the token", default="prd",
+                          pattern=r"^[a-z0-9-]{1,32}$")  # fmt: skip
+    token_secret: str = ba(
+        "Token secret",
+        "Secrets Manager id of the project's Vault token; {service_env} and {entity} are filled in",
+        default="/{service_env}/pcp/{entity}/vault-token",
+        pattern=r"^[A-Za-z0-9/_+=.@{}-]{1,256}$",
+    )
+    token_region: AwsRegion = ba("Token region", "Region of the token secret", default="eu-west-1")
+    kv_path: str = ba(
+        "KV path",
+        "Path of a secret under v1/; {entity_path} (the entity with '/' for '-') and {path} are filled in",
+        default="secret/data/{entity_path}/base/{path}",
+        pattern=r"^[A-Za-z0-9/_{}.-]{1,256}$",
+    )
+
+
+class DataopsSettings(StrictModel):
+    """Per-environment settings of the dataops layout: where run state lives, how secrets are read."""
+
+    state_bucket: S3Bucket = ba("State bucket", "Run state, staging, audit and bundles (under the state prefix)")
+    state_prefix: str = ba("State prefix", "", default="_factory/", pattern=r"^[A-Za-z0-9_./-]{1,64}/$")
+    vault: DataopsVaultSettings | None = ba("Vault", "For secrets read from the DataOps Vault", default=None)
+    project_entity: str | None = ba(
+        "Project entity",
+        "Vault project entity; default: segments 2-5 of the AWS_ROLE_ARN the container receives",
+        default=None,
+        pattern=r"^[a-z0-9][a-z0-9-]{1,127}$",
+    )
+
+
 class PlatformSettings(StrictModel):
     settings_version: Literal[1]
     environment: EnvName
@@ -94,7 +129,8 @@ class PlatformSettings(StrictModel):
     identity: IdentitySettings = ba("Workload identity", "", default_factory=IdentitySettings)
     accounts: dict[Identifier, Account]
     placements: dict[Identifier, PlacementDef]
-    mwaa: MwaaSettings
+    mwaa: MwaaSettings | None = ba("MWAA", "The mwaa layout's Airflow environment", default=None)
+    dataops: DataopsSettings | None = ba("DataOps", "The dataops layout's settings", default=None)
     teams: dict[Identifier, TeamSettings]
     limits: Limits = ba("Limits", "", default_factory=Limits)
     vault: VaultSettings | None = None
@@ -112,4 +148,22 @@ class PlatformSettings(StrictModel):
         for team, t in self.teams.items():
             if t.account not in self.accounts:
                 raise ValueError(f"team '{team}' refers to unknown account '{t.account}'")
+        if self.dataops is None:
+            if self.mwaa is None:
+                raise ValueError("give mwaa settings (mwaa layout) or dataops settings (dataops layout)")
+            for team, t in self.teams.items():
+                if t.stores is None or not t.kms_aliases:
+                    raise ValueError(f"team '{team}' needs stores and kms_aliases (mwaa layout)")
         return self
+
+    @property
+    def mwaa_settings(self) -> MwaaSettings:
+        if self.mwaa is None:
+            raise ValueError(f"the {self.environment} platform settings have no mwaa section")
+        return self.mwaa
+
+    def team_stores(self, team: str) -> TeamStores:
+        stores = self.teams[team].stores
+        if stores is None:
+            raise ValueError(f"team '{team}' has no stores in the {self.environment} platform settings")
+        return stores

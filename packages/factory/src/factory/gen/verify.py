@@ -26,6 +26,10 @@ def _sha(b: bytes) -> str:
 
 
 def verify(repo: Repo, pipeline_dir: Path, out_root: Path) -> dict[str, Any]:
+    if repo.config.layout == "dataops":
+        from .dataops.layout import verify_dataops
+
+        return verify_dataops(repo, pipeline_dir)
     out = out_root / pipeline_dir.name
     issues: list[dict[str, str]] = []
 

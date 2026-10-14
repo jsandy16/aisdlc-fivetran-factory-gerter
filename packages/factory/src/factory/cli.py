@@ -88,24 +88,100 @@ def init(
     path: Annotated[Path, typer.Argument(help="Folder to turn into a pipelines repository")] = Path("."),
     team: Annotated[str | None, typer.Option(help="Team owning the repository")] = None,
     platform_settings: Annotated[str | None, typer.Option(help="Path to the platform settings folder")] = None,
+    layout: Annotated[str, typer.Option(help="mwaa (Python DAGs, Lambda, pods) or dataops (DAG JSON, containers)")] = (
+        "mwaa"
+    ),
+    environments: Annotated[
+        str | None, typer.Option(help="Comma-separated (default dev,test,ppt,prod; dataops: dev,sit,ppt,prd)")
+    ] = None,
+    project: Annotated[str | None, typer.Option(help="dataops: project name, e.g. rd-dpl-studydata")] = None,
+    dist_bucket: Annotated[str | None, typer.Option(help="dataops: bucket the containers sync src/ from")] = None,
+    base_image: Annotated[str | None, typer.Option(help="dataops: FROM image of docker/Dockerfile")] = None,
+    ca_bundle: Annotated[str | None, typer.Option(help="dataops: corporate CA bundle path in the image")] = None,
+    proxy: Annotated[str | None, typer.Option(help="dataops: HTTP(S) proxy the image sets")] = None,
+    no_proxy: Annotated[str | None, typer.Option(help="dataops: hosts that bypass the proxy")] = None,
 ) -> int:
+    if layout not in ("mwaa", "dataops"):
+        raise CommandError("--layout is mwaa or dataops", "usage")
     root = path.resolve()
     root.mkdir(parents=True, exist_ok=True)
     marker = root / MARKER
+    envs = [e.strip() for e in environments.split(",")] if environments else (
+        ["dev", "sit", "ppt", "prd"] if layout == "dataops" else ["dev", "test", "ppt", "prod"])  # fmt: skip
+    data: dict[str, Any] = {"root": str(root), "layout": layout}
+    issues: list[Issue] = []
     if not marker.exists():
         lines = ["# Pipeline Factory team repository", 'api_version = "factory/v1"']
         if team:
             lines.append(f'team = "{team}"')
-        lines.append('environments = ["dev", "test", "ppt", "prod"]')
-        if platform_settings:
-            lines.append(f'platform_settings = "{platform_settings}"')
+        lines.append("environments = " + json.dumps(envs))
+        settings = platform_settings or ("./platform-settings" if layout == "dataops" else None)
+        if settings:
+            lines.append(f'platform_settings = "{settings}"')
+        if layout == "dataops":
+            missing = [n for n, v in (("--project", project), ("--dist-bucket", dist_bucket),
+                                      ("--base-image", base_image), ("--team", team)) if not v]  # fmt: skip
+            if missing:
+                raise CommandError(f"the dataops layout needs {', '.join(missing)}", "usage")
+            lines += ['layout = "dataops"', "", "[dataops]", f'project = "{project}"', f'dist_bucket = "{dist_bucket}"',
+                      f'base_image = "{base_image}"']  # fmt: skip
+            lines += [f'{k} = "{v}"' for k, v in (("ca_bundle", ca_bundle), ("proxy", proxy), ("no_proxy", no_proxy))
+                      if v]  # fmt: skip
         marker.write_text("\n".join(lines) + "\n", encoding="utf-8")
     (root / "pipelines").mkdir(exist_ok=True)
     gi = root / ".gitignore"
     existing = gi.read_text(encoding="utf-8").splitlines() if gi.exists() else []
     wanted = [".venv/", "__pycache__/", "*.pyc", ".factory/"]
     gi.write_text("\n".join(existing + [w for w in wanted if w not in existing]) + "\n", encoding="utf-8")
-    return _emit(Result(command="init", ok=True, data={"root": str(root)}))
+    repo = load_repo(root)
+    if repo.config.layout == "dataops" and repo.config.dataops is not None:
+        from .gen.dataops import skeleton
+
+        written, kept = [], []
+        for rel, text in skeleton.files(repo.config.dataops, repo.config.team or "team").items():
+            f = root / rel
+            if f.exists():
+                kept.append(rel)
+                continue
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(text, encoding="utf-8")
+            written.append(rel)
+        ps_dir = root / (repo.config.platform_settings or "platform-settings")
+        for env in repo.environments:
+            f = ps_dir / f"{env}.json"
+            if not f.exists():
+                f.parent.mkdir(parents=True, exist_ok=True)
+                f.write_text(json.dumps(skeleton.platform_template(env, repo.config.team or "team"), indent=2) + "\n",
+                             encoding="utf-8")  # fmt: skip
+                written.append(f.relative_to(root).as_posix())
+        data |= {"written": written, "kept": kept}
+        if kept:
+            data["add_to_existing_files"] = skeleton.additions(repo.config.dataops)
+        repo = load_repo(root)  # the templates just written: they report what is still to fill in
+        issues += [Issue(code="platform_settings_missing", severity="warning", msg=m) for m in repo.platform_issues]
+    return _emit(Result(command="init", ok=True, data=data, issues=issues))
+
+
+def _fit_environments(spec_dir: Path, envs: list[str], layout: str) -> None:
+    """Give a starter one binding block per repository environment (a starter carries dev, test, ppt and prod);
+    an environment the starter lacks gets a copy of its dev block. The dataops layout orchestrates on `dataops`."""
+    import copy
+
+    for fname, key in (("environments.yaml", "environments"), ("destinations.yaml", "destinations")):
+        f = spec_dir / fname
+        doc = yamlio.load_path(f)
+        blocks = doc.get(key)
+        if not blocks or (list(blocks) == envs and layout != "dataops"):
+            continue
+        template = blocks.get("dev") or next(iter(blocks.values()))
+        fitted = {env: copy.deepcopy(blocks.get(env, template)) for env in envs}
+        for env in list(blocks):
+            del blocks[env]
+        for env, block in fitted.items():
+            if layout == "dataops" and key == "environments" and "placement" in block:
+                block["placement"]["orchestration"] = "dataops"
+            blocks[env] = block
+        yamlio.dump_path(doc, f)
 
 
 def starters() -> dict[str, Path]:
@@ -136,6 +212,7 @@ def new(
     shutil.rmtree(target, ignore_errors=True)
     shutil.copytree(all_starters[starter] / SPEC_DIR, target / SPEC_DIR)
     repo = load_repo(root)
+    _fit_environments(target / SPEC_DIR, repo.environments, repo.config.layout)
     pipe = target / SPEC_DIR / "pipeline.yaml"
     doc = yamlio.load_path(pipe)
     doc["metadata"]["pipeline_id"] = name

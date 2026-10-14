@@ -510,6 +510,7 @@ simple(
 COVERED_ELSEWHERE = {
     "lock_missing": "test_spec_lock.py",
     "lock_stale": "test_spec_lock.py",
+    "layout_unsupported": "factory/tests/test_dataops_layout.py",
 }
 
 

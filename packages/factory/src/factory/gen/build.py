@@ -47,6 +47,10 @@ class Rendered:
 
 
 def render(repo: Repo, pipeline_dir: Path, *, image: str | None = None) -> Rendered:
+    if repo.config.layout == "dataops":  # ADR-0026: DAG JSON, task.py and configs in the team repository
+        from .dataops.layout import render_dataops
+
+        return render_dataops(repo, pipeline_dir)
     bundle = build_bundle(pipeline_dir)  # validates; refuses a stale lock
     from factory_spec.load import load_spec
 
@@ -98,6 +102,10 @@ def render(repo: Repo, pipeline_dir: Path, *, image: str | None = None) -> Rende
 
 
 def build(repo: Repo, pipeline_dir: Path, out_root: Path, *, image: str | None = None) -> dict[str, Any]:
+    if repo.config.layout == "dataops":
+        from .dataops.layout import build_dataops
+
+        return build_dataops(repo, pipeline_dir)
     r = render(repo, pipeline_dir, image=image)
     out = out_root / r.pipeline_id
     if out.exists():

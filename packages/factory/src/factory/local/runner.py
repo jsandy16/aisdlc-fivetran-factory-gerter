@@ -36,7 +36,7 @@ from ..gen.terraform import egress, runtime_env
 
 AIRFLOW = {"{{ (dag_run.conf or {}).get('run_key') or run_id }}": "run_key", "{{ ti.try_number }}": "attempt",
            "{{ run_id }}": "run_id"}  # fmt: skip
-STRICT = frozenset({"ppt", "prod"})
+STRICT = frozenset({"ppt", "prod", "prd"})
 
 
 def dag_tasks(src: str) -> list[tuple[str, dict[str, Any], dict[str, str] | None]]:

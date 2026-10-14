@@ -100,7 +100,7 @@ def quarantine(services: Services, message_id: str, raw: str, code: str) -> None
         "body": raw,
     }
     name = f"{hashlib.sha256(message_id.encode()).hexdigest()[:32]}.json"
-    Staging(services.aws, cfg.staging_bucket, cfg.staging_kms_key, cfg.pipeline_id, QUARANTINE_DIR).put_once(
+    Staging(services.aws, cfg.staging_bucket, cfg.staging_kms_key, cfg.staging_root, QUARANTINE_DIR).put_once(
         name, canonical_bytes(doc)
     )
     services.log.event("message_quarantined", level="ERROR", code=code, body_sha256=doc["body_sha256"])

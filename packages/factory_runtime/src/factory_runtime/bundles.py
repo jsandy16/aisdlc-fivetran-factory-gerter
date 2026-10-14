@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -50,12 +51,35 @@ def _location(config: RuntimeConfig, uri: str, sha256: str) -> tuple[str, str]:
 
 
 def load_bundle(aws: AwsClients, config: RuntimeConfig, uri: str, sha256: str) -> LoadedBundle:
+    _check_sha(sha256)
+    bucket, key = _location(config, uri, sha256)
+    return _load(config, sha256, lambda: aws.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read())
+
+
+def load_local_bundle(aws: AwsClients, config: RuntimeConfig, path: Path, sha256: str) -> LoadedBundle:
+    """The dataops layout: the bundle ships next to task.py. It is also published to the bundle store (write-once),
+    so a run started by this version can be finished by a later one (pinning)."""
+    _check_sha(sha256)
+    data = path.read_bytes()
+    verify_sha(data, sha256)
+    bucket, key = _location(config, bundle_uri(config, sha256), sha256)
+    try:
+        aws.client("s3").put_object(Bucket=bucket, Key=key, Body=data, IfNoneMatch="*")
+    except Exception as exc:
+        if not aws.precondition_failed(exc):
+            raise
+    return _load(config, sha256, lambda: data)
+
+
+def _check_sha(sha256: str) -> None:
     if len(sha256) != 64 or any(c not in "0123456789abcdef" for c in sha256):
         raise SecurityError("bundle_hash_invalid", "the bundle sha256 is not a lower-case hex digest")
-    bucket, key = _location(config, uri, sha256)
+
+
+def _load(config: RuntimeConfig, sha256: str, fetch: Callable[[], bytes]) -> LoadedBundle:
     cache = config.workdir / "bundles" / sha256
     if not (cache / _OK).is_file():
-        data = aws.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
+        data = fetch()
         verify_sha(data, sha256)
         (config.workdir / "bundles").mkdir(parents=True, exist_ok=True)
         tmp = Path(tempfile.mkdtemp(dir=config.workdir / "bundles"))

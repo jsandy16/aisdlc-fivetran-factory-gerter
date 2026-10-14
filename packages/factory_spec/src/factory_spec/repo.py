@@ -6,18 +6,40 @@ import json
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal
 
 from factory_core.envelope import CommandError
-from pydantic import ValidationError
+from pydantic import ValidationError, model_validator
 
 from .catalog import Pricing, pricing
 from .common import StrictModel, ba
-from .fieldtypes import EnvName, Identifier
+from .fieldtypes import EnvName, Identifier, S3Bucket
 from .platform import PlatformSettings
 
 MARKER = "factory.toml"
 PRICING_FILE = "pricing.json"
 DEFAULT_ENVIRONMENTS = ("dev", "test", "ppt", "prod")
+
+
+class DataopsRepo(StrictModel):
+    """The DataOps layout (ADR-0026): what the generated repository, image and DAG files have in common."""
+
+    project: str = ba("Project", "Project name in the DataOps platform, e.g. rd-dpl-studydata",
+                      pattern=r"^[a-z0-9][a-z0-9-]{1,62}$")  # fmt: skip
+    dist_bucket: S3Bucket = ba("Deployment bucket", "Bucket the containers sync src/ from (deployments/<branch>)")
+    base_image: str = ba("Base image", "FROM image of docker/Dockerfile", pattern=r"^[A-Za-z0-9./:@_-]{3,255}$")
+    python: str = ba("Python", "Interpreter in the image", default="python3.13", pattern=r"^python3\.\d{1,2}$")
+    uv_version: str = ba("uv version", "Installed in the image", default="0.11.26", pattern=r"^\d+\.\d+\.\d+$")
+    dag_version: str = ba("DAG format version", "The DataOps DAG JSON version", default="v3",
+                          pattern=r"^v\d{1,3}$")  # fmt: skip
+    env_var: str = ba("Environment variable", "Names the environment inside the container", default="project_env",
+                      pattern=r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")  # fmt: skip
+    ca_bundle: str | None = ba("CA bundle", "Trusted CA file inside the image (corporate CA), trusted for HTTPS",
+                               default=None, pattern=r"^/[A-Za-z0-9._/-]{1,250}$")  # fmt: skip
+    proxy: str | None = ba("Proxy", "HTTP(S) proxy the image sets", default=None,
+                           pattern=r"^https?://[A-Za-z0-9.-]+(:\d{1,5})?$")  # fmt: skip
+    no_proxy: str | None = ba("No proxy", "Hosts that bypass the proxy", default=None,
+                              pattern=r"^[A-Za-z0-9.,*-]{1,1000}$")  # fmt: skip
 
 
 class RepoConfig(StrictModel):
@@ -30,6 +52,16 @@ class RepoConfig(StrictModel):
         min_length=1,
     )
     platform_settings: str | None = ba("Platform settings", "Path to the platform settings folder", default=None)
+    layout: Literal["mwaa", "dataops"] = ba(
+        "Layout", "mwaa: Python DAGs, Lambda and pods; dataops: DAG JSON and containers (ADR-0026)", default="mwaa"
+    )
+    dataops: DataopsRepo | None = ba("DataOps", "Settings of the dataops layout", default=None)
+
+    @model_validator(mode="after")
+    def _layout(self) -> RepoConfig:
+        if self.layout == "dataops" and self.dataops is None:
+            raise ValueError('layout = "dataops" needs a [dataops] table')
+        return self
 
 
 @dataclass
