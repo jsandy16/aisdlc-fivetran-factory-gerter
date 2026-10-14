@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
+from typing import Any
 
 
 def _clip(name: str, limit: int) -> str:
@@ -63,3 +64,20 @@ class Deploy:
             staging_bucket=f"factory-{t}-{env}-staging", run_state_table=f"factory-{t}-{env}-run-state",
             bundle_store=f"factory-{t}-{env}-bundles", audit_store=f"factory-{t}-{env}-audit",
         )  # fmt: skip
+
+
+def deploy_for(platform: Any, team: str, pipeline_id: str, bundle_sha256: str, image: str | None = None) -> Deploy:
+    """Deploy facts from the platform settings (stores, region); the image digest arrives with the release."""
+    t = platform.teams[team].stores
+    return Deploy(
+        env=platform.environment,
+        team=team,
+        region=platform.region,
+        bundle_uri=f"s3://{t.bundle_store}/{team}/{pipeline_id}/{bundle_sha256}.zip",
+        bundle_sha256=bundle_sha256,
+        image=image or "factory-runtime@sha256:" + "0" * 64,
+        staging_bucket=t.staging_bucket,
+        run_state_table=t.run_state_table,
+        bundle_store=t.bundle_store,
+        audit_store=t.audit_store,
+    )

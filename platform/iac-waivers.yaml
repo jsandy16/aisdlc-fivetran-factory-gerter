@@ -1,0 +1,17 @@
+# Reviewed waivers for checkov findings on generated Terraform (owner: platform + governance; CODEOWNERS).
+# Every waiver names the check, the resource names it covers (glob; `except` names stay checked) and why the control
+# does not apply. Both checks below are Lambda-function checks.
+waivers:
+  - check: CKV_AWS_116
+    resources: "*"
+    except: ["dispatcher"]
+    reason: >-
+      Task functions are invoked synchronously (RequestResponse) by Airflow; a DLQ applies only to asynchronous
+      invocations. Failures surface as task failures with the runtime's exit code. The dispatcher keeps its DLQ.
+    owner: platform
+  - check: CKV_AWS_272
+    resources: "*"
+    reason: >-
+      Lambda code signing is not supported for container-image functions. Integrity comes from the image digest
+      pinned in the run pin and the deploy, and from signed images in ECR (Phase 8).
+    owner: platform

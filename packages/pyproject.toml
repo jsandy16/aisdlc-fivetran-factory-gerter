@@ -32,12 +32,13 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["factory_core/tests", "factory_spec/tests", "factory/tests", "factory_runtime/tests", "factory_testing/tests", "factory_agents/tests", "factory_airflow/tests"]
-addopts = "-q --strict-markers -m 'not spike and not airflow'"
+addopts = "-q --strict-markers -m 'not spike and not airflow and not iac'"
 norecursedirs = ["data", ".*", "build", "dist", "*.egg-info", "node_modules", "__pycache__"]  # tests/data holds spec repos
 markers = [
   "spike: opt-in measurement runs (pytest -m spike)",
   "slow: slower integration tests",
   "airflow: needs Airflow 3.3.1 in FACTORY_AIRFLOW_PYTHON (pytest -m airflow)",
+  "iac: needs terraform + checkov from scripts/install-iac-tools.sh in FACTORY_IAC_TOOLS (pytest -m iac)",
 ]   # default prepend import mode; test file names are unique across packages (test_core_*, test_spec_*, test_cli_*)
 
 [tool.mypy]
