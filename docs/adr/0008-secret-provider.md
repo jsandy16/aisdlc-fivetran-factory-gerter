@@ -33,3 +33,16 @@ Secrets must be references only and must never appear in specs, code, logs, the 
 
 - Vault via a built-in httpx client (AWS IAM login, KV v2 by version, renew/lookup, health); hvac removed (P3-1). Transit and AppRole deferred.
 - Values are registered with the log redactor at construction, with derived forms (url-encoded, base64, JSON-escaped, Basic auth, access tokens). Team namespace for KV and auth mount (P3-6). Custom rules get no secrets (P3-7).
+
+## Change-request amendments (2026-10-14)
+
+- **The environment decides the store.** `environments.yaml` → `secrets.default` plus `secrets.overrides`. The store
+  declared with each secret in `integrations.yaml` is now only a fallback, so older specs are unchanged; validation
+  code `secret_provider_missing`.
+- **Local development.** `factory run` reads every secret from the developer's file:
+  - `FACTORY_LOCAL_SECRETS_FILE`, default `~/.factory/secrets/<team>/<env>.yaml`;
+  - the file must be 0600, values become `SecretValue`, and every read emits the usual audit event and metric
+    (`provider: local_file`).
+  - Generated configuration never sets the variable; the runtime refuses it in ppt and prod (77).
+  - Platform settings decide which environments may run locally (`allow_local_secrets`).
+  - `factory secrets template` writes names and keys only; the BA guard hook refuses the files.

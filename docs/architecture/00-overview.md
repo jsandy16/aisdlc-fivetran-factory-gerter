@@ -176,4 +176,5 @@ Decisions D1–D10 were made by the user on 2026-10-13. Assumptions still open a
 | 5 | Generators (DAG, Lambda, EKS, Fivetran) and Terraform/IAM ([design](phase-5-design.md)) | done |
 | 6 | Change engine, `factory verify`, cost, docs ([design](phase-6-design.md)) | done |
 | 7 | Local end-to-end demo + incremental changes ([design](phase-7-design.md), [demo](../demo.md)) | done |
+| CR1 | Bring-your-own infrastructure, local secrets, local runs, services by configuration ([design](change-request-1.md)) | done; awaiting review |
 | 8 | **AWS validation in a sandbox account** (spikes S2, S3, S5, S9, S10; real MWAA/EKS/Lambda run) ([design](phase-8-design.md), [runbook](../sandbox-runbook.md)) | part A done; part B blocked on sandbox credentials |

@@ -150,7 +150,8 @@ def alerts(spec: PipelineSpec) -> str:
         out.append(f"- The dead-letter queue is not empty: `{obs.alerts.config}`.")
     out += ["", "## How the routes are built", "",
             "Generated from this file's settings and each environment's `alert_channels` (resource catalog): "
-            "per failure class with a channel, a CloudWatch alarm on `PipelineFactory/TaskFailed` (dimensions `pipeline_id`, "
+            "per failure class with a channel, a CloudWatch alarm on `PipelineFactory/TaskFailed` "
+            "(dimensions `pipeline_id`, "
             "`error_class`) notifies the channel's SNS topic. An `sns` channel names an existing topic; an `email` or "
             "`slack` channel gets its own topic (email: with a subscription). The dead-letter queue alarm follows the "
             "configuration channel. Who creates them is `infrastructure.alerts` in each environment."]  # fmt: skip

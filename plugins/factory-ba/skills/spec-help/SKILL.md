@@ -14,5 +14,9 @@ description: Help a business analyst read, change and check a Pipeline Factory s
 - Before a change ships: `factory --json change plan <pipeline> --base origin/main` explains it in full (what
   changed, breaking or not, files, infrastructure, rules to re-review, cost delta, approvals); `factory --json verify`
   proves the build matches the spec.
+- Local runs: `factory --json run <pipeline> --message msg.json` (dev only). The developer fills secrets in
+  their own file (`factory --json secrets template <pipeline>`); never read, print or ask for that file.
+- Extra AWS services (topics, alarms, dashboards, rules, buckets, queues, tables) are `environments.yaml → resources`
+  entries from the resource catalog. Who creates them is `infrastructure`, which is platform-owned, so ask; don't set it.
 - `factory accept` is for a person to run after reading the review package. Never run it; the hooks refuse it.
 - Never print, read or ask for secret values. Specs hold references only.
