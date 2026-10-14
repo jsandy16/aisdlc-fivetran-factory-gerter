@@ -388,8 +388,9 @@ Short notes; the full ADR and doc amendments of §5 move to Phase 4 (scope cut a
 - Planner prices are decimal strings (no floats); pod cost is divided by an assumed node utilisation (0.35) so
   Lambda stays the cheaper choice for short work, as the decision matrix intends.
 
-**Open items for Phase 4/5**
-- `s3_event` triggers: s3.list expects a folder prefix; listing the single object named by the event needs a small
-  change (found while reviewing the s3_to_s3_event starter).
-- HTTPS POST endpoints: the upload goes to `<folder>/<name>`; an upload-to-folder variant is not modelled.
-- ADR/doc amendments listed in §5.
+**Open items, decided at the Phase 3 review**
+- `s3_event` triggers: s3.list must list the single object named by the event. Fixed in Phase 4.
+- HTTPS POST endpoints: uploads go to `<folder>/<name>`; no upload-to-folder variant is needed.
+- s3.copy: size-only verification (conditional on the listed ETag) is accepted until a server-side checksum is tested
+  in Phase 8.
+- ADR/doc amendments listed in §5: Phase 4.
