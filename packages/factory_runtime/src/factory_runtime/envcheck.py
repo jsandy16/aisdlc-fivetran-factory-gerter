@@ -22,6 +22,7 @@ HAZARDOUS = (
     "http_proxy",
     "https_proxy",
     "all_proxy",
+    "FACTORY_LOCAL_SECRETS_FILE",  # local runs only: secrets from a developer's file
 )
 HAZARDOUS_PREFIXES = ("AWS_ENDPOINT_URL",)
 STRICT_ENVS = frozenset({"ppt", "prod"})

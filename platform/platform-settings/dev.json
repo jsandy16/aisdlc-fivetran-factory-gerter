@@ -8,6 +8,7 @@
       "account_id": "100000000001"
     }
   },
+  "allow_local_secrets": true,
   "environment": "dev",
   "identity": {
     "default": "pod_identity"

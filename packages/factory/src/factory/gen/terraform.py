@@ -22,6 +22,7 @@ from factory_core.pathmatch import parse_path_pattern
 from factory_core.templates import parse_template, render
 from factory_spec.catalog import Pricing, op_catalog, pricing
 from factory_spec.platform import PlatformSettings
+from factory_spec.secrets import effective_provider
 from factory_spec.spec import PipelineSpec
 
 from factory_core import units
@@ -87,7 +88,7 @@ class _Ctx:
         tokens = {"env": self.deploy.env, "team": self.team, "pipeline_id": self.pid}
         for n in names_:
             ref = self.spec.integrations.secrets.get(n)
-            if ref is None or ref.provider != "aws_secrets_manager" or sm is None:
+            if ref is None or sm is None or effective_provider(self.spec, self.deploy.env, n) != "aws_secrets_manager":
                 continue  # Vault secrets need no IAM permission (IAM auth signs GetCallerIdentity)
             path = sm.prefix + render(parse_template(ref.path), tokens)
             out.append(f"arn:{self.part}:secretsmanager:{self.region}:{self.account}:secret:{path}-??????")
@@ -275,7 +276,8 @@ def _env_vars(c: _Ctx, *, poll: bool) -> dict[str, str]:
         ),
         "FACTORY_WORKDIR": "/tmp/factory",  # noqa: S108 - Lambda ephemeral storage
     }
-    if c.platform.vault and c.binding.secrets and c.binding.secrets.vault:
+    uses_vault = any(effective_provider(c.spec, c.deploy.env, n) == "vault" for n in c.spec.integrations.secrets)
+    if c.platform.vault and c.binding.secrets and c.binding.secrets.vault and uses_vault:
         v |= {
             "FACTORY_VAULT_ADDRESS": c.platform.vault.address,
             "FACTORY_VAULT_AUTH_MOUNT": c.platform.vault.auth_mount,

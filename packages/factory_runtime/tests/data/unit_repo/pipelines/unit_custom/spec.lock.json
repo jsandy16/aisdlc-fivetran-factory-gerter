@@ -29,6 +29,8 @@
         "schedule_cron": null,
         "secrets": {
           "aws_secrets_manager": null,
+          "default": null,
+          "overrides": {},
           "vault": null
         },
         "sources": {}
@@ -63,7 +65,7 @@
   },
   "hashes": {
     "binding_sha": {
-      "dev": "dd61b1c3c19a4597deb40ae7f4b654b7761e61f0f149211773f0a5ab19247bd7"
+      "dev": "8d63c8b791ed3653036f4c4caefb96e7f7c93f2145a7ac95e055a512a1125eae"
     },
     "derived_sha": "d9f3dfc91e99a721508a7beff9640f22259e18e2e92a95a98f174bcab5e87d5b",
     "logic_sha": "c8f9fd1ff430d21d95d0b9b19ad2dfb891fd80b1c6d234c0821ea40db6e28cff"

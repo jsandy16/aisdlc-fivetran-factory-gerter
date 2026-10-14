@@ -53,6 +53,9 @@ CODES: dict[str, CodeInfo] = {
     "task_cycle": CodeInfo("error", "Remove the circular depends_on between tasks."),
     "secret_kind_mismatch": CodeInfo("error", "Use a secret of the kind this field needs (see the message)."),
     "secret_unused": CodeInfo("warning", "Remove the unused secret reference."),
+    "secret_provider_missing": CodeInfo(
+        "error", "Say where the secret is read from: environments.yaml → secrets.default or secrets.overrides."
+    ),
     "secret_in_spec": CodeInfo(
         "error", "Remove the secret value; specs hold secret references only (secrets section)."
     ),

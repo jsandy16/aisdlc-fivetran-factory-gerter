@@ -98,6 +98,9 @@ class PlatformSettings(StrictModel):
     teams: dict[Identifier, TeamSettings]
     limits: Limits = ba("Limits", "", default_factory=Limits)
     vault: VaultSettings | None = None
+    allow_local_secrets: bool = ba(
+        "Local secrets", "Pipelines may be run locally with secrets from the developer's file (dev only)", default=False
+    )
 
     model_config = StrictModel.model_config | {"populate_by_name": True}
 

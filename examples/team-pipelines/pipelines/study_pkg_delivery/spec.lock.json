@@ -68,6 +68,8 @@
           "aws_secrets_manager": {
             "prefix": "factory/"
           },
+          "default": null,
+          "overrides": {},
           "vault": {
             "mount": "kv",
             "namespace": "clinops"
@@ -173,6 +175,8 @@
           "aws_secrets_manager": {
             "prefix": "factory/"
           },
+          "default": null,
+          "overrides": {},
           "vault": {
             "mount": "kv",
             "namespace": "clinops"
@@ -278,6 +282,8 @@
           "aws_secrets_manager": {
             "prefix": "factory/"
           },
+          "default": null,
+          "overrides": {},
           "vault": {
             "mount": "kv",
             "namespace": "clinops"
@@ -365,6 +371,8 @@
           "aws_secrets_manager": {
             "prefix": "factory/"
           },
+          "default": null,
+          "overrides": {},
           "vault": {
             "mount": "kv",
             "namespace": "clinops"
@@ -541,10 +549,10 @@
   },
   "hashes": {
     "binding_sha": {
-      "dev": "236b27c560194f16315dabab113e0d9c58d46cbf0bffdae230b38570e1ab9493",
-      "ppt": "00b770ba76bc8f9f04991a6b24174465cb38aabe2d9aef7cd3aadafc8fdd63f5",
-      "prod": "72c03c088cdf2145276f89e941f89a59079370e9ee1e947cc708babf8f0e8377",
-      "test": "7428dc7c62709e5b499e38eca2bebc8b8a932fc001eb37028d98787761096924"
+      "dev": "d42adabf5a8c29da0474f14fb7c1e02155df38c9afb1a3d407c6b0130beeee80",
+      "ppt": "bfd65137e0dfb47365fa53f6a244995cb5d65656a8efcff30d256a6da4fb99ad",
+      "prod": "3c5063d6ace112e92034ddde4fd7b4c31ced1f87c705a7c86512adc996fa62e3",
+      "test": "b24fa965fd62956c0212ffe8c38f3e4f25c9fc5e85a133350666d0b3bb44eeb1"
     },
     "derived_sha": "b3bcc81b7cf7192ea226042e4b8b553bed609ffe60b273e5eefdb7c8565e8da3",
     "logic_sha": "7670e3f090e052e55dd405354651a743845136acfbe1478777d3ccb3a18c1365"

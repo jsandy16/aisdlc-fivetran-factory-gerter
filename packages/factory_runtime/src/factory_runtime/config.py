@@ -49,6 +49,8 @@ class RuntimeConfig(BaseModel):
         default=None, pattern=r"^arn:aws[a-z-]*:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,512}$"
     )
     workdir: Path = Path("/tmp/factory")  # noqa: S108 - Lambda/pod ephemeral storage; private per invocation
+    # local runs only (`factory run`): every secret comes from the developer's file; refused in ppt and prod
+    local_secrets_file: Path | None = None
 
     @property
     def bundle_prefix(self) -> str:
@@ -80,6 +82,7 @@ _ENV_MAP = {
     "mwaa_environment": "FACTORY_MWAA_ENV",
     "trigger_role_arn": "FACTORY_TRIGGER_ROLE_ARN",
     "workdir": "FACTORY_WORKDIR",
+    "local_secrets_file": "FACTORY_LOCAL_SECRETS_FILE",
 }
 ENV_VARS = frozenset(_ENV_MAP.values())
 

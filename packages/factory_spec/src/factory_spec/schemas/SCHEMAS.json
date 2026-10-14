@@ -1,11 +1,11 @@
 {
   "files": {
     "destinations.schema.json": "0756f5b8ed929f315c70d782c2d59aa00919d2f245acec66a29d42e459d38cbd",
-    "environments.schema.json": "0484c52e6bb46f07ad01c45e42ac1e607ae739e8cd7905717ac4d42410ac8256",
+    "environments.schema.json": "dc035a64c08cf0678a3a383563e89c54311f701463a10547b1c02d7b6d1a2037",
     "factory-toml.schema.json": "8c5e6d8cddf5acd3754db9a31c794c062eebd43c03010ad5b8e50d3b819b9a77",
-    "integrations.schema.json": "c096f77a457bbc749780a34ed6818226a8dde3a5a0d5b2fe45f38208f0dc84fd",
+    "integrations.schema.json": "8fc7c60936a833e49223d4d8a6179cfa3cb0e2bc6daea6b5bb459d727569da50",
     "pipeline.schema.json": "c3a34547b7622663f28831ab2cd87fb1c028eebe5b55bcf89cf29a17faea61e3",
-    "platform-settings.schema.json": "a2dc947c7c0a6335e8cc254deda28f3823b3ee62d9ce92c966eab5413430c573",
+    "platform-settings.schema.json": "4bd856e75bd5158a4ba2a34af726561514ce4f56a98ca5a4c85f51cf3f5b4488",
     "rules.schema.json": "b459765889575145b93482f8e823cb4512e24f22d2fc89935694b4d4c2f26168",
     "security.schema.json": "4137e393421c03faa8c903dbe9092a66358c83ee8492aed9499002b208f804ed"
   },

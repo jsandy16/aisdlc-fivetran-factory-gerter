@@ -206,6 +206,40 @@
           "description": "Secrets Manager binding",
           "x-ba-label": "Secrets Manager"
         },
+        "default": {
+          "anyOf": [
+            {
+              "enum": [
+                "vault",
+                "aws_secrets_manager"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where this environment reads secrets (local runs use the developer's file)",
+          "x-ba-label": "Default store"
+        },
+        "overrides": {
+          "description": "Secrets read from another store in this environment",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "enum": [
+                "vault",
+                "aws_secrets_manager"
+              ],
+              "type": "string"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Per-secret store"
+        },
         "vault": {
           "anyOf": [
             {

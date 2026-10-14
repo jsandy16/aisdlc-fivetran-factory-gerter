@@ -30,7 +30,16 @@ class SecretsManagerBinding(StrictModel):
     )
 
 
+SecretStore = Literal["vault", "aws_secrets_manager"]
+
+
 class SecretStores(StrictModel):
+    default: SecretStore | None = ba(
+        "Default store", "Where this environment reads secrets (local runs use the developer's file)", default=None
+    )
+    overrides: dict[Identifier, SecretStore] = ba(
+        "Per-secret store", "Secrets read from another store in this environment", default_factory=dict
+    )
     vault: VaultBinding | None = ba("Vault", "Vault binding", default=None)
     aws_secrets_manager: SecretsManagerBinding | None = ba("Secrets Manager", "Secrets Manager binding", default=None)
 

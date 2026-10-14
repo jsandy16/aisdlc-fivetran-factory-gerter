@@ -281,6 +281,12 @@ simple(
     setitem(["environments", "dev", "sources", "landing", "buckets"], []),
 )
 simple("binding_missing", "binding_missing", "environments.yaml", delitem(["environments", "dev", "portal"]))
+simple(  # no store declared with the secret and none chosen by the environment
+    "secret_provider_missing",
+    "secret_provider_missing",
+    "integrations.yaml",
+    delitem(["secrets", "portal_client", "provider"]),
+)
 
 # ---------------------------------------------------------------- portal and destinations
 simple("portal_required", "portal_required", "integrations.yaml", delitem(["portal"]))

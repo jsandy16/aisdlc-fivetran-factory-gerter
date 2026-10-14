@@ -31,6 +31,8 @@
           "aws_secrets_manager": {
             "prefix": "factory/"
           },
+          "default": null,
+          "overrides": {},
           "vault": null
         },
         "sources": {
@@ -64,7 +66,7 @@
   },
   "hashes": {
     "binding_sha": {
-      "dev": "6edbffc576ddfe0a5cd217d590f92142931e9c4b217eb04d8bc9ea62889ecd34"
+      "dev": "eae3f5b18cefd75b3cc201d1b123bafb21a41acb7b61389fa93ee3069484bfad"
     },
     "derived_sha": "4f8eeb677eca059c641b012daac95177660f2a02256c3a544d0a3ebf1ff24306",
     "logic_sha": "c8a41e0a318e8be2a534eb4358f9b89a3b1b909efd77a8e180c1f8e9af623dd7"

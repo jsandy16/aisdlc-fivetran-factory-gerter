@@ -41,6 +41,10 @@ def decide(event: object) -> str:
         ("Read", {"file_path": "/home/u/.env"}, "deny"),
         ("Read", {"file_path": "/repo/certs/client.pem"}, "deny"),
         ("Read", {"file_path": "/repo/pipelines/p/spec/pipeline.yaml"}, "allow"),
+        ("Read", {"file_path": "/home/u/.factory/secrets/clinops_data/dev.yaml"}, "deny"),
+        ("Write", {"file_path": "/home/u/.factory/secrets/clinops_data/dev.yaml"}, "deny"),
+        ("Bash", {"command": "cat ~/.factory/secrets/clinops_data/dev.yaml"}, "deny"),
+        ("Bash", {"command": "factory --json secrets template study_pkg_delivery"}, "allow"),
     ],
 )
 def test_guard_decisions(tool: str, args: dict[str, str], expected: str) -> None:

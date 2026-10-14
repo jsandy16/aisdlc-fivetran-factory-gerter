@@ -409,6 +409,27 @@ def build_cmd(
     return _emit(Result(command="build", ok=True, data=out))
 
 
+secrets_app = typer.Typer(help="Local development secrets (never deployed; dev only).", no_args_is_help=True)
+app.add_typer(secrets_app, name="secrets")
+
+
+@secrets_app.command("template")
+def secrets_template_cmd(
+    name: Annotated[str, typer.Argument(help="Pipeline id")],
+    env: Annotated[str, typer.Option(help="Environment the local run binds to")] = "dev",
+    out: Annotated[Path | None, typer.Option(help="File (default ~/.factory/secrets/<team>/<env>.yaml)")] = None,
+) -> int:
+    """Write or extend the local secrets file with every secret name and key the pipeline needs (values empty)."""
+    from .local.secrets_file import write_template
+
+    d = _pipeline_dir(name)
+    res = validate_dir(d)
+    if res.load.spec is None:
+        return _emit(Result(command="secrets template", ok=False, issues=res.issues))
+    rep = write_template(res.load.spec, load_repo(d.parent.parent), env, out)
+    return _emit(Result(command="secrets template", ok=True, data=rep))
+
+
 @app.command("verify")
 def verify_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
     """Regenerate in memory and compare with build/<pipeline>: hand edits, stale, missing or unexpected files."""

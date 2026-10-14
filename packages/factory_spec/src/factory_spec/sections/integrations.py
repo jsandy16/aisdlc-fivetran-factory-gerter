@@ -195,7 +195,11 @@ class DestinationSlot(StrictModel):
 class SecretRef(StrictModel):
     """A reference to a secret; the value is never in a spec."""
 
-    provider: Literal["vault", "aws_secrets_manager"] = ba("Secret store", "HashiCorp Vault or AWS Secrets Manager")
+    provider: Literal["vault", "aws_secrets_manager"] | None = ba(
+        "Secret store",
+        "Fallback store; each environment's binding (environments.yaml → secrets) decides where it is read from",
+        default=None,
+    )
     path: TemplateStr = ba("Path", "Path template; tokens: env, team, pipeline_id")
     key: str | None = ba(
         "Key", "Field inside the secret (JSON key or KV field)", default=None, pattern=r"^[A-Za-z0-9_.-]{1,128}$"

@@ -333,6 +333,12 @@
       "type": "object",
       "x-ba-label": "Accounts"
     },
+    "allow_local_secrets": {
+      "default": false,
+      "description": "Pipelines may be run locally with secrets from the developer's file (dev only)",
+      "type": "boolean",
+      "x-ba-label": "Local secrets"
+    },
     "environment": {
       "pattern": "^[a-z][a-z0-9]{1,9}$",
       "type": "string",

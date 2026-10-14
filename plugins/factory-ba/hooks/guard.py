@@ -29,6 +29,7 @@ GENERATED_NAMES = {
     "edge_cases.json",
 }
 SECRET_FILES = re.compile(r"(^|/)(\.env(\..*)?|.*\.pem|.*\.key|id_rsa.*|id_ed25519.*|credentials|\.netrc)$")
+LOCAL_SECRETS = re.compile(r"\.factory/secrets(/|$)")  # the developer's local secrets files (factory run)
 
 
 def deny(reason: str) -> None:
@@ -55,15 +56,17 @@ def main() -> None:
         cmd = str(args.get("command", ""))
         if ACCEPT.search(cmd):
             deny("`factory accept` is a person's sign-off after reading the review package; agents never run it")
-        if SECRET_COMMANDS.search(cmd):
+        if SECRET_COMMANDS.search(cmd) or LOCAL_SECRETS.search(cmd):
             deny("reading secret values is not allowed in this session; specs hold secret references only")
     elif tool in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
         path = str(args.get("file_path") or args.get("notebook_path") or "")
+        if LOCAL_SECRETS.search(path.replace("\\", "/")):
+            deny(f"{path} holds local secrets; the developer edits it, never an agent")
         if generated(path):
             deny(f"{path} is generated or recorded by the factory; change the spec and rebuild instead")
     elif tool == "Read":
         path = str(args.get("file_path", ""))
-        if SECRET_FILES.search(path.replace("\\", "/")):
+        if SECRET_FILES.search(path.replace("\\", "/")) or LOCAL_SECRETS.search(path.replace("\\", "/")):
             deny(f"{path} may hold secrets; it is not read in this session")
     sys.exit(0)
 

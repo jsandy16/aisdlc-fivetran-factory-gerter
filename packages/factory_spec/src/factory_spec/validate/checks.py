@@ -24,6 +24,7 @@ from ..estimate import allowed_engines, estimate_lambda_seconds
 from ..files import SPEC_DIR, SPEC_FILES
 from ..imports import check_plugin_source
 from ..repo import Repo
+from ..secrets import effective_provider
 from ..sections.fields import FieldSpec
 from ..sections.integrations import PortalResolve, StaticResolve
 from ..sections.security import CLASSIFICATION_ORDER
@@ -687,17 +688,24 @@ def check_secrets(ctx: Context) -> Iterable[Issue]:
             )
     for name in sorted(set(secrets) - used):
         yield issue("secret_unused", I, f"secrets.{name}", f"secret '{name}' is not used")
-    providers = {r.provider for r in secrets.values()}
     for env in ctx.enabled_envs:
         b = ctx.spec.environments.environments[env].secrets
-        if "vault" in providers and b.vault is None:
+        for name in sorted(set(b.overrides) - set(secrets)):
+            yield issue("unresolved_reference", E, f"environments.{env}.secrets.overrides.{name}",
+                        f"'{name}' is not declared in integrations.yaml → secrets")  # fmt: skip
+        providers = {name: effective_provider(ctx.spec, env, name) for name in sorted(secrets)}
+        for name, provider in providers.items():
+            if provider is None:
+                msg = f"{env} does not say where secret '{name}' is read from (default or overrides)"
+                yield issue("secret_provider_missing", E, f"environments.{env}.secrets", msg)
+        if "vault" in providers.values() and b.vault is None:
             yield issue(
                 "binding_missing",
                 E,
                 f"environments.{env}.secrets.vault",
                 f"Vault secrets are used but {env} has no Vault binding",
             )
-        if "aws_secrets_manager" in providers and b.aws_secrets_manager is None:
+        if "aws_secrets_manager" in providers.values() and b.aws_secrets_manager is None:
             yield issue(
                 "binding_missing",
                 E,

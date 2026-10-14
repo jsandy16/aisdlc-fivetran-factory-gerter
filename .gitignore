@@ -12,3 +12,6 @@ __pycache__/
 
 # Local build outputs (runtime image context, MWAA plugins.zip)
 /build/
+
+# Developer-local factory state (local secrets files, local run profiles)
+.factory/

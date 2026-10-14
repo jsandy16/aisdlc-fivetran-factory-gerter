@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any
 
-from factory_core.errors import ConfigError, FactoryError
+from factory_core.errors import ConfigError, FactoryError, SecurityError
+from factory_spec.secrets import effective_provider
 
+from ..envcheck import STRICT_ENVS
 from ..services import Services
 from ..tls import http_client, ssl_context
 from .aws_sm import AwsSecretsManagerProvider
 from .cache import CachedProvider
+from .local_file import LocalFileProvider
 from .provider import ResolvedRef, SecretProvider, resolve_ref
 from .value import SecretValue
 from .vault import VaultClient, VaultProvider
@@ -71,16 +75,23 @@ class AuditedProvider:
 class Secrets:
     """What ops use: `secrets.get("portal_client", purpose="portal auth")` by the spec's secret name."""
 
-    def __init__(self, spec: Any, tokens: dict[str, str], provider: SecretProvider) -> None:
+    def __init__(self, spec: Any, tokens: dict[str, str], provider: SecretProvider, local: str | None = None) -> None:
         self.spec = spec
         self.tokens = tokens
         self.provider = provider
+        self.local = local  # "local_file" on a developer's run: every secret comes from their file
 
     def ref(self, name: str) -> ResolvedRef:
         declared = self.spec.integrations.secrets.get(name)
         if declared is None:
             raise ConfigError("secret_undeclared", f"secret '{name}' is not declared in integrations.yaml")
-        return resolve_ref(name, declared, self.tokens)
+        ref = resolve_ref(name, declared, self.tokens)
+        provider = self.local or effective_provider(self.spec, self.tokens["env"], name)
+        if provider is None:
+            raise ConfigError(
+                "secret_provider_missing", f"{self.tokens['env']} does not say where '{name}' is read from"
+            )
+        return replace(ref, provider=provider)
 
     def get(self, name: str, *, purpose: str, rule_id: str | None = None, refresh: bool = False) -> SecretValue:
         return self.provider.get(self.ref(name), purpose=purpose, rule_id=rule_id, refresh=refresh)
@@ -114,6 +125,13 @@ def build_secrets(services: Services, spec: Any, env: str, on_event: Callable[..
             return VaultProvider(client, vb.mount)
 
         factories["vault"] = vault
+    local = None
+    if cfg.local_secrets_file is not None:
+        if env in STRICT_ENVS:
+            raise SecurityError("local_secrets_forbidden", f"local secrets files are never used in {env}")
+        path = cfg.local_secrets_file
+        factories["local_file"] = lambda: LocalFileProvider(path)
+        local = "local_file"
     tokens = {"env": env, "team": cfg.team, "pipeline_id": cfg.pipeline_id}
     stack = AuditedProvider(CachedProvider(Router(factories)), on_event, services)
-    return Secrets(spec, tokens, stack)
+    return Secrets(spec, tokens, stack, local)

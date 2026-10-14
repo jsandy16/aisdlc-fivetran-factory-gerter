@@ -997,12 +997,20 @@
           "x-ba-label": "Path"
         },
         "provider": {
-          "description": "HashiCorp Vault or AWS Secrets Manager",
-          "enum": [
-            "vault",
-            "aws_secrets_manager"
+          "anyOf": [
+            {
+              "enum": [
+                "vault",
+                "aws_secrets_manager"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "type": "string",
+          "default": null,
+          "description": "Fallback store; each environment's binding (environments.yaml → secrets) decides where it is read from",
           "x-ba-label": "Secret store"
         },
         "version": {
@@ -1021,7 +1029,6 @@
         }
       },
       "required": [
-        "provider",
         "path",
         "kind"
       ],
