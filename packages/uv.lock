@@ -13,6 +13,7 @@ resolution-markers = [
 members = [
     "factory",
     "factory-agents",
+    "factory-airflow",
     "factory-core",
     "factory-runtime",
     "factory-spec",
@@ -706,6 +707,11 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.9,<3" },
 ]
 provides-extras = ["live"]
+
+[[package]]
+name = "factory-airflow"
+version = "0.2.0.dev0"
+source = { editable = "factory_airflow" }
 
 [[package]]
 name = "factory-core"

@@ -121,3 +121,17 @@ def test_connection_must_exist_once_and_be_active(ft: dict[str, Any]) -> None:
         ft["harness"]("2026-10-11").run_rule("r_sync")
     assert ei.value.code == "fivetran_connection_unknown"
     assert mock.syncs_started == 0
+
+
+def test_poll_budget_ends_an_invocation_as_pending_then_continues(ft: dict[str, Any]) -> None:
+    """Lambda behind an Airflow reschedule sensor: each poke waits at most the budget; no second sync is started."""
+    mock = ft["mock"]
+    mock.polls_to_finish = 6
+    h = ft["harness"]()
+    h.services.config = h.services.config.model_copy(update={"poll_budget_s": 60})
+    with pytest.raises(TransientError) as ei:
+        h.run_rule("r_sync")
+    assert ei.value.code == "fivetran_sync_pending"
+    report = h.run_rule("r_sync")[0]  # the next poke
+    assert report.outcome == "succeeded"
+    assert mock.syncs_started == 1

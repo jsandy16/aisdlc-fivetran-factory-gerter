@@ -39,6 +39,7 @@ class RuntimeConfig(BaseModel):
     vault_role: str | None = None
     vault_iam_server_id: str | None = None
     fivetran_api_secret: str | None = None  # Secrets Manager id of the platform's Fivetran API key (fivetran.sync)
+    poll_budget_s: int | None = Field(default=None, ge=30, le=840)  # waits per invocation (Lambda behind a sensor)
     # the dispatcher Lambda only: the deployed bundle it validates messages against, and where it starts runs
     bundle_uri: str | None = None
     bundle_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
@@ -72,6 +73,7 @@ _ENV_MAP = {
     "vault_role": "FACTORY_VAULT_ROLE",
     "vault_iam_server_id": "FACTORY_VAULT_IAM_SERVER_ID",
     "fivetran_api_secret": "FACTORY_FIVETRAN_API_SECRET",
+    "poll_budget_s": "FACTORY_POLL_BUDGET_S",
     "bundle_uri": "FACTORY_BUNDLE_URI",
     "bundle_sha256": "FACTORY_BUNDLE_SHA256",
     "dag_id": "FACTORY_DAG_ID",

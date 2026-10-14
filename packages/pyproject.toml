@@ -6,7 +6,7 @@
 required-version = ">=0.11.32,<0.12"
 
 [tool.uv.workspace]
-members = ["factory_core", "factory_spec", "factory", "factory_runtime", "factory_testing", "factory_agents"]   # factory_airflow joins in Phase 5
+members = ["factory_core", "factory_spec", "factory", "factory_runtime", "factory_testing", "factory_agents", "factory_airflow"]   # factory_airflow joins in Phase 5
 
 [tool.uv.sources]
 factory-core = { workspace = true }
@@ -15,6 +15,7 @@ factory = { workspace = true }
 factory-runtime = { workspace = true }
 factory-testing = { workspace = true }
 factory-agents = { workspace = true }
+factory-airflow = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -30,12 +31,13 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["factory_core/tests", "factory_spec/tests", "factory/tests", "factory_runtime/tests", "factory_testing/tests", "factory_agents/tests"]
-addopts = "-q --strict-markers -m 'not spike'"
+testpaths = ["factory_core/tests", "factory_spec/tests", "factory/tests", "factory_runtime/tests", "factory_testing/tests", "factory_agents/tests", "factory_airflow/tests"]
+addopts = "-q --strict-markers -m 'not spike and not airflow'"
 norecursedirs = ["data", ".*", "build", "dist", "*.egg-info", "node_modules", "__pycache__"]  # tests/data holds spec repos
 markers = [
   "spike: opt-in measurement runs (pytest -m spike)",
   "slow: slower integration tests",
+  "airflow: needs Airflow 3.3.1 in FACTORY_AIRFLOW_PYTHON (pytest -m airflow)",
 ]   # default prepend import mode; test file names are unique across packages (test_core_*, test_spec_*, test_cli_*)
 
 [tool.mypy]

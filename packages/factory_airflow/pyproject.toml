@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "factory-airflow"
+version = "0.2.0.dev0"
+description = "Pipeline Factory operators imported by generated DAGs on MWAA (Airflow 3.3.1; no data, no secrets)"
+requires-python = ">=3.11"
+dependencies = []   # MWAA provides apache-airflow 3.3.1 + amazon 9.34.0 + cncf-kubernetes 10.21.0 (ADR-0007)
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/factory_airflow"]

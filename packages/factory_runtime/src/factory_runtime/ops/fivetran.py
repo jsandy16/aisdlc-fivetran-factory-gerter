@@ -174,7 +174,10 @@ def fivetran_sync(ctx: Any) -> list[Any]:
         if not p.wait:
             return [SyncReport(connection=p.connection, connection_id=cid, outcome="triggered", triggered=True,
                                previous_succeeded_at=baseline["succeeded_at"])]  # fmt: skip
-        deadline = ctx.services.clock() + p.timeout
+        # a poll budget (Lambda behind an Airflow reschedule sensor) ends this invocation early as "pending" (75);
+        # the next poke continues from the stored baseline without starting another sync
+        budget = ctx.services.config.poll_budget_s
+        deadline = ctx.services.clock() + (min(p.timeout, budget) if budget else p.timeout)
         delay = POLL_FIRST
         while True:
             conn = api.connection(cid)
@@ -183,6 +186,8 @@ def fivetran_sync(ctx: Any) -> list[Any]:
             if _after(conn.get("failed_at"), baseline["failed_at"]):
                 raise DataError("fivetran_sync_failed", f"the Fivetran sync of '{p.connection}' failed")
             if ctx.services.clock() + delay > deadline:
+                if budget and budget < p.timeout:
+                    raise TransientError("fivetran_sync_pending", f"the sync of '{p.connection}' is still running")
                 raise TransientError("fivetran_sync_timeout", f"the sync of '{p.connection}' did not finish in time")
             ctx.services.sleep(delay)
             delay = min(POLL_MAX, delay * 1.5)
