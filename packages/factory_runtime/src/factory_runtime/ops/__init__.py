@@ -33,6 +33,7 @@ _MODULES = (
     "static_put",
     "s3_copy",
     "fivetran",
+    "notify",
 )
 
 

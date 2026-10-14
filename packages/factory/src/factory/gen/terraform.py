@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from functools import cached_property
 from typing import Any
 from urllib.parse import urlsplit
 
+from factory_core.envelope import CommandError
 from factory_core.pathmatch import parse_path_pattern
 from factory_core.templates import parse_template, render
 from factory_spec.catalog import Pricing, op_catalog, pricing
@@ -76,6 +78,21 @@ class _Ctx:
         self.account = platform.accounts[self.team_settings.account].account_id
         self.binding = spec.environments.environments[deploy.env]
         self.pid = spec.pipeline_id
+
+    @cached_property
+    def catalog(self) -> Any:
+        """Resources by configuration: the environment's declared resources plus alert routing (resource catalog)."""
+        from factory_spec.resources import check_instances, render
+
+        from .alerts import alert_instances, user_instances
+
+        instances = user_instances(self.spec, self.deploy.env) + alert_instances(self.spec, self.deploy.env)
+        problems = check_instances(instances)
+        if problems:
+            raise CommandError("environments.yaml → resources: " + "; ".join(problems), "invalid")
+        facts = {"env": self.deploy.env, "team": self.team, "pipeline_id": self.pid, "account": self.account,
+                 "region": self.region, "partition": self.part}  # fmt: skip
+        return render(instances, facts)
 
     def account_of(self, placement: str) -> str:
         p = self.platform.placements.get(placement)
@@ -166,6 +183,12 @@ def _rule_statements(c: _Ctx, rule: Any) -> list[dict[str, Any]]:
                 out.append(_stmt(a.actions, arns))
         elif res.startswith("{source."):
             out += _source(c, rule, a.actions, res)
+        elif res == "{target.arn}":  # a resource declared by configuration (notify.publish)
+            arn = c.catalog.outputs.get(impl.params.target, {}).get("arn_literal")
+            if arn:
+                out.append(_stmt(a.actions, [arn]))
+        elif res == "{target.kms_arn}":
+            out.append(_stmt(a.actions, ["${var.kms_key_arn}"]))
     if impl.op == "fivetran.sync":
         out.append(_stmt(["secretsmanager:GetSecretValue"], ["${var.fivetran_api_secret_arn}"]))
     if impl.op == "sqs.read" and c.spec.pipeline.trigger.type == "sqs" and c.spec.pipeline.trigger.mode == "in_task":
@@ -277,6 +300,10 @@ def _env_vars(c: _Ctx, *, poll: bool) -> dict[str, str]:
         ),
         "FACTORY_WORKDIR": "/tmp/factory",  # noqa: S108 - Lambda ephemeral storage
     }
+    declared = {i: o["arn_literal"] for i, o in sorted(c.catalog.outputs.items())
+                if "arn_literal" in o and not i.startswith("alerts_")}  # fmt: skip
+    if declared:  # notify.publish and custom rules find declared resources by id
+        v["FACTORY_RESOURCES"] = json.dumps(declared, sort_keys=True)
     uses_vault = any(effective_provider(c.spec, c.deploy.env, n) == "vault" for n in c.spec.integrations.secrets)
     if c.platform.vault and c.binding.secrets and c.binding.secrets.vault and uses_vault:
         v |= {
@@ -414,8 +441,15 @@ def generate_stack(
             }
         },
     }
+    for rtype, items in c.catalog.resources.items():
+        clash = sorted(set(items) & set(res.get(rtype, {})))
+        if clash:
+            raise CommandError(f"resource ids {clash} clash with the pipeline's own {rtype} resources; rename them")
+        res[rtype].update(items)
     full = {"variable": variables, "resource": {k: dict(sorted(v.items())) for k, v in sorted(res.items())}}
-    main, ownership, contract = apply_ownership(full, c.binding.infrastructure, c.account, c.region, c.part)
+    main, ownership, contract = apply_ownership(
+        full, c.binding.infrastructure, c.account, c.region, c.part, catalog=c.catalog
+    )
     # separate files: Terraform reads all; checkov scans main.tf.json (its JSON parser rejects provider blocks)
     files = {"providers.tf.json": providers, "main.tf.json": main}
     if ownership:

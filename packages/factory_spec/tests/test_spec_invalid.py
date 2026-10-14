@@ -281,6 +281,12 @@ simple(
     setitem(["environments", "dev", "sources", "landing", "buckets"], []),
 )
 simple("binding_missing", "binding_missing", "environments.yaml", delitem(["environments", "dev", "portal"]))
+simple(  # a resource by configuration with a parameter its catalog type does not have
+    "resource_invalid",
+    "resource_invalid",
+    "environments.yaml",
+    setitem(["resources"], {"ops_topic": {"type": "sns_topic", "params": {"colour": "blue"}}}),
+)
 simple(  # no store declared with the secret and none chosen by the environment
     "secret_provider_missing",
     "secret_provider_missing",

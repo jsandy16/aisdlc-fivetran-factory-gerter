@@ -76,6 +76,7 @@ def main(
     environ = os.environ if environ is None else environ
     log = get_logger()
     reset_bound()
+    cfg: RuntimeConfig | None = None
     try:
         req = parse_request(argv)
         cfg = config or from_environ(environ)
@@ -90,6 +91,8 @@ def main(
         err = classified(exc, "run")
         code = exit_code_for(err)
         log.event("run_exit", level="ERROR", exit_code=code, error_class=str(err.error_class), code=err.code)
+        if cfg is not None:  # alert routing: generated alarms watch this metric per failure class
+            log.metric("TaskFailed", 1, "Count", pipeline_id=cfg.pipeline_id, error_class=str(err.error_class))
         return code
 
 

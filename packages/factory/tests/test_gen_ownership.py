@@ -43,7 +43,7 @@ def _stack(infra: dict[str, Any] | None = None, env: str = "dev") -> tuple[dict[
 def test_default_creates_everything_as_before() -> None:
     files, contract, _ = _stack()
     assert set(files) == {"providers.tf.json", "main.tf.json"}
-    assert "data" not in files["main.tf.json"]
+    assert set(files["main.tf.json"]["data"]) == {"aws_sns_topic"}  # alert channels name existing topics
     assert contract["provide"] == []
     assert set(files["main.tf.json"]["resource"]) >= {"aws_sqs_queue", "aws_iam_role", "aws_lambda_function"}
 
@@ -73,9 +73,9 @@ def test_everything_existing_leaves_only_lookups_and_uses_their_names() -> None:
     files, contract, spec = _stack({"mode": "existing", "compute": {"mode": "existing", "names": names}})
     assert "resource" not in files["main.tf.json"]
     assert set(files["main.tf.json"]["data"]) == {"aws_iam_role", "aws_sqs_queue", "aws_cloudwatch_log_group",
-                                                  "aws_lambda_function"}  # fmt: skip
+                                                  "aws_lambda_function", "aws_sns_topic"}  # fmt: skip
     groups = {p["group"] for p in contract["provide"]}
-    assert groups == {"roles", "queues", "logs", "compute"}
+    assert groups == {"roles", "queues", "logs", "compute", "alerts"}  # the alarms too: the team builds them
     policies = [p for p in contract["provide"] if p["type"] == "aws_iam_role_policy"]
     expected = {f"aws_iam_role_policy.{k}" for k in ("t1_collect", "t2_checksum", "t3_upload", "dispatcher")}
     assert {p["address"] for p in policies} == expected

@@ -1,0 +1,197 @@
+# Resource catalog v1: the AWS resource types a pipeline can ask for by configuration (environments.yaml → resources),
+# rendered by one generic generator. Adding a type is a reviewed change to this file only; no Python.
+#
+# Tokens (whole-string tokens keep the native type; a missing optional param drops the key or list item):
+#   <name> <id> <env> <team> <pipeline_id> <account> <region> <partition>   instance and deployment facts
+#   <params.X>            a parameter value              <json:params.X>   a parameter as a JSON string
+#   <out:X.OUTPUT>        an output of the instance named by parameter X (a resource id in the same pipeline);
+#                         `arn` is a Terraform reference (ordering, lookups), `arn_literal` the plain ARN
+#   <tf:KEY>              the Terraform address of this instance's resource KEY
+#   ${var.kms_key_arn}    passed through to Terraform (the team key from the platform)
+# Per resource: `when: params.X` renders it only when X is set; `lookup` names the field a data source finds an existing
+# resource by; `import_id` is how Terraform adopts one that already exists.
+version: 1
+types:
+  sns_topic:
+    summary: SNS topic, encrypted with the team key
+    params:
+      display_name: {type: string, max_length: 100}
+    resources:
+      topic:
+        type: aws_sns_topic
+        body: {name: "<name>", display_name: "<params.display_name>", kms_master_key_id: "${var.kms_key_arn}"}
+        lookup: name
+        import_id: "arn:<partition>:sns:<region>:<account>:<name>"
+    outputs:
+      arn: "${<tf:topic>.arn}"
+      arn_literal: "arn:<partition>:sns:<region>:<account>:<name>"
+      name: "<name>"
+
+  sns_subscription:
+    summary: Subscription of an email address, HTTPS endpoint or queue to a topic in this pipeline
+    params:
+      topic: {type: ref, required: true, ref_types: [sns_topic]}
+      protocol: {type: string, required: true, enum: [email, https, sqs, lambda]}
+      endpoint: {type: string, required: true, max_length: 2048}
+    resources:
+      subscription:
+        type: aws_sns_topic_subscription
+        body: {topic_arn: "<out:topic.arn>", protocol: "<params.protocol>", endpoint: "<params.endpoint>"}
+
+  cloudwatch_metric_alarm:
+    summary: CloudWatch alarm on one metric, notifying a topic in this pipeline
+    params:
+      namespace: {type: string, required: true}
+      metric: {type: string, required: true}
+      dimensions: {type: object, default: {}}
+      statistic: {type: string, default: Sum, enum: [Sum, Average, Maximum, Minimum, SampleCount]}
+      threshold: {type: number, default: 1}
+      period: {type: integer, default: 300, min: 60}
+      evaluation_periods: {type: integer, default: 1, min: 1}
+      comparison: {type: string, default: GreaterThanOrEqualToThreshold,
+                   enum: [GreaterThanOrEqualToThreshold, GreaterThanThreshold, LessThanThreshold,
+                          LessThanOrEqualToThreshold]}
+      notify: {type: ref, required: true, ref_types: [sns_topic]}
+      description: {type: string, max_length: 1024}
+    resources:
+      alarm:
+        type: aws_cloudwatch_metric_alarm
+        body:
+          alarm_name: "<name>"
+          alarm_description: "<params.description>"
+          namespace: "<params.namespace>"
+          metric_name: "<params.metric>"
+          dimensions: "<params.dimensions>"
+          statistic: "<params.statistic>"
+          threshold: "<params.threshold>"
+          period: "<params.period>"
+          evaluation_periods: "<params.evaluation_periods>"
+          comparison_operator: "<params.comparison>"
+          treat_missing_data: notBreaching
+          alarm_actions: ["<out:notify.arn>"]
+        import_id: "<name>"
+    outputs:
+      name: "<name>"
+
+  log_metric_filter:
+    summary: Count log lines that match a pattern as a metric
+    params:
+      log_group: {type: string, required: true}
+      pattern: {type: string, required: true, max_length: 1024}
+      metric: {type: string, required: true}
+      namespace: {type: string, default: PipelineFactory}
+    resources:
+      filter:
+        type: aws_cloudwatch_log_metric_filter
+        body:
+          name: "<name>"
+          log_group_name: "<params.log_group>"
+          pattern: "<params.pattern>"
+          metric_transformation: {name: "<params.metric>", namespace: "<params.namespace>", value: "1"}
+        import_id: "<params.log_group>:<name>"
+
+  cloudwatch_dashboard:
+    summary: CloudWatch dashboard (the widgets are given as data)
+    params:
+      body: {type: object, required: true}
+    resources:
+      dashboard:
+        type: aws_cloudwatch_dashboard
+        body: {dashboard_name: "<name>", dashboard_body: "<json:params.body>"}
+        import_id: "<name>"
+
+  eventbridge_rule:
+    summary: EventBridge rule, optionally sending matching events to a topic or queue in this pipeline
+    params:
+      event_pattern: {type: object, required: true}
+      description: {type: string, max_length: 512}
+      target: {type: ref, ref_types: [sns_topic, sqs_queue]}
+    resources:
+      rule:
+        type: aws_cloudwatch_event_rule
+        body: {name: "<name>", description: "<params.description>", event_pattern: "<json:params.event_pattern>"}
+        import_id: "default/<name>"
+      target:
+        type: aws_cloudwatch_event_target
+        when: params.target
+        body: {rule: "${<tf:rule>.name}", arn: "<out:target.arn>"}
+
+  s3_bucket:
+    summary: S3 bucket, versioned, KMS-encrypted, never public
+    params:
+      expire_days: {type: integer, min: 1}
+    resources:
+      bucket:
+        type: aws_s3_bucket
+        body: {bucket: "<name>"}
+        lookup: bucket
+        import_id: "<name>"
+      versioning:
+        type: aws_s3_bucket_versioning
+        body: {bucket: "${<tf:bucket>.id}", versioning_configuration: {status: Enabled}}
+        import_id: "<name>"
+      encryption:
+        type: aws_s3_bucket_server_side_encryption_configuration
+        body:
+          bucket: "${<tf:bucket>.id}"
+          rule: [{apply_server_side_encryption_by_default: {sse_algorithm: "aws:kms", kms_master_key_id: "${var.kms_key_arn}"},
+                  bucket_key_enabled: true}]
+        import_id: "<name>"
+      public_access:
+        type: aws_s3_bucket_public_access_block
+        body: {bucket: "${<tf:bucket>.id}", block_public_acls: true, block_public_policy: true, ignore_public_acls: true,
+               restrict_public_buckets: true}
+        import_id: "<name>"
+      lifecycle:
+        type: aws_s3_bucket_lifecycle_configuration
+        when: params.expire_days
+        body:
+          bucket: "${<tf:bucket>.id}"
+          rule: [{id: expiry, status: Enabled, filter: {}, expiration: {days: "<params.expire_days>"},
+                  abort_incomplete_multipart_upload: {days_after_initiation: 1}}]
+        import_id: "<name>"
+    outputs:
+      arn: "${<tf:bucket>.arn}"
+      arn_literal: "arn:<partition>:s3:::<name>"
+      name: "<name>"
+
+  sqs_queue:
+    summary: SQS queue, encrypted with the team key
+    params:
+      retention_seconds: {type: integer, default: 345600, min: 60}
+      visibility_timeout_seconds: {type: integer, default: 30, min: 0}
+    resources:
+      queue:
+        type: aws_sqs_queue
+        body: {name: "<name>", kms_master_key_id: "${var.kms_key_arn}", message_retention_seconds: "<params.retention_seconds>",
+               visibility_timeout_seconds: "<params.visibility_timeout_seconds>"}
+        lookup: name
+        import_id: "https://sqs.<region>.amazonaws.com/<account>/<name>"
+    outputs:
+      arn: "${<tf:queue>.arn}"
+      arn_literal: "arn:<partition>:sqs:<region>:<account>:<name>"
+      name: "<name>"
+
+  dynamodb_table:
+    summary: DynamoDB table, on-demand, KMS-encrypted, point-in-time recovery
+    params:
+      hash_key: {type: string, required: true}
+      range_key: {type: string}
+      attributes: {type: list, required: true}
+    resources:
+      table:
+        type: aws_dynamodb_table
+        body:
+          name: "<name>"
+          billing_mode: PAY_PER_REQUEST
+          hash_key: "<params.hash_key>"
+          range_key: "<params.range_key>"
+          attribute: "<params.attributes>"
+          point_in_time_recovery: {enabled: true}
+          server_side_encryption: {enabled: true, kms_key_arn: "${var.kms_key_arn}"}
+        lookup: name
+        import_id: "<name>"
+    outputs:
+      arn: "${<tf:table>.arn}"
+      arn_literal: "arn:<partition>:dynamodb:<region>:<account>:table/<name>"
+      name: "<name>"

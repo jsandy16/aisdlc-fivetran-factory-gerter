@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, JsonValue
 
 from ..common import StrictModel, ba
 from ..fieldtypes import EnvName, HttpsBaseUrl, Identifier, PrefixRoot, ResourceName, S3Bucket
@@ -88,7 +88,7 @@ AlertChannel = Annotated[SnsChannel | EmailChannel | SlackChannel, Field(discrim
 
 
 InfraMode = Literal["create", "existing"]
-INFRA_GROUPS = ("roles", "queues", "logs", "compute", "alerts")
+INFRA_GROUPS = ("roles", "queues", "logs", "compute", "alerts", "resources")
 
 
 class InfraGroup(StrictModel):
@@ -116,6 +116,9 @@ class Infrastructure(StrictModel):
         "Compute", "Lambda functions, event-source mapping, Pod Identity associations", default_factory=InfraGroup
     )
     alerts: InfraGroup = ba("Alerts", "Topics, subscriptions and alarms for alert routing", default_factory=InfraGroup)
+    resources: InfraGroup = ba(
+        "Catalog resources", "The resources declared in environments.yaml → resources", default_factory=InfraGroup
+    )
 
     def mode_of(self, group: str) -> str:
         g: InfraGroup = getattr(self, group)
@@ -138,7 +141,23 @@ class EnvBinding(StrictModel):
     )  # fmt: skip
 
 
+class ResourceInstance(StrictModel):
+    """An AWS resource from the resource catalog (catalog/resources.v1.yaml), asked for by configuration."""
+
+    type: Identifier = ba("Type", "A resource type from the resource catalog, e.g. sns_topic, cloudwatch_metric_alarm")
+    name: str | None = ba(
+        "Name", "AWS name; <env> becomes the environment. Default: factory-<team>-<pipeline>-<id>", default=None,
+        pattern=r"^[A-Za-z0-9<>._/-]{1,255}$",
+    )  # fmt: skip
+    params: dict[str, JsonValue] = ba("Parameters", "As the catalog type defines them", default_factory=dict)
+    environments: list[EnvName] | None = ba("Environments", "Only in these environments (default: all)", default=None)
+
+
 class EnvironmentsFile(StrictModel):
     """environments.yaml: owned by the platform team."""
 
     environments: dict[EnvName, EnvBinding] = ba("Environments", "Bindings per environment (dev, test, ppt, prod)")
+    resources: dict[Identifier, ResourceInstance] = ba(
+        "Resources", "Extra AWS resources by configuration: topics, alarms, dashboards, rules, buckets, queues, tables",
+        default_factory=dict,
+    )  # fmt: skip

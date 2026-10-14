@@ -242,6 +242,11 @@
           "description": "Trigger queue, dead-letter queue, queue policy",
           "x-ba-label": "Queues"
         },
+        "resources": {
+          "$ref": "#/$defs/InfraGroup",
+          "description": "The resources declared in environments.yaml → resources",
+          "x-ba-label": "Catalog resources"
+        },
         "roles": {
           "$ref": "#/$defs/InfraGroup",
           "description": "Task and dispatcher roles and their policies",
@@ -250,6 +255,7 @@
       },
       "type": "object"
     },
+    "JsonValue": {},
     "Placement": {
       "additionalProperties": false,
       "properties": {
@@ -284,6 +290,62 @@
       },
       "required": [
         "name"
+      ],
+      "type": "object"
+    },
+    "ResourceInstance": {
+      "additionalProperties": false,
+      "description": "An AWS resource from the resource catalog (catalog/resources.v1.yaml), asked for by configuration.",
+      "properties": {
+        "environments": {
+          "anyOf": [
+            {
+              "items": {
+                "pattern": "^[a-z][a-z0-9]{1,9}$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only in these environments (default: all)",
+          "x-ba-label": "Environments"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9<>._/-]{1,255}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "AWS name; <env> becomes the environment. Default: factory-<team>-<pipeline>-<id>",
+          "x-ba-label": "Name"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "As the catalog type defines them",
+          "type": "object",
+          "x-ba-label": "Parameters"
+        },
+        "type": {
+          "description": "A resource type from the resource catalog, e.g. sns_topic, cloudwatch_metric_alarm",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Type"
+        }
+      },
+      "required": [
+        "type"
       ],
       "type": "object"
     },
@@ -513,6 +575,19 @@
       },
       "type": "object",
       "x-ba-label": "Environments"
+    },
+    "resources": {
+      "description": "Extra AWS resources by configuration: topics, alarms, dashboards, rules, buckets, queues, tables",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "$ref": "#/$defs/ResourceInstance"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 63
+      },
+      "type": "object",
+      "x-ba-label": "Resources"
     }
   },
   "required": [

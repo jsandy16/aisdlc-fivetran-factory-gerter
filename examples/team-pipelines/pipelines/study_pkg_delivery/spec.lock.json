@@ -77,6 +77,12 @@
             "mode": "create",
             "names": {}
           },
+          "resources": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
           "roles": {
             "adopt": false,
             "import_ids": {},
@@ -212,6 +218,12 @@
           },
           "mode": null,
           "queues": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "resources": {
             "adopt": false,
             "import_ids": {},
             "mode": "create",
@@ -357,6 +369,12 @@
             "mode": "create",
             "names": {}
           },
+          "resources": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
           "roles": {
             "adopt": false,
             "import_ids": {},
@@ -474,6 +492,12 @@
           },
           "mode": null,
           "queues": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "resources": {
             "adopt": false,
             "import_ids": {},
             "mode": "create",
@@ -681,10 +705,10 @@
   },
   "hashes": {
     "binding_sha": {
-      "dev": "46529a7de7b77cf7873695a9bf50fdca24ba0871511ecf418ffc06b37c486eb6",
-      "ppt": "648a6409d2cf739e9eab3fff4d10dc72e0837ed5ef360d56eac1c2c4e3cc96cd",
-      "prod": "4dbe72239eac0ffa39a8a8c46d7f47bc120c35847cd915a5726ad0c412114b7f",
-      "test": "3e6978aadc2f3e077aa5f9612d77ab9ea8cd204e62458799bf99fef41a8298ba"
+      "dev": "3b1aad1cebad15b2379b66179ea0bf1f97d9a59f95f4f7a45759481abc8dd9c7",
+      "ppt": "f0ea6f38c71f768eeb8ee34854092b1b08c7b08867abb991500d504c8d40ef23",
+      "prod": "0c615b1998986826497d4f7ae0d8d40a0ea332fe75e1957ca3b34fdc903f9270",
+      "test": "7766297401ad12cf6539183701472a4cb5fa34301ba6eaaba5df7dd1cb4eaf27"
     },
     "derived_sha": "b3bcc81b7cf7192ea226042e4b8b553bed609ffe60b273e5eefdb7c8565e8da3",
     "logic_sha": "7670e3f090e052e55dd405354651a743845136acfbe1478777d3ccb3a18c1365"

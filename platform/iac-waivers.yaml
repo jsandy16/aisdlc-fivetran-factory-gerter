@@ -15,3 +15,21 @@ waivers:
       Lambda code signing is not supported for container-image functions. Integrity comes from the image digest
       pinned in the run pin and the deploy, and from signed images in ECR (Phase 8).
     owner: platform
+  # Resource catalog buckets (s3_bucket type; Terraform names end in _bucket). Versioning, KMS encryption, public
+  # access block and lifecycle are part of the catalog entry; these three are decisions per dataset, not defaults.
+  - check: CKV2_AWS_62
+    resources: "*_bucket"
+    reason: >-
+      Event notifications are added by configuration when a pipeline needs them (an eventbridge_rule resource or an
+      s3_event trigger); a bucket that nothing listens to needs none.
+    owner: platform
+  - check: CKV_AWS_18
+    resources: "*_bucket"
+    reason: >-
+      Server access logging needs a log bucket chosen by the platform; access is recorded by the platform's CloudTrail
+      data events meanwhile. A logging-target parameter can be added to the catalog entry when the platform names one.
+    owner: platform
+  - check: CKV_AWS_144
+    resources: "*_bucket"
+    reason: Cross-region replication is a disaster-recovery decision per dataset (cost, residency), not a default.
+    owner: governance

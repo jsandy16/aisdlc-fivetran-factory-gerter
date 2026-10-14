@@ -113,6 +113,12 @@ class StaticPutParams(StrictModel):
     # a manifest listed in the rule's inputs is stored next to the artifact (<name>.manifest.json)
 
 
+class NotifyPublishParams(StrictModel):
+    target: Identifier = ba("Topic", "An sns_topic declared in environments.yaml → resources")
+    subject: str = ba("Subject", "Short subject; tokens from the trigger fields, e.g. 'Package {package_id} delivered'",
+                      min_length=1, max_length=100)  # fmt: skip
+
+
 OP_PARAMS: dict[str, type[StrictModel]] = {
     "sqs.read": NoParams,
     "portal.lookup": PortalLookupParams,
@@ -133,4 +139,5 @@ OP_PARAMS: dict[str, type[StrictModel]] = {
     "s3.copy": StaticPutParams,
     "sftp.put": StaticPutParams,
     "https.put": StaticPutParams,
+    "notify.publish": NotifyPublishParams,
 }

@@ -488,6 +488,58 @@
       "version": "1.0.0"
     },
     {
+      "allowed_engines": [
+        "lambda",
+        "eks_pod"
+      ],
+      "aws_actions": [
+        {
+          "actions": [
+            "sns:Publish"
+          ],
+          "resource": "{target.arn}"
+        },
+        {
+          "actions": [
+            "kms:GenerateDataKey",
+            "kms:Decrypt"
+          ],
+          "resource": "{target.kms_arn}"
+        }
+      ],
+      "categories": [
+        "integration"
+      ],
+      "determinism": "nondeterministic",
+      "idempotency": "natural",
+      "op": "notify.publish",
+      "outputs": [
+        {
+          "kind": "value",
+          "min_durability": "local",
+          "port": "message_id",
+          "required": false,
+          "streaming": false
+        }
+      ],
+      "resources": {
+        "eks_pod": {
+          "bytes_per_s": null,
+          "overhead_s": 27
+        },
+        "lambda": {
+          "bytes_per_s": null,
+          "overhead_s": 2
+        }
+      },
+      "side_effects": [
+        "publishes_notification"
+      ],
+      "status": "available",
+      "summary": "Publish a notification (pipeline, run and rule ids and a subject; never data) to an SNS topic declared in environments.yaml \u2192 resources.",
+      "version": "1.0.0"
+    },
+    {
       "categories": [
         "package"
       ],

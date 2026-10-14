@@ -669,6 +669,32 @@ def _secret_uses(ctx: Context) -> list[tuple[str, str, str, frozenset[str]]]:
     return uses
 
 
+def check_resources(ctx: Context) -> Iterable[Issue]:
+    """environments.yaml → resources: each instance is a known catalog type with valid parameters and references."""
+    from ..resources import Instance, check_instances
+
+    declared = ctx.spec.environments.resources
+    for iid, r in sorted(declared.items()):
+        for env in sorted(set(r.environments or []) - set(ctx.spec.environments.environments)):
+            yield issue("unresolved_reference", E, f"resources.{iid}.environments", f"no environment '{env}'")
+    for rule in ctx.spec.rules.rules:  # notify.publish targets a declared topic that exists wherever the pipeline runs
+        impl = rule.implementation
+        if impl.kind != "builtin" or impl.op != "notify.publish":
+            continue
+        target = declared.get(impl.params.target)
+        loc = f"rules[{rule.rule_id}].implementation.params.target"
+        if target is None or target.type != "sns_topic":
+            yield issue("unresolved_reference", R, loc, f"'{impl.params.target}' is not an sns_topic in resources")
+            continue
+        gaps = sorted(set(ctx.enabled_envs) - set(target.environments or ctx.enabled_envs))
+        if gaps:
+            yield issue("unresolved_reference", R, loc, f"'{impl.params.target}' is not declared for {gaps}")
+    instances = [Instance(i, r.type, dict(r.params), name=r.name) for i, r in sorted(declared.items())]
+    for problem in check_instances(instances):
+        iid = problem.split(":", 1)[0]
+        yield issue("resource_invalid", E, f"resources.{iid}", problem)
+
+
 def check_secrets(ctx: Context) -> Iterable[Issue]:
     secrets = ctx.spec.integrations.secrets
     used: set[str] = set()
@@ -973,6 +999,7 @@ CHECKS: tuple[Check, ...] = (
     check_portal,
     check_destinations,
     check_secrets,
+    check_resources,
     check_environments,
     check_engines,
     check_gxp,

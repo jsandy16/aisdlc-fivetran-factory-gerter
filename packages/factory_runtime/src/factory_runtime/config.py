@@ -34,6 +34,7 @@ class RuntimeConfig(BaseModel):
     audit_kms_key: str | None = None
     image_digest: str = "unknown"
     placement_accounts: dict[str, str] = Field(default_factory=dict)  # placement alias -> 12-digit account id
+    resources: dict[str, str] = Field(default_factory=dict)  # declared resource id -> ARN (environments.yaml)
     vault_address: str | None = Field(default=None, pattern=r"^https://[a-z0-9.-]+(:\d{1,5})?$")
     vault_auth_mount: str = "aws"
     vault_role: str | None = None
@@ -70,6 +71,7 @@ _ENV_MAP = {
     "audit_kms_key": "FACTORY_AUDIT_KMS_KEY",
     "image_digest": "FACTORY_IMAGE_DIGEST",
     "placement_accounts": "FACTORY_PLACEMENT_ACCOUNTS",
+    "resources": "FACTORY_RESOURCES",
     "vault_address": "FACTORY_VAULT_ADDRESS",
     "vault_auth_mount": "FACTORY_VAULT_AUTH_MOUNT",
     "vault_role": "FACTORY_VAULT_ROLE",
@@ -92,6 +94,11 @@ def from_environ(environ: Mapping[str, str]) -> RuntimeConfig:
     for fname, var in _ENV_MAP.items():
         if var in environ and environ[var] != "":
             raw[fname] = environ[var]
+    if "resources" in raw:
+        try:
+            raw["resources"] = json.loads(raw["resources"])
+        except json.JSONDecodeError:
+            raise ConfigError("runtime_config_invalid", "FACTORY_RESOURCES is not JSON") from None
     if "placement_accounts" in raw:
         try:
             raw["placement_accounts"] = json.loads(raw["placement_accounts"])

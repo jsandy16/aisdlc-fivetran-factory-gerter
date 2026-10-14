@@ -181,6 +181,32 @@
       ],
       "type": "object"
     },
+    "Builtin_notify_publish": {
+      "additionalProperties": false,
+      "description": "Built-in op notify.publish.",
+      "properties": {
+        "kind": {
+          "const": "builtin",
+          "type": "string",
+          "x-ba-label": "Kind"
+        },
+        "op": {
+          "const": "notify.publish",
+          "type": "string",
+          "x-ba-label": "Op"
+        },
+        "params": {
+          "$ref": "#/$defs/NotifyPublishParams",
+          "x-ba-label": "Params"
+        }
+      },
+      "required": [
+        "kind",
+        "op",
+        "params"
+      ],
+      "type": "object"
+    },
     "Builtin_package_zip": {
       "additionalProperties": false,
       "description": "Built-in op package.zip.",
@@ -1173,6 +1199,7 @@
                 "mapping": {
                   "destination.resolve": "#/$defs/Builtin_destination_resolve",
                   "fivetran.sync": "#/$defs/Builtin_fivetran_sync",
+                  "notify.publish": "#/$defs/Builtin_notify_publish",
                   "portal.lookup": "#/$defs/Builtin_portal_lookup",
                   "secret.read": "#/$defs/Planned_integration",
                   "sqs.ack": "#/$defs/Planned_integration",
@@ -1186,6 +1213,9 @@
                 },
                 {
                   "$ref": "#/$defs/Builtin_fivetran_sync"
+                },
+                {
+                  "$ref": "#/$defs/Builtin_notify_publish"
                 },
                 {
                   "$ref": "#/$defs/Builtin_portal_lookup"
@@ -1445,6 +1475,30 @@
       "additionalProperties": false,
       "description": "This operation takes no parameters.",
       "properties": {},
+      "type": "object"
+    },
+    "NotifyPublishParams": {
+      "additionalProperties": false,
+      "properties": {
+        "subject": {
+          "description": "Short subject; tokens from the trigger fields, e.g. 'Package {package_id} delivered'",
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string",
+          "x-ba-label": "Subject"
+        },
+        "target": {
+          "description": "An sns_topic declared in environments.yaml → resources",
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "type": "string",
+          "x-ba-label": "Topic"
+        }
+      },
+      "required": [
+        "target",
+        "subject"
+      ],
       "type": "object"
     },
     "OnFailure": {

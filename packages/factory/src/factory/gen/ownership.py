@@ -79,38 +79,65 @@ def _concrete(rtype: str, attr: str, name: str, account: str, region: str, part:
         return f"arn:{part}:lambda:{region}:{account}:function:{name}"
     if rtype == "aws_cloudwatch_log_group":
         return f"arn:{part}:logs:{region}:{account}:log-group:{name}"
+    if rtype == "aws_sns_topic":
+        return f"arn:{part}:sns:{region}:{account}:{name}"
+    if rtype == "aws_s3_bucket":
+        return name if attr in ("id", "bucket") else f"arn:{part}:s3:::{name}"
+    if rtype == "aws_dynamodb_table":
+        return name if attr in ("id", "name") else f"arn:{part}:dynamodb:{region}:{account}:table/{name}"
+    if rtype == "aws_cloudwatch_event_rule":
+        return name
     return f"<{rtype} {name} {attr}>"
 
 
+NAME_FIELDS = ("name", "function_name", "bucket", "alarm_name", "dashboard_name")
+ALL_GROUPS = ("roles", "queues", "logs", "compute", "alerts", "resources")
+
+
+def _name(body: dict[str, Any]) -> Any:
+    return next((body[f] for f in NAME_FIELDS if f in body), None)
+
+
 def apply_ownership(
-    main: dict[str, Any], infra: Any, account: str, region: str, part: str = "aws"
+    main: dict[str, Any], infra: Any, account: str, region: str, part: str = "aws", catalog: Any = None
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    """(main.tf.json, ownership.tf.json (may be empty), handover contract)."""
+    """(main.tf.json, ownership.tf.json (may be empty), handover contract).
+
+    `catalog` (factory_spec.resources.Rendered): the group, lookup field and import id of each catalog resource, and
+    the addresses that are always looked up (alert topics the bindings name).
+    """
     res: dict[str, dict[str, Any]] = main.get("resource", {})
-    existing = {g for g in GROUPS if infra.mode_of(g) == "existing"}
+    cat_groups: dict[tuple[str, str], str] = catalog.groups if catalog else {}
+    forced: set[tuple[str, str]] = catalog.forced if catalog else set()
+    lookup = dict(LOOKUP) | {t: (f, {}) for t, f in (catalog.lookups.items() if catalog else [])}
+
+    def group_of(rtype: str, key: str) -> str | None:
+        return cat_groups.get((rtype, key)) or _group_of(rtype)
+
+    existing = {g for g in ALL_GROUPS if infra.mode_of(g) == "existing"}
     moved: dict[tuple[str, str], dict[str, Any]] = {}  # (type, key) -> body, for every resource the team provides
     for rtype, items in res.items():
-        if _group_of(rtype) in existing:
-            for key, body in items.items():
+        for key, body in items.items():
+            if group_of(rtype, key) in existing or (rtype, key) in forced:
                 moved[(rtype, key)] = body
-    for g in existing:  # names the infra team used, where they differ from the framework's
+    for g in sorted(existing & set(GROUPS)):  # names the infra team used, where they differ from the framework's
         overrides = getattr(infra, g).names
-        known = {k for (t, k) in moved if _group_of(t) == g}
+        known = {k for (t, k) in moved if group_of(t, k) == g}
         unknown = sorted(set(overrides) - known)
         if unknown:
             raise CommandError(f"infrastructure.{g}.names: no such resource key(s) {unknown}; known: {sorted(known)}")
         for (rtype, key), body in moved.items():
-            name_field = LOOKUP.get(rtype, ("name", {}))[0]
-            if _group_of(rtype) == g and key in overrides and name_field in body:
+            name_field = lookup.get(rtype, ("name", {}))[0]
+            if group_of(rtype, key) == g and key in overrides and name_field in body:
                 moved[(rtype, key)] = {**body, name_field: overrides[key]}
     data: dict[str, dict[str, Any]] = {}
 
     def rewrite(text: str) -> str:
         def sub(m: re.Match[str]) -> str:
             rtype, key, attr = m.groups()
-            if (rtype, key) not in moved or rtype not in LOOKUP:
+            if (rtype, key) not in moved or rtype not in lookup:
                 return m.group(0)
-            field, renames = LOOKUP[rtype]
+            field, renames = lookup[rtype]
             data.setdefault(rtype, {})[key] = {field: moved[(rtype, key)][field]}
             return f"${{data.{rtype}.{key}.{renames.get(attr, attr)}}}"
 
@@ -126,23 +153,30 @@ def apply_ownership(
             body = {k: v for k, v in body.items() if k != "depends_on"} | ({"depends_on": deps} if deps else {})
             kept.setdefault(rtype, {})[key] = body
     for (rtype, key), body in moved.items():  # every provided resource is looked up, so plan fails early if missing
-        if rtype in LOOKUP:
-            data.setdefault(rtype, {})[key] = {LOOKUP[rtype][0]: body[LOOKUP[rtype][0]]}
+        if rtype in lookup:
+            data.setdefault(rtype, {})[key] = {lookup[rtype][0]: body[lookup[rtype][0]]}
     out = {k: v for k, v in main.items() if k != "resource"}
     if kept:
         out["resource"] = {t: dict(sorted(i.items())) for t, i in sorted(kept.items())}
     if data:
         out["data"] = {t: dict(sorted(i.items())) for t, i in sorted(data.items())}
-    removed = [{"from": f"{t}.{k}", "lifecycle": {"destroy": False}} for (t, k) in sorted(moved)]
+    removed = [
+        {"from": f"{t}.{k}", "lifecycle": {"destroy": False}} for (t, k) in sorted(moved) if (t, k) not in forced
+    ]
     imports, cannot = [], []
-    for g in sorted(set(GROUPS) - existing):
+    cat_ids: dict[str, str] = catalog.import_ids if catalog else {}
+    for g in sorted(set(ALL_GROUPS) - existing):
         grp = getattr(infra, g)
         if not grp.adopt:
             continue
-        for rtype in GROUPS[g]:
-            for key, body in sorted(res.get(rtype, {}).items()):
+        for rtype, items in sorted(res.items()):
+            for key, body in sorted(items.items()):
+                if group_of(rtype, key) != g or (rtype, key) in moved:
+                    continue
                 addr = f"{rtype}.{key}"
-                iid = grp.import_ids.get(addr) or _import_id(rtype, key, body, res, account, region)
+                iid = (
+                    grp.import_ids.get(addr) or cat_ids.get(addr) or _import_id(rtype, key, body, res, account, region)
+                )
                 if iid is None:
                     cannot.append(addr)
                 else:
@@ -157,18 +191,18 @@ def apply_ownership(
         def sub(m: re.Match[str]) -> str:
             rtype, key, attr = m.groups()
             body = moved.get((rtype, key)) or res.get(rtype, {}).get(key)
-            if body is None or rtype not in LOOKUP:
+            if body is None or rtype not in lookup:
                 return m.group(0)
-            return _concrete(rtype, attr, str(body[LOOKUP[rtype][0]]), account, region, part)
+            return _concrete(rtype, attr, str(body[lookup[rtype][0]]), account, region, part)
 
         return _VAR.sub(lambda m: f"<{m.group(1)}: from the platform settings>", _REF.sub(sub, text))
 
     contract = {
-        "groups": {g: infra.mode_of(g) for g in sorted(GROUPS)},
+        "groups": {g: infra.mode_of(g) for g in sorted(ALL_GROUPS)},
         "provide": [
-            {"group": _group_of(t), "address": f"{t}.{k}", "type": t, "name": b.get("name") or b.get("function_name"),
+            {"group": group_of(t, k), "address": f"{t}.{k}", "type": t, "name": _name(b),
              "settings": _resolve(b, spell)}
-            for (t, k), b in sorted(moved.items())
+            for (t, k), b in sorted(moved.items()) if (t, k) not in forced
         ],
         "adopt_needs_import_ids": cannot,
     }  # fmt: skip

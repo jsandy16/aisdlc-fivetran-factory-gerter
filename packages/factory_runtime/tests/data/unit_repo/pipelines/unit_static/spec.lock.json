@@ -105,6 +105,12 @@
             "mode": "create",
             "names": {}
           },
+          "resources": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
           "roles": {
             "adopt": false,
             "import_ids": {},
@@ -264,7 +270,7 @@
   },
   "hashes": {
     "binding_sha": {
-      "dev": "b58769125dd01e4782571810510a1e8e05041890747d2ce7e1c54c6d36807852"
+      "dev": "30c34982ee4830a44a5a55d4ab9cfab9c3279d5859b5030c718fa2f0c469313b"
     },
     "derived_sha": "f78693b926b695e6c91733e8b612ef1b86b00b56088baf95c3fc486e621fb2e9",
     "logic_sha": "de3e076ef205a88b8ec810f6001abe81fba22f041c2d38f7d9cb860c9da8c764"
