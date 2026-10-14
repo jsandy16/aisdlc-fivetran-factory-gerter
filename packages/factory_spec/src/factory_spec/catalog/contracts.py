@@ -131,6 +131,7 @@ class Pricing(_M):
     spot_discount: str = Field(pattern=_DECIMAL)
     pod_utilisation: str = Field(pattern=_DECIMAL)
     mwaa_task_marginal: str = Field(pattern=_DECIMAL)
+    mwaa_share_per_pipeline_month: str = Field(pattern=_DECIMAL)  # the pipeline's share of the fixed MWAA cost
     sizing: dict[Literal["data", "control"], Sizing]
 
 

@@ -53,8 +53,8 @@ def test_least_privilege_for_the_worked_example() -> None:
     assert "arn:aws:s3:::acme-clinops-landing-dev/incoming/*" in t1
     lister = next(s for s in pols["t1_collect"] if s["Action"] == ["s3:ListBucket"])
     assert lister["Condition"] == {"StringLike": {"s3:prefix": ["incoming/*"]}}
-    assert any(s.get("Condition", {}).get("ForAllValues:StringLike") == {"dynamodb:LeadingKeys": ["study_pkg_delivery#*"]}
-               for s in pols["t1_collect"])  # fmt: skip
+    rows = {"dynamodb:LeadingKeys": ["study_pkg_delivery#*"]}
+    assert any(s.get("Condition", {}).get("ForAllValues:StringLike") == rows for s in pols["t1_collect"])
     res = files["main.tf.json"]["resource"]
     assert res["aws_lambda_event_source_mapping"]["trigger"]["function_response_types"] == ["ReportBatchItemFailures"]
     assert "t3_upload" in res["aws_eks_pod_identity_association"]

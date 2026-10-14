@@ -6,6 +6,7 @@ usage errors. Exit codes: 0 ok · 1 the command ran and found problems · 2 usag
 
 from __future__ import annotations
 
+import contextlib
 import json
 import shutil
 import sys
@@ -324,6 +325,88 @@ def plan_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
         why = f"; filtered {[f['engine'] for f in x['filters']]}" if x["filters"] else ""
         typer.echo(f"  {x['task_id']:24} {x['requested']:>15} -> {x['choice'] or '-':14} {x['reason']}{why}")
     return 0 if not bad else 1
+
+
+@app.command("cost")
+def cost_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
+    """Monthly and per-run cost from the planner (placeholder prices) against the spec's budget."""
+    from .gen.cost import cost_report
+
+    d = _pipeline_dir(name)
+    res = validate_dir(d)
+    if res.load.spec is None or res.errors:
+        return _emit(Result(command="cost", ok=False, issues=res.errors))
+    rep = cost_report(res.load.spec)
+    issues = [] if rep["within_budget"] else [Issue(code="over_budget", msg="the estimate exceeds the budget")]
+    return _emit(Result(command="cost", ok=rep["within_budget"], issues=issues, data=rep))
+
+
+@app.command("bundle")
+def bundle_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
+    """Write the deterministic bundle to build/<pipeline>/bundle/ and print its sha256."""
+    from factory_spec.bundle import build_bundle
+
+    d = _pipeline_dir(name)
+    b = build_bundle(d)
+    out = d.parent.parent / "build" / name / "bundle" / f"{b.sha256}.zip"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(b.data)
+    return _emit(Result(command="bundle", ok=True, data={"sha256": b.sha256, "path": str(out), "bytes": len(b.data)}))
+
+
+@app.command("test")
+def test_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
+    """Run the owner's test cases: pure rules here, custom rules through the plugin API (if the runtime is present)."""
+    import tempfile
+
+    from factory_spec.owner_tests import run_owner_tests
+
+    d = _pipeline_dir(name)
+    res = validate_dir(d)
+    spec = res.load.spec
+    if spec is None:
+        return _emit(Result(command="test", ok=False, issues=res.issues))
+    cases = [
+        c.__dict__
+        for c in run_owner_tests(spec)
+        if c.status != "skipped" or c.detail != "custom rules are tested by their test_impl.py"
+    ]
+    run_case: Any = None
+    with contextlib.suppress(ImportError):
+        from factory_runtime.plugins import run_case
+    for r in spec.rules.rules:
+        if r.implementation.kind != "custom":
+            continue
+        for c in r.test_cases:
+            if run_case is None:
+                cases.append(
+                    {"rule_id": r.rule_id, "case": c.name, "status": "skipped", "detail": "runtime not installed"}
+                )
+                continue
+            with tempfile.TemporaryDirectory() as tmp:
+                try:
+                    ok, why = run_case(d, r, c.given, c.expect, Path(tmp))
+                except Exception as exc:  # a failing plugin is a failed case, reported with its type only
+                    ok, why = False, f"raised {type(exc).__name__}"
+            cases.append({"rule_id": r.rule_id, "case": c.name, "status": "pass" if ok else "fail", "detail": why})
+    failed = [c for c in cases if c["status"] == "fail"]
+    issues = [Issue(code="test_failed", msg=f"{c['rule_id']}/{c['case']}: {c['detail']}") for c in failed]
+    summary = {s: sum(1 for c in cases if c["status"] == s) for s in ("pass", "fail", "skipped")}
+    return _emit(Result(command="test", ok=not failed, issues=issues, data={**summary, "cases": cases}))
+
+
+@app.command("build")
+def build_cmd(
+    name: Annotated[str, typer.Argument(help="Pipeline id")],
+    image: Annotated[str | None, typer.Option(help="Runtime image with digest (default: placeholder)")] = None,
+) -> int:
+    """validate → bundle → plan → DAG + Terraform per environment → cost → docs → BUILD-MANIFEST (deterministic)."""
+    from .gen.build import build
+
+    d = _pipeline_dir(name)
+    root = d.parent.parent
+    out = build(load_repo(root), d, root / "build", image=image)
+    return _emit(Result(command="build", ok=True, data=out))
 
 
 agent_app = typer.Typer(

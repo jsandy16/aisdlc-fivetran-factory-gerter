@@ -14,6 +14,8 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.sdk import BaseOperator, BaseSensorOperator
 from airflow.sdk.exceptions import AirflowException, AirflowFailException
 
+from .argv import runtime_argv
+
 TRANSIENT = 75
 EXIT_MEANING = {65: "data", 70: "internal", 75: "transient", 77: "security", 78: "config"}
 
@@ -75,15 +77,6 @@ class FactoryPollSensor(BaseSensorOperator):
             return False
         _raise_for(code, self.task_id)
         return False  # pragma: no cover
-
-
-def runtime_argv(runtime: dict[str, Any]) -> list[str]:
-    keys = (("--bundle", "bundle"), ("--sha256", "sha256"), ("--task", "task"), ("--run-key", "run_key"),
-            ("--attempt", "attempt"), ("--run-id", "run_id"))  # fmt: skip
-    argv = [part for flag, key in keys for part in (flag, runtime[key])]
-    if runtime.get("conf"):
-        argv += ["--conf", runtime["conf"]]
-    return argv
 
 
 class FactoryPodOperator(KubernetesPodOperator):
