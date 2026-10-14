@@ -208,7 +208,7 @@ def test_generated_dag_commands_deliver_end_to_end(world: dict[str, Any]) -> Non
                     image="factory-runtime@" + cfg.image_digest, staging_bucket=cfg.staging_bucket,
                     run_state_table=cfg.run_state_table, bundle_store=cfg.bundle_store,
                     audit_store=cfg.audit_store)  # fmt: skip
-    from factory_testing.demo import dag_tasks
+    from factory.local.runner import dag_tasks
 
     tasks = [(t, rt) for t, rt, _ in dag_tasks(generate_dag(spec, deploy, "f" * 64))]
     assert [t for t, _ in tasks] == list(TASKS)

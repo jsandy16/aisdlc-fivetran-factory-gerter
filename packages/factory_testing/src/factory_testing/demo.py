@@ -12,7 +12,6 @@ generated DAG source, rendered the way Airflow would.
 from __future__ import annotations
 
 import argparse
-import ast
 import contextlib
 import io
 import json
@@ -25,6 +24,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import boto3
+from factory.local.runner import dag_tasks, render_airflow
 from factory_core.runkey import run_dir
 
 from factory_core import jsonlog
@@ -45,8 +45,6 @@ LANDING, DELIVERY = "acme-clinops-landing-dev", "acme-clinops-delivery-dev"
 PORTAL, VAULT = "portal.dev.acme.example", "vault.dev.acme.example"
 CLIENT = {"client_id": "synthetic-client-id", "client_secret": "synthetic-client-secret-demo-0001"}
 X, Y = f"s3://{DELIVERY}/studies/{STUDY}/in/", f"sftp://{DEV_SFTP_HOST}/inbound/{STUDY}/"
-AIRFLOW = {"{{ (dag_run.conf or {}).get('run_key') or run_id }}": "run_key", "{{ ti.try_number }}": "attempt",
-           "{{ run_id }}": "run_id"}  # fmt: skip
 GIT = ["git", "-c", "user.email=demo@example.com", "-c", "user.name=factory demo", "-c", "commit.gpgsign=false"]
 
 
@@ -55,29 +53,6 @@ class Step:
     title: str
     ok: bool
     facts: dict[str, Any] = field(default_factory=dict)
-
-
-def dag_tasks(src: str) -> list[tuple[str, dict[str, Any], dict[str, str] | None]]:
-    """(task_id, runtime payload, pod env_vars) in dependency order, read from generated DAG source."""
-    tree = ast.parse(src)
-    runtime: dict[str, Any] = {}
-    tasks: dict[str, tuple[dict[str, Any], dict[str, str] | None]] = {}
-    edges: list[tuple[str, str]] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "RUNTIME":
-            runtime = ast.literal_eval(node.value)
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
-            kw = {k.arg: k.value for k in node.value.keywords}
-            if "task_id" in kw:
-                tid = ast.literal_eval(kw["task_id"])
-                env = ast.literal_eval(kw["env_vars"]) if "env_vars" in kw else None
-                tasks[tid] = ({**runtime, "task": tid}, env)
-        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.RShift):
-            edges.append((node.left.id, node.right.id))  # type: ignore[attr-defined]
-    order: list[str] = []
-    while len(order) < len(tasks):
-        order += [t for t in tasks if t not in order and all(a in order for a, b in edges if b == t)]
-    return [(t, *tasks[t]) for t in order]
 
 
 class _Trigger:
@@ -254,7 +229,7 @@ class Demo:
         codes: dict[str, list[int]] = {}
         for attempt in (1, 2):  # the second pass is a rerun of the whole DAG run: every task is already done
             for task, payload, pod_env in tasks:
-                rendered = {k: _render(v, values | {"attempt": str(attempt)}) for k, v in payload.items()}
+                rendered = {k: render_airflow(v, values | {"attempt": str(attempt)}) for k, v in payload.items()}
                 env = pod_env if pod_env is not None else self.lambda_env(task)
                 with netmap(hosts):
                     code = main(runtime_argv(rendered), config=self.config(env),
@@ -364,14 +339,6 @@ class Demo:
         out = self.out / "DEMO-REPORT.md"
         out.write_text("\n".join(lines), encoding="utf-8")
         return out
-
-
-def _render(v: Any, values: dict[str, str]) -> Any:
-    if not isinstance(v, str):
-        return v
-    for tmpl, key in AIRFLOW.items():
-        v = v.replace(tmpl, values[key])
-    return v
 
 
 def run_demo(out: Path, echo: Callable[[str], None] | None = None) -> tuple[list[Step], Path]:

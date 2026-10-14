@@ -457,6 +457,53 @@ def infra_check_cmd(
     return _emit(Result(command="infra check", ok=not bad, issues=issues, data={"env": env, "results": results}))
 
 
+def _json_file(path: Path | None) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(doc, dict):
+        raise CommandError(f"{path} must hold a JSON object", "usage")
+    return doc
+
+
+@app.command("run")
+def run_cmd(
+    name: Annotated[str, typer.Argument(help="Pipeline id")],
+    env: Annotated[str, typer.Option(help="Environment the run binds to (dev only by default)")] = "dev",
+    message: Annotated[Path | None, typer.Option(help="JSON message the trigger queue would deliver")] = None,
+    conf: Annotated[Path | None, typer.Option(help="JSON run parameters (manual or schedule triggers)")] = None,
+    task: Annotated[list[str] | None, typer.Option(help="Run only this task (repeatable)")] = None,
+    skip: Annotated[list[str] | None, typer.Option(help="Skip this task, e.g. a sync you cannot run here")] = None,
+    stores: Annotated[str, typer.Option(help="local: framework stores on this machine; aws: the dev stores")] = "local",
+    data: Annotated[str, typer.Option(help="aws: real dev sources and destinations; local: local buckets")] = "aws",
+    seed: Annotated[list[str] | None, typer.Option(help="data=local: BUCKET=FOLDER to upload first")] = None,
+    secrets_file: Annotated[Path | None, typer.Option(help="Local secrets file (default per team and env)")] = None,
+) -> int:
+    """Run the pipeline here: every task in this process, secrets from your local file, data where you choose."""
+    from .local.runner import LocalRunOptions, run_local
+
+    if stores not in ("local", "aws") or data not in ("local", "aws"):
+        raise CommandError("--stores and --data take local or aws", "usage")
+    seeds = {}
+    for item in seed or []:
+        bucket, sep, folder = item.partition("=")
+        if not sep:
+            raise CommandError(f"--seed takes BUCKET=FOLDER, not '{item}'", "usage")
+        seeds[bucket] = Path(folder)
+    d = _pipeline_dir(name)
+    root = d.parent.parent
+    opts = LocalRunOptions(env=env, message=_json_file(message), conf=_json_file(conf), tasks=task, skip=skip or [],
+                           stores=stores, data=data, seed=seeds, secrets_file=secrets_file)  # fmt: skip
+    rep = run_local(load_repo(root), d, opts)
+    log = root / ".factory" / "runs" / f"{name}-{rep['dag_run_id']}.jsonl"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(rep.pop("_log"), encoding="utf-8")
+    rep["log"] = str(log)
+    issues = [Issue(code=str(e["code"] or "task_failed"), msg=f"exit {t.get('exit_code')} in {t['task']}")
+              for t in rep["tasks"] for e in [{"code": None}] if t.get("exit_code")]  # fmt: skip
+    return _emit(Result(command="run", ok=rep["ok"], issues=issues, data=rep))
+
+
 @app.command("verify")
 def verify_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
     """Regenerate in memory and compare with build/<pipeline>: hand edits, stale, missing or unexpected files."""

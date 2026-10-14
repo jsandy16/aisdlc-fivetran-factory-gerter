@@ -118,3 +118,5 @@ class Overrides:
     clock: Callable[[], float] | None = None
     sleep: Callable[[float], Any] | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    # local runs (`factory run`): build the AWS client factory (framework stores local, data in the dev account)
+    aws_clients: Callable[..., Any] | None = None

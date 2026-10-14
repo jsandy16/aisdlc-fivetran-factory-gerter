@@ -35,7 +35,11 @@ class Services:
         state: RunState | None = None,
         log: JsonLogger | None = None,
     ) -> Services:
-        aws = AwsClients(config, overrides)
+        aws = (
+            overrides.aws_clients(config, overrides)
+            if overrides and overrides.aws_clients
+            else AwsClients(config, overrides)
+        )
         clock = overrides.clock if overrides and overrides.clock else time.time
         sleep = overrides.sleep if overrides and overrides.sleep else time.sleep
         st = state or DynamoRunState(aws.client("dynamodb"), config.run_state_table, config.pipeline_id, clock=clock)
