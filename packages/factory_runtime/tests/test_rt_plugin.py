@@ -136,11 +136,30 @@ def test_rule_failed_follows_on_failure(unit: dict[str, Any]) -> None:
     from factory_spec.load import load_spec
     from factory_spec.lock import write_lock
 
+    f = unit["dir"] / "spec" / "rules.yaml"
+    doc = yamlio.load_path(f)
+    doc["rules"][1]["test_cases"][0]["expect"] = {"result": "fail"}  # the owner agrees the label must fail here
+    yamlio.dump_path(doc, f)
     spec = load_spec(unit["dir"]).spec
     assert spec is not None
     write_lock(spec)
+    _accept(unit["dir"])  # the changed code needs a new review and a person's acceptance before it can be bundled
     uri, sha = publish_bundle(unit["cfg"], unit["dir"])
     assert run_task(unit["cfg"], uri, sha, "t1_label", "REQ-00000001", conf=CONF) == 65  # on_failure: data
+
+
+def _accept(pdir: Path) -> None:
+    import json
+
+    from factory_agents.accept import accept_rule
+
+    d = pdir / "rules" / "r_label"
+    shas = {
+        f"{n}_sha256": hashlib.sha256((d / f).read_bytes()).hexdigest()
+        for n, f in (("code", "impl.py"), ("tests", "test_impl.py"))
+    }
+    (d / "review.json").write_text(json.dumps({"verdict": "approve", **shas}))  # synthetic review record
+    accept_rule(pdir, "r_label", "@carol-qa", tools=False)
 
 
 @pytest.mark.parametrize(

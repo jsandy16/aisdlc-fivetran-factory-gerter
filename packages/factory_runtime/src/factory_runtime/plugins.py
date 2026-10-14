@@ -156,3 +156,38 @@ def plugin_contract(plugin: Plugin) -> dict[str, Any]:
         "side_effects": sorted(plugin.side_effects),
         "aws_actions": list(plugin.cls.aws_actions),
     }
+
+
+def run_case(
+    code_dir: Path, rule: Any, given: dict[str, Any], expect: dict[str, Any], workdir: Path
+) -> tuple[bool, str]:
+    """Run one owner or edge case against a custom rule, without AWS (for gates and `factory test`).
+
+    `given` maps input artifact names to values; `expect` is `{"result": "fail"}` (the rule raises RuleFailed),
+    `{"value": v}` (a single output) or `{<output>: v, ...}`.
+    """
+    impl = rule.implementation
+    plugin = load_plugin(code_dir, rule.rule_id, impl.code_sha256)
+    workdir.mkdir(parents=True, exist_ok=True)
+    pctx = PluginContext(run_date="2026-01-01", run_key_hash="0" * 12, now=1_767_225_600, workdir=workdir,
+                         log=lambda *a, **k: None, opener=_no_staging)  # fmt: skip
+    try:
+        out = plugin.cls().run(pctx, plugin.params(), plugin.inputs.model_validate(given))
+    except RuleFailed as failed:
+        ok = expect.get("result") == "fail"
+        return ok, "failed as expected" if ok else f"failed unexpectedly: {failed}"
+    except ValidationError:
+        return False, "the given values do not fit the rule's inputs"
+    if expect.get("result") == "fail":
+        return False, "passed but the case expects a failure"
+    undeclared = pctx.used - plugin.side_effects
+    if undeclared:
+        return False, f"used undeclared side effects {sorted(undeclared)}"
+    got = {n: getattr(out, n, None) for n in rule.outputs}
+    want = {rule.outputs[0]: expect["value"]} if "value" in expect and len(rule.outputs) == 1 else expect
+    wrong = {k: got.get(k) for k, v in want.items() if k != "result" and got.get(k) != v}
+    return (not wrong), "ok" if not wrong else f"unexpected outputs {sorted(wrong)}"
+
+
+def _no_staging(package: Any) -> Any:
+    raise ConfigError("staging_unavailable", "cases run without staged packages")

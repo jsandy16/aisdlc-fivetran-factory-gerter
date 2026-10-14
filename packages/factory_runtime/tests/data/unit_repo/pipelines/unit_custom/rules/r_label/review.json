@@ -1,0 +1,8 @@
+{
+  "code_sha256": "86e388e8c04e5c7570eab3fd7a203d6434766913b80ca251660511e2944b71f8",
+  "findings": [],
+  "output_sha256": "",
+  "summary": "Synthetic test data: a hand-written approving review record for the unit_custom plugin.",
+  "tests_sha256": "c95cf6c7ec40a3a9fa38f6207f023ae4a1b49f12bdee62f56e4e47a71758030e",
+  "verdict": "approve"
+}

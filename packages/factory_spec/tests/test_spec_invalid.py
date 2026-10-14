@@ -478,6 +478,10 @@ CASES["custom_rule_untested"] = (
     "custom_rule_untested",
     lambda d: _make_custom(d, code=b"x = 1\n", sha=hashlib.sha256(b"x = 1\n").hexdigest(), test=False),
 )
+CASES["custom_rule_unaccepted"] = (  # code, tests and owner cases present, but no person accepted it
+    "custom_rule_unaccepted",
+    lambda d: _make_custom(d, code=b"x = 1\n", sha=hashlib.sha256(b"x = 1\n").hexdigest(), test=True),
+)
 _SOCKET_CODE = b"import socket\n"
 CASES["custom_rule_import_forbidden"] = (
     "custom_rule_import_forbidden",

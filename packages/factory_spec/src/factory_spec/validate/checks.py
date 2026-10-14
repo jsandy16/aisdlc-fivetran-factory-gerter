@@ -16,6 +16,7 @@ from factory_core.templates import TemplateError, parse_template
 
 from factory_core import cel, units
 
+from ..acceptance import acceptance_problem
 from ..catalog import engine_table, op_catalog
 from ..codes import issue
 from ..derive import ArtifactGraph, derive_artifacts
@@ -945,6 +946,10 @@ def check_custom(ctx: Context) -> Iterable[Issue]:
             )
         if not (d / "test_impl.py").is_file() or not r.test_cases:
             yield issue("custom_rule_untested", R, loc, "custom rules need test_impl.py and owner test_cases")
+            continue
+        problem = acceptance_problem(r, d)
+        if problem:
+            yield issue("custom_rule_unaccepted", R, loc, f"rules/{r.rule_id}: {problem}")
 
 
 CHECKS: tuple[Check, ...] = (

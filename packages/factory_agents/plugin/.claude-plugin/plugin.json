@@ -1,0 +1,5 @@
+{
+  "name": "factory-agents",
+  "description": "Headless skills of the Pipeline Factory agents. Loaded only by the factory AgentRunner, never by interactive sessions.",
+  "version": "0.2.0"
+}

@@ -1,0 +1,38 @@
+{
+  "accepted_at": 1791959814,
+  "accepted_by": "@carol-qa",
+  "code_sha256": "86e388e8c04e5c7570eab3fd7a203d6434766913b80ca251660511e2944b71f8",
+  "contract": {
+    "inputs": [
+      "file_name"
+    ],
+    "on_failure": {
+      "action": "fail",
+      "error_class": "data"
+    },
+    "output_kinds": {
+      "label": "value"
+    },
+    "outputs": [
+      "label"
+    ],
+    "rule_id": "r_label"
+  },
+  "digest": "c1524a5492c151ae3b3d29f866a495f44842607b54a6f8d7491eca07cdcc3757",
+  "gates": [
+    "code_hash",
+    "import_allow_list",
+    "contract",
+    "owner_cases",
+    "edge_cases",
+    "test_impl",
+    "mypy_strict",
+    "bandit"
+  ],
+  "plain_english": "Label the file name as <study>:<sequence>:<length>, for example ONC101:0001:15.",
+  "review": {
+    "output_sha256": "",
+    "verdict": "approve"
+  },
+  "tests_sha256": "c95cf6c7ec40a3a9fa38f6207f023ae4a1b49f12bdee62f56e4e47a71758030e"
+}

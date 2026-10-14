@@ -6,7 +6,7 @@
 required-version = ">=0.11.32,<0.12"
 
 [tool.uv.workspace]
-members = ["factory_core", "factory_spec", "factory", "factory_runtime", "factory_testing"]   # factory_airflow joins in Phase 5
+members = ["factory_core", "factory_spec", "factory", "factory_runtime", "factory_testing", "factory_agents"]   # factory_airflow joins in Phase 5
 
 [tool.uv.sources]
 factory-core = { workspace = true }
@@ -14,6 +14,7 @@ factory-spec = { workspace = true }
 factory = { workspace = true }
 factory-runtime = { workspace = true }
 factory-testing = { workspace = true }
+factory-agents = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -24,10 +25,12 @@ dev = [
   "types-jmespath",
   "jsonschema>=4.23,<5",
   "factory-testing",
+  "factory-agents",
+  "bandit>=1.8,<2",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["factory_core/tests", "factory_spec/tests", "factory/tests", "factory_runtime/tests", "factory_testing/tests"]
+testpaths = ["factory_core/tests", "factory_spec/tests", "factory/tests", "factory_runtime/tests", "factory_testing/tests", "factory_agents/tests"]
 addopts = "-q --strict-markers -m 'not spike'"
 norecursedirs = ["data", ".*", "build", "dist", "*.egg-info", "node_modules", "__pycache__"]  # tests/data holds spec repos
 markers = [
@@ -39,7 +42,7 @@ markers = [
 strict = true
 python_version = "3.11"
 plugins = ["pydantic.mypy"]
-files = ["factory_core/src", "factory_spec/src", "factory/src", "factory_runtime/src", "factory_testing/src"]
+files = ["factory_core/src", "factory_spec/src", "factory/src", "factory_runtime/src", "factory_testing/src", "factory_agents/src"]
 
 [tool.pydantic-mypy]
 init_forbid_extra = true
@@ -47,7 +50,7 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [[tool.mypy.overrides]]
-module = ["celpy", "celpy.*", "lark", "lark.*", "ruamel", "ruamel.*", "boto3", "boto3.*", "botocore", "botocore.*", "paramiko", "paramiko.*", "asyncssh", "asyncssh.*", "moto", "moto.*"]
+module = ["celpy", "celpy.*", "lark", "lark.*", "ruamel", "ruamel.*", "boto3", "boto3.*", "botocore", "botocore.*", "paramiko", "paramiko.*", "asyncssh", "asyncssh.*", "moto", "moto.*", "claude_agent_sdk", "claude_agent_sdk.*"]
 ignore_missing_imports = true
 
 [tool.ruff]

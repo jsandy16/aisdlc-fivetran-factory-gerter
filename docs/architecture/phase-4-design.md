@@ -19,4 +19,22 @@ tests, cost, the interactive BA plugin, `factory bundle`, `factory test`.
 
 ## As built
 
-_Filled in at the end of Phase 4._
+- **Package** `packages/factory_agents`: `runner` (isolated session, record/replay, tamper check), `boundary`
+  (typed prompt parts, fencing, secret redaction, synthetic samples only), `agents` (typed answers), `loop`
+  (≤ 3 attempts, early stop, `Escalation`), `audit` (`pipelines/<id>/audit/agent-decisions.jsonl`, hashes only),
+  `intake`, `rules` (implement → gates → review), `gates`, `accept`, `orchestrator`; four headless skills in
+  `factory_agents/plugin/skills/`.
+- **Live calls** are not exercised in CI (no API key here): the SDK is the optional extra `factory-agents[live]`
+  (claude-agent-sdk 0.2.165, as pf); Bedrock needs `FACTORY_AGENT_BEDROCK_MODEL` per account (never guessed).
+- **Replay semantics:** an identical request replays the identical answer, so an unchanged resubmission gets the
+  same review; the implementer must address findings.
+- **Intake** can never write a rule's `implementation`, governance, platform or secret paths; custom-rule findings
+  are left to the rule flow.
+- **Acceptance:** new validator error `custom_rule_unaccepted`; `rules/<id>/impl.lock.json` holds the digest over
+  contract, plain English, code and tests, plus the review verdict and the gates that passed; `review.json` and
+  `edge_cases.json` sit next to the code. `factory accept` re-runs every gate (mypy strict, bandit, pytest, owner and
+  edge cases). It is person-only by convention; the hook that denies it to agent sessions comes with the Phase 5
+  interactive plugin. mutmut is not a gate.
+- **CLI:** `factory agent intake | implement | run`, `factory accept` (optional extra `factory[agents]`).
+- **Open for Phase 5:** live recordings once a key is provided; the interactive plugin and its hooks;
+  `factory test` can reuse `factory_runtime.plugins.run_case` for custom rules.

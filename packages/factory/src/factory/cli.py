@@ -326,6 +326,94 @@ def plan_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
     return 0 if not bad else 1
 
 
+agent_app = typer.Typer(
+    help="Agents draft specs and custom rules; code and people decide (Phase 4).", no_args_is_help=True
+)
+app.add_typer(agent_app, name="agent")
+
+
+def _agents() -> Any:
+    try:
+        from factory_agents import runner
+    except ImportError:
+        raise CommandError("install factory[agents] for the agent commands", "config") from None
+    return runner.AgentRunner()
+
+
+def _agent_result(command: str, report: Any) -> int:
+    return _emit(Result(command=command, ok=report.stage in ("ready", "awaiting_acceptance"),
+                        data={"stage": report.stage, "next_step": report.next_step, **report.details}))  # fmt: skip
+
+
+@agent_app.command("intake")
+def agent_intake(
+    name: Annotated[str, typer.Argument(help="Pipeline id")],
+    requirement: Annotated[Path, typer.Option(help="Requirement document (text or Markdown)")],
+) -> int:
+    from factory_agents.audit import AuditTrail
+    from factory_agents.intake import intake, load_requirement
+
+    d = _pipeline_dir(name)
+    res = intake(_agents(), d, load_requirement(requirement), AuditTrail(d))
+    data: dict[str, Any] = {"applied": res.applied, "open_questions": [q.model_dump() for q in res.open_questions]}
+    if res.escalation:
+        data["escalation"] = res.escalation.model_dump()
+    return _emit(Result(command="agent intake", ok=res.escalation is None, data=data))
+
+
+@agent_app.command("implement")
+def agent_implement(
+    name: Annotated[str, typer.Argument(help="Pipeline id")],
+    rule_id: Annotated[str, typer.Argument(help="Rule id")],
+) -> int:
+    from factory_agents.audit import AuditTrail
+    from factory_agents.rules import implement_rule
+
+    d = _pipeline_dir(name)
+    out = implement_rule(_agents(), d, rule_id, AuditTrail(d))
+    data: dict[str, Any] = {"status": out.status, "edge_case_questions": out.edge_case_questions}
+    if out.gates:
+        data["gates"] = out.gates.as_dict()
+    if out.review:
+        data["review"] = out.review.model_dump()
+    if out.escalation:
+        data["escalation"] = out.escalation.model_dump()
+    return _emit(Result(command="agent implement", ok=out.escalation is None, data=data))
+
+
+@agent_app.command("run")
+def agent_run(
+    name: Annotated[str, typer.Argument(help="Pipeline id")],
+    requirement: Annotated[Path | None, typer.Option(help="Requirement document; omit to continue")] = None,
+) -> int:
+    from factory_agents.intake import load_requirement
+    from factory_agents.orchestrator import orchestrate
+
+    d = _pipeline_dir(name)
+    text = load_requirement(requirement) if requirement else None
+    return _agent_result("agent run", orchestrate(_agents(), d, text))
+
+
+@app.command("accept")
+def accept(
+    name: Annotated[str, typer.Argument(help="Pipeline id")],
+    rule_id: Annotated[str, typer.Argument(help="Custom rule id")],
+    by: Annotated[str, typer.Option(help="Who accepts (a person, never an agent)")],
+) -> int:
+    """A person accepts a reviewed custom rule: gates re-run, review checked, digest recorded in impl.lock.json."""
+    try:
+        from factory_agents.accept import accept_rule
+        from factory_agents.errors import AgentError
+    except ImportError:
+        raise CommandError("install factory[agents] for `factory accept`", "config") from None
+    try:
+        lock = accept_rule(_pipeline_dir(name), rule_id, by)
+    except AgentError as exc:
+        raise CommandError(str(exc), exc.code) from None
+    return _emit(Result(command="accept", ok=True, data={"rule_id": rule_id, "digest": lock["digest"],
+                                                         "accepted_by": lock["accepted_by"]}))  # fmt: skip
+
+
 # ---------------------------------------------------------------- entry point
 
 

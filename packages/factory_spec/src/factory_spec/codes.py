@@ -156,6 +156,9 @@ CODES: dict[str, CodeInfo] = {
         "error", "Update code_sha256 to the sha256 of rules/<rule_id>/impl.py after review."
     ),
     "custom_rule_untested": CodeInfo("error", "Add rules/<rule_id>/test_impl.py and owner test_cases."),
+    "custom_rule_unaccepted": CodeInfo(
+        "error", "Run the gates and the review, then a person runs `factory accept <pipeline> <rule_id> --by <name>`."
+    ),
     "custom_rule_import_forbidden": CodeInfo(
         "error", "Use only the plugin API and the allowed standard modules; no I/O, network or dynamic code."
     ),
