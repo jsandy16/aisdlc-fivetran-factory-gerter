@@ -58,7 +58,14 @@ def _schedule(spec: PipelineSpec, env: str) -> str | None:
     return None
 
 
-def generate_dag(spec: PipelineSpec, deploy: Deploy, logic_sha: str, prices: Pricing | None = None) -> str:
+def generate_dag(
+    spec: PipelineSpec,
+    deploy: Deploy,
+    logic_sha: str,
+    prices: Pricing | None = None,
+    pod_env: dict[str, str] | None = None,
+) -> str:
+    """`pod_env`: the FACTORY_* settings pods receive as env_vars (Lambdas get the same from Terraform)."""
     p = spec.pipeline
     decisions = {d["task_id"]: d for d in plan(spec, prices)["engine_decisions"]}
     sec = spec.security.security_and_access
@@ -113,6 +120,8 @@ def generate_dag(spec: PipelineSpec, deploy: Deploy, logic_sha: str, prices: Pri
             args |= {"image": repr(deploy.image), "namespace": repr(names.namespace(team)),
                      "service_account_name": repr(names.service_account(spec.pipeline_id, t.task_id)),
                      "cpu": repr(cpu), "memory": repr(mem), "spot": repr(engine == "eks_pod_spot")}  # fmt: skip
+            if pod_env is not None:
+                args["env_vars"] = _py(pod_env)
         else:  # mwaa, fivetran_*: each poke invokes the runtime Lambda with a poll budget; the sensor reschedules
             op = "FactoryPollSensor"
             args |= {"function_name": repr(names.lambda_function(team, spec.pipeline_id, t.task_id)),

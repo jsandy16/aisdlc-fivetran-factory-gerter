@@ -174,6 +174,6 @@ Decisions D1–D10 were made by the user on 2026-10-13. Assumptions still open a
 | 3 | Runtime op library, secret provider, portal client, plugin interface ([design](phase-3-design.md)) | done |
 | 4 | Agents, orchestrator, gates, skills ([design](phase-4-design.md)) | done (live recordings pending an API key) |
 | 5 | Generators (DAG, Lambda, EKS, Fivetran) and Terraform/IAM ([design](phase-5-design.md)) | done |
-| 6 | Change engine, `factory verify`, cost, docs ([design](phase-6-design.md)) | done; awaiting review |
-| 7 | Local end-to-end demo + one incremental change | planned |
+| 6 | Change engine, `factory verify`, cost, docs ([design](phase-6-design.md)) | done |
+| 7 | Local end-to-end demo + incremental changes ([design](phase-7-design.md), [demo](../demo.md)) | done; awaiting review |
 | 8 | **AWS validation in a sandbox account** (spikes S2, S3, S5, S9, S10; real MWAA/EKS/Lambda run) | planned (needs a sandbox, D6) |

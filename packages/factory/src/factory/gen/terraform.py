@@ -250,6 +250,11 @@ def _retention_days(text: str) -> int:
     return next((d for d in LOG_RETENTION if d >= days), LOG_RETENTION[-1])
 
 
+def runtime_env(spec: PipelineSpec, platform: PlatformSettings, deploy: Deploy) -> dict[str, str]:
+    """A task's FACTORY_* settings (never secrets): the Lambda environment here, the pod's env_vars in the DAG."""
+    return _env_vars(_Ctx(spec, platform, deploy), poll=False)
+
+
 def _env_vars(c: _Ctx, *, poll: bool) -> dict[str, str]:
     stores = c.team_settings.stores
     v = {

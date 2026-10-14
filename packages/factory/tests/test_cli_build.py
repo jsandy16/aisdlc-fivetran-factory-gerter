@@ -34,6 +34,9 @@ def test_build_is_byte_identical_and_complete(tmp_path: Path, monkeypatch: pytes
         assert hashlib.sha256((out / rel).read_bytes()).hexdigest() == sha
     assert {f"dags/{e}/study_pkg_delivery.py" for e in manifest["environments"]} <= set(manifest["files"])
     assert {f"terraform/{e}/main.tf.json" for e in manifest["environments"]} <= set(manifest["files"])
+    pod_task = (out / "dags" / "dev" / "study_pkg_delivery.py").read_text().split("t3_upload = ", 1)[1]
+    assert "env_vars={" in pod_task  # pods get the same FACTORY_* settings Terraform gives the Lambdas
+    assert '"FACTORY_PIPELINE_ID": "study_pkg_delivery"' in pod_task
     second = _run(repo, monkeypatch, "build", "study_pkg_delivery")
     assert second["data"]["manifest_sha256"] == first["data"]["manifest_sha256"]
 

@@ -192,29 +192,6 @@ def test_s3_event_starter_end_to_end(tmp_path: Path, workdir: Path, aws: None) -
     assert s3.get_object(Bucket="unit-archive-dev", Key="copies/dev/a.csv")["Body"].read() == b"id\n1\n"
 
 
-def _dag_tasks(src: str) -> list[tuple[str, dict[str, Any]]]:
-    """(task_id, runtime payload) in dependency order, read from generated DAG source (as Airflow would build it)."""
-    import ast
-
-    tree = ast.parse(src)
-    runtime: dict[str, Any] = {}
-    tasks: dict[str, dict[str, Any]] = {}
-    edges: list[tuple[str, str]] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "RUNTIME":
-            runtime = ast.literal_eval(node.value)
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
-            kw = {k.arg: k.value for k in node.value.keywords}
-            if "task_id" in kw:
-                tasks[ast.literal_eval(kw["task_id"])] = {**runtime, "task": ast.literal_eval(kw["task_id"])}
-        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.RShift):
-            edges.append((node.left.id, node.right.id))  # type: ignore[attr-defined]
-    order: list[str] = []
-    while len(order) < len(tasks):
-        order += [t for t in tasks if t not in order and all(a in order for a, b in edges if b == t)]
-    return [(t, tasks[t]) for t in order]
-
-
 def test_generated_dag_commands_deliver_end_to_end(world: dict[str, Any]) -> None:
     """Phase 5 M5: the task commands of the generated DAG (not hand-written argv) run the worked example."""
     from factory.gen.dag import generate_dag
@@ -231,7 +208,9 @@ def test_generated_dag_commands_deliver_end_to_end(world: dict[str, Any]) -> Non
                     image="factory-runtime@" + cfg.image_digest, staging_bucket=cfg.staging_bucket,
                     run_state_table=cfg.run_state_table, bundle_store=cfg.bundle_store,
                     audit_store=cfg.audit_store)  # fmt: skip
-    tasks = _dag_tasks(generate_dag(spec, deploy, "f" * 64))
+    from factory_testing.demo import dag_tasks
+
+    tasks = [(t, rt) for t, rt, _ in dag_tasks(generate_dag(spec, deploy, "f" * 64))]
     assert [t for t, _ in tasks] == list(TASKS)
     with SftpServer(w["tmp"] / "sftp") as sftp, _vault(w):
         run_key = _dispatch(w)

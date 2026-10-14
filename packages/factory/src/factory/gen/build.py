@@ -23,7 +23,7 @@ from .cost import cost_report
 from .dag import generate_dag
 from .docs import pipeline_docs
 from .names import deploy_for
-from .terraform import egress, generate_terraform
+from .terraform import egress, generate_terraform, runtime_env
 
 MANIFEST = "BUILD-MANIFEST.json"
 
@@ -66,7 +66,8 @@ def render(repo: Repo, pipeline_dir: Path, *, image: str | None = None) -> Rende
     deploys = {}
     for env in envs:
         deploy = deploys[env] = deploy_for(repo.platform[env], team, pid, bundle.sha256, image)
-        files[f"dags/{env}/{dag_id}.py"] = generate_dag(spec, deploy, logic, prices).encode()
+        pod_env = runtime_env(spec, repo.platform[env], deploy)
+        files[f"dags/{env}/{dag_id}.py"] = generate_dag(spec, deploy, logic, prices, pod_env).encode()
         for name, doc in generate_terraform(spec, repo.platform[env], deploy, prices).items():
             files[f"terraform/{env}/{name}"] = _json(doc)
         files[f"terraform/{env}/egress.json"] = _json(egress(spec, env))

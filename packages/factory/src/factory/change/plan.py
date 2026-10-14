@@ -19,10 +19,12 @@ from typing import Any
 
 from factory_core.canonical import canonical_bytes
 from factory_core.envelope import CommandError
+from factory_core.errors import FactoryError
 from factory_spec.acceptance import acceptance_digest, acceptance_problem
 from factory_spec.load import load_spec
 from factory_spec.repo import MARKER, Repo, load_repo
 from factory_spec.spec import PipelineSpec
+from factory_spec.validate import validate_dir
 
 from ..gen.build import Rendered, render
 from ..gen.cost import cost_report
@@ -130,12 +132,19 @@ def _money(a: dict[str, Any], b: dict[str, Any], key: str, q: str) -> dict[str, 
 
 
 def change_plan(repo: Repo, pipeline_dir: Path, base: str) -> dict[str, Any]:
+    head = validate_dir(pipeline_dir, repo)
+    if head.errors:  # a plan explains a valid change; an invalid spec gets its validation errors instead
+        return {"ok": False, "plan": {}, "issues": [{"code": i.code, "msg": f"{i.file} {i.loc}: {i.msg}".strip()}
+                                                    for i in head.errors]}  # fmt: skip
     with tempfile.TemporaryDirectory(prefix="factory-base-") as tmp:
         bdir = materialise_base(repo, pipeline_dir, base, Path(tmp))
         bspec, hspec = _spec(bdir), _spec(pipeline_dir)
         brepo = load_repo(bdir)
         brepo.calibrated = repo.calibrated  # both sides on the same price basis
-        before, after = render(brepo, bdir), render(repo, pipeline_dir)
+        try:
+            before, after = render(brepo, bdir), render(repo, pipeline_dir)
+        except FactoryError as exc:  # e.g. a stale lock: `factory lock` first
+            return {"ok": False, "plan": {}, "issues": [{"code": exc.code, "msg": str(exc)}]}
         review = _custom_review(bspec, hspec, bdir, pipeline_dir)
     changes = spec_diff(bspec, hspec)
     bv, hv = bspec.pipeline.metadata.spec_version, hspec.pipeline.metadata.spec_version
