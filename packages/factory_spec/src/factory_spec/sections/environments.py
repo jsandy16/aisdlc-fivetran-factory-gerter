@@ -87,6 +87,41 @@ class SlackChannel(StrictModel):
 AlertChannel = Annotated[SnsChannel | EmailChannel | SlackChannel, Field(discriminator="type")]
 
 
+InfraMode = Literal["create", "existing"]
+INFRA_GROUPS = ("roles", "queues", "logs", "compute", "alerts")
+
+
+class InfraGroup(StrictModel):
+    mode: InfraMode = ba(
+        "Owner", "create: the framework creates it; existing: the infra team provides it", default="create"
+    )
+    names: dict[Identifier, str] = ba(
+        "Existing names", "Per resource key (task id, dispatcher, trigger, dlq): the name the infra team used",
+        default_factory=dict,
+    )  # fmt: skip
+    adopt: bool = ba("Adopt", "create only: take over resources that already exist (Terraform import)", default=False)
+    import_ids: dict[str, str] = ba(
+        "Import ids", "Terraform import id per resource address, where it cannot be derived", default_factory=dict
+    )
+
+
+class Infrastructure(StrictModel):
+    """Who owns the pipeline's AWS resources in this environment (team stores, KMS, MWAA and EKS are platform's)."""
+
+    mode: InfraMode | None = ba("Default owner", "Applies to every group not set below", default=None)
+    roles: InfraGroup = ba("IAM roles", "Task and dispatcher roles and their policies", default_factory=InfraGroup)
+    queues: InfraGroup = ba("Queues", "Trigger queue, dead-letter queue, queue policy", default_factory=InfraGroup)
+    logs: InfraGroup = ba("Log groups", "Lambda log groups", default_factory=InfraGroup)
+    compute: InfraGroup = ba(
+        "Compute", "Lambda functions, event-source mapping, Pod Identity associations", default_factory=InfraGroup
+    )
+    alerts: InfraGroup = ba("Alerts", "Topics, subscriptions and alarms for alert routing", default_factory=InfraGroup)
+
+    def mode_of(self, group: str) -> str:
+        g: InfraGroup = getattr(self, group)
+        return g.mode if "mode" in g.model_fields_set else (self.mode or "create")
+
+
 class EnvBinding(StrictModel):
     enabled: bool = ba("Enabled", "Deploy to this environment", default=True)
     placement: Placement = ba("Placement", "Account aliases", default_factory=Placement)
@@ -97,6 +132,10 @@ class EnvBinding(StrictModel):
     apis: dict[Identifier, ApiBinding] = ba("APIs", "API base URLs by API id", default_factory=dict)
     alert_channels: dict[Identifier, AlertChannel] = ba("Alert channels", "Channels by name", default_factory=dict)
     schedule_cron: str | None = ba("Schedule override", "Cron override for this environment", default=None)
+    infrastructure: Infrastructure = ba(
+        "Infrastructure owner", "Create the pipeline's AWS resources, or use ones the infra team made",
+        default_factory=Infrastructure,
+    )  # fmt: skip
 
 
 class EnvironmentsFile(StrictModel):

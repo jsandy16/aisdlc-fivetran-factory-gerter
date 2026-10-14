@@ -103,6 +103,16 @@ def _tf(a: Rendered, b: Rendered) -> dict[str, dict[str, list[str]]]:
         ra, rb = _resources(a, env), _resources(b, env)
         delta = {"create": sorted(set(rb) - set(ra)), "update": sorted(k for k in set(ra) & set(rb) if ra[k] != rb[k]),
                  "destroy": sorted(set(ra) - set(rb))}  # fmt: skip
+        raw = b.files.get(f"terraform/{env}/ownership.tf.json")
+        own = json.loads(raw) if raw else {}
+        released = {r["from"] for r in own.get("removed", [])}
+        adopted = {i["to"] for i in own.get("import", [])}
+        if released & set(delta["destroy"]):  # handed to the infra team: leaves our state, is not deleted
+            delta["release"] = sorted(released & set(delta["destroy"]))
+            delta["destroy"] = sorted(set(delta["destroy"]) - released)
+        if adopted & set(delta["create"]):  # made by someone else first: imported, not created again
+            delta["adopt"] = sorted(adopted & set(delta["create"]))
+            delta["create"] = sorted(set(delta["create"]) - adopted)
         if any(delta.values()):
             out[env] = delta
     return out

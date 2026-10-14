@@ -33,6 +33,39 @@
         },
         "apis": {},
         "enabled": true,
+        "infrastructure": {
+          "alerts": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "compute": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "logs": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "mode": null,
+          "queues": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "roles": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          }
+        },
         "placement": {
           "orchestration": "mwaa",
           "workload": "team"
@@ -113,7 +146,7 @@
   },
   "hashes": {
     "binding_sha": {
-      "dev": "ed246cb4c33d80e9e6b238ea2244db5630cf05b621402482493c9c347fd7d220"
+      "dev": "87274176667846565b3110467468a2caf4365783385f46a22cfed4ecafe29f54"
     },
     "derived_sha": "16376c99376008e867af6579edaca5c94d2b1b9ef9e3da0b2db915633319d3db",
     "logic_sha": "21da122e7474d67e1e6525bcacd8b647ba0897f2660c3f19d8cd443bec9a04fc"

@@ -51,6 +51,39 @@
         },
         "apis": {},
         "enabled": true,
+        "infrastructure": {
+          "alerts": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "compute": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "logs": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "mode": null,
+          "queues": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "roles": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          }
+        },
         "placement": {
           "orchestration": "mwaa",
           "workload": "team"
@@ -158,6 +191,39 @@
         },
         "apis": {},
         "enabled": true,
+        "infrastructure": {
+          "alerts": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "compute": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "logs": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "mode": null,
+          "queues": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "roles": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          }
+        },
         "placement": {
           "orchestration": "mwaa",
           "workload": "team"
@@ -265,6 +331,39 @@
         },
         "apis": {},
         "enabled": true,
+        "infrastructure": {
+          "alerts": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "compute": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "logs": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "mode": null,
+          "queues": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "roles": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          }
+        },
         "placement": {
           "orchestration": "mwaa",
           "workload": "team"
@@ -354,6 +453,39 @@
         },
         "apis": {},
         "enabled": true,
+        "infrastructure": {
+          "alerts": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "compute": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "logs": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "mode": null,
+          "queues": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          },
+          "roles": {
+            "adopt": false,
+            "import_ids": {},
+            "mode": "create",
+            "names": {}
+          }
+        },
         "placement": {
           "orchestration": "mwaa",
           "workload": "team"
@@ -549,10 +681,10 @@
   },
   "hashes": {
     "binding_sha": {
-      "dev": "d42adabf5a8c29da0474f14fb7c1e02155df38c9afb1a3d407c6b0130beeee80",
-      "ppt": "bfd65137e0dfb47365fa53f6a244995cb5d65656a8efcff30d256a6da4fb99ad",
-      "prod": "3c5063d6ace112e92034ddde4fd7b4c31ced1f87c705a7c86512adc996fa62e3",
-      "test": "b24fa965fd62956c0212ffe8c38f3e4f25c9fc5e85a133350666d0b3bb44eeb1"
+      "dev": "46529a7de7b77cf7873695a9bf50fdca24ba0871511ecf418ffc06b37c486eb6",
+      "ppt": "648a6409d2cf739e9eab3fff4d10dc72e0837ed5ef360d56eac1c2c4e3cc96cd",
+      "prod": "4dbe72239eac0ffa39a8a8c46d7f47bc120c35847cd915a5726ad0c412114b7f",
+      "test": "3e6978aadc2f3e077aa5f9612d77ab9ea8cd204e62458799bf99fef41a8298ba"
     },
     "derived_sha": "b3bcc81b7cf7192ea226042e4b8b553bed609ffe60b273e5eefdb7c8565e8da3",
     "logic_sha": "7670e3f090e052e55dd405354651a743845136acfbe1478777d3ccb3a18c1365"

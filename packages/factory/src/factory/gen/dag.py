@@ -64,6 +64,7 @@ def generate_dag(
     logic_sha: str,
     prices: Pricing | None = None,
     pod_env: dict[str, str] | None = None,
+    function_names: dict[str, str] | None = None,
 ) -> str:
     """`pod_env`: the FACTORY_* settings pods receive as env_vars (Lambdas get the same from Terraform)."""
     p = spec.pipeline
@@ -96,6 +97,10 @@ def generate_dag(
     )
     pool = p.orchestration.pool or f"team_{spec.pipeline.metadata.team}"
     team = spec.pipeline.metadata.team
+
+    def fn_name(task_id: str) -> str:  # the infra team's function name when they provide compute
+        return (function_names or {}).get(task_id) or names.lambda_function(team, spec.pipeline_id, task_id)
+
     for t in p.orchestration.tasks:
         d = decisions[t.task_id]
         engine = d["choice"] if t.engine == "auto" else t.engine
@@ -112,7 +117,7 @@ def generate_dag(
         }
         if engine == "lambda":
             op = "FactoryLambdaOperator"
-            args["function_name"] = repr(names.lambda_function(team, spec.pipeline_id, t.task_id))
+            args["function_name"] = repr(fn_name(t.task_id))
         elif engine in ("eks_pod", "eks_pod_spot"):
             op = "FactoryPodOperator"
             data = any(e.get("seconds_max", 0) > 60 for e in d["estimates"].values())
@@ -124,7 +129,7 @@ def generate_dag(
                 args["env_vars"] = _py(pod_env)
         else:  # mwaa, fivetran_*: each poke invokes the runtime Lambda with a poll budget; the sensor reschedules
             op = "FactoryPollSensor"
-            args |= {"function_name": repr(names.lambda_function(team, spec.pipeline_id, t.task_id)),
+            args |= {"function_name": repr(fn_name(t.task_id)),
                      "timeout": str(t.timeout), "poke_interval": "60", "retries": "0"}  # fmt: skip
             del args["execution_timeout"]
         body = ",\n        ".join(f"{k}={v}" for k, v in args.items())

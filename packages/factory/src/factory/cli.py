@@ -430,6 +430,33 @@ def secrets_template_cmd(
     return _emit(Result(command="secrets template", ok=True, data=rep))
 
 
+infra_app = typer.Typer(help="Who owns the pipeline's AWS resources (create or provided by the infra team).")
+app.add_typer(infra_app, name="infra")
+
+
+@infra_app.command("check")
+def infra_check_cmd(
+    name: Annotated[str, typer.Argument(help="Pipeline id")],
+    env: Annotated[str, typer.Option(help="Environment")] = "dev",
+) -> int:
+    """Read-only: the resources the infra team provides exist, and their roles allow what the contract needs."""
+    from .gen.build import render
+    from .gen.infra_check import check
+
+    d = _pipeline_dir(name)
+    r = render(load_repo(d.parent.parent), d)
+    raw = r.files.get(f"infra/{env}.json")
+    if raw is None:
+        note = {"env": env, "provided": 0, "note": "the framework creates every resource"}
+        return _emit(Result(command="infra check", ok=True, data=note))
+    import boto3
+
+    results = check(boto3.session.Session(), json.loads(raw))
+    bad = [x for x in results if x["status"] not in ("ok", "unchecked")]
+    issues = [Issue(code=f"infra_{x['status']}", msg=f"{x['address']} ({x['name']}): {x['detail']}") for x in bad]
+    return _emit(Result(command="infra check", ok=not bad, issues=issues, data={"env": env, "results": results}))
+
+
 @app.command("verify")
 def verify_cmd(name: Annotated[str, typer.Argument(help="Pipeline id")]) -> int:
     """Regenerate in memory and compare with build/<pipeline>: hand edits, stale, missing or unexpected files."""

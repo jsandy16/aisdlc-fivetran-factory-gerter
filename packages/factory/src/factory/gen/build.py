@@ -23,7 +23,8 @@ from .cost import cost_report
 from .dag import generate_dag
 from .docs import pipeline_docs
 from .names import deploy_for
-from .terraform import egress, generate_terraform, runtime_env
+from .ownership import contract_markdown
+from .terraform import egress, generate_stack, runtime_env
 
 MANIFEST = "BUILD-MANIFEST.json"
 
@@ -67,9 +68,15 @@ def render(repo: Repo, pipeline_dir: Path, *, image: str | None = None) -> Rende
     for env in envs:
         deploy = deploys[env] = deploy_for(repo.platform[env], team, pid, bundle.sha256, image)
         pod_env = runtime_env(spec, repo.platform[env], deploy)
-        files[f"dags/{env}/{dag_id}.py"] = generate_dag(spec, deploy, logic, prices, pod_env).encode()
-        for name, doc in generate_terraform(spec, repo.platform[env], deploy, prices).items():
+        infra = spec.environments.environments[env].infrastructure
+        fn_names = dict(infra.compute.names) if infra.mode_of("compute") == "existing" else {}
+        files[f"dags/{env}/{dag_id}.py"] = generate_dag(spec, deploy, logic, prices, pod_env, fn_names).encode()
+        stack, contract = generate_stack(spec, repo.platform[env], deploy, prices)
+        for name, doc in stack.items():
             files[f"terraform/{env}/{name}"] = _json(doc)
+        if contract["provide"]:  # the handover to the infra team: exactly what this stack no longer creates
+            files[f"infra/{env}.json"] = _json(contract)
+            files[f"infra/{env}.md"] = contract_markdown(pid, env, contract).encode()
         files[f"terraform/{env}/egress.json"] = _json(egress(spec, env))
     files |= {f"docs/{k}": v.encode() for k, v in pipeline_docs(spec, deploys, prices).items()}
     manifest = {

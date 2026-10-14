@@ -88,6 +88,11 @@
           "type": "boolean",
           "x-ba-label": "Enabled"
         },
+        "infrastructure": {
+          "$ref": "#/$defs/Infrastructure",
+          "description": "Create the pipeline's AWS resources, or use ones the infra team made",
+          "x-ba-label": "Infrastructure owner"
+        },
         "placement": {
           "$ref": "#/$defs/Placement",
           "description": "Account aliases",
@@ -149,6 +154,98 @@
           },
           "type": "object",
           "x-ba-label": "Sources"
+        }
+      },
+      "type": "object"
+    },
+    "InfraGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "adopt": {
+          "default": false,
+          "description": "create only: take over resources that already exist (Terraform import)",
+          "type": "boolean",
+          "x-ba-label": "Adopt"
+        },
+        "import_ids": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Terraform import id per resource address, where it cannot be derived",
+          "type": "object",
+          "x-ba-label": "Import ids"
+        },
+        "mode": {
+          "default": "create",
+          "description": "create: the framework creates it; existing: the infra team provides it",
+          "enum": [
+            "create",
+            "existing"
+          ],
+          "type": "string",
+          "x-ba-label": "Owner"
+        },
+        "names": {
+          "description": "Per resource key (task id, dispatcher, trigger, dlq): the name the infra team used",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "type": "string"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 63
+          },
+          "type": "object",
+          "x-ba-label": "Existing names"
+        }
+      },
+      "type": "object"
+    },
+    "Infrastructure": {
+      "additionalProperties": false,
+      "description": "Who owns the pipeline's AWS resources in this environment (team stores, KMS, MWAA and EKS are platform's).",
+      "properties": {
+        "alerts": {
+          "$ref": "#/$defs/InfraGroup",
+          "description": "Topics, subscriptions and alarms for alert routing",
+          "x-ba-label": "Alerts"
+        },
+        "compute": {
+          "$ref": "#/$defs/InfraGroup",
+          "description": "Lambda functions, event-source mapping, Pod Identity associations",
+          "x-ba-label": "Compute"
+        },
+        "logs": {
+          "$ref": "#/$defs/InfraGroup",
+          "description": "Lambda log groups",
+          "x-ba-label": "Log groups"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "create",
+                "existing"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Applies to every group not set below",
+          "x-ba-label": "Default owner"
+        },
+        "queues": {
+          "$ref": "#/$defs/InfraGroup",
+          "description": "Trigger queue, dead-letter queue, queue policy",
+          "x-ba-label": "Queues"
+        },
+        "roles": {
+          "$ref": "#/$defs/InfraGroup",
+          "description": "Task and dispatcher roles and their policies",
+          "x-ba-label": "IAM roles"
         }
       },
       "type": "object"

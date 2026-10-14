@@ -30,6 +30,7 @@ from factory_core import units
 from ..plan.engine import plan
 from . import names
 from .names import Deploy
+from .ownership import apply_ownership
 
 AWS_PROVIDER = "6.66.0"
 LOG_RETENTION = (
@@ -293,6 +294,13 @@ def _env_vars(c: _Ctx, *, poll: bool) -> dict[str, str]:
 def generate_terraform(
     spec: PipelineSpec, platform: PlatformSettings, deploy: Deploy, prices: Pricing | None = None
 ) -> dict[str, Any]:
+    return generate_stack(spec, platform, deploy, prices)[0]
+
+
+def generate_stack(
+    spec: PipelineSpec, platform: PlatformSettings, deploy: Deploy, prices: Pricing | None = None
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """(Terraform files, handover contract): resources the infra team provides leave the stack (ownership.py)."""
     c = _Ctx(spec, platform, deploy)
     p = spec.pipeline
     decisions = {d["task_id"]: d for d in plan(spec, prices)["engine_decisions"]}
@@ -406,9 +414,13 @@ def generate_terraform(
             }
         },
     }
-    main = {"variable": variables, "resource": {k: dict(sorted(v.items())) for k, v in sorted(res.items())}}
-    # two files: Terraform reads both; checkov scans main.tf.json (its JSON parser rejects the provider blocks)
-    return {"providers.tf.json": providers, "main.tf.json": main}
+    full = {"variable": variables, "resource": {k: dict(sorted(v.items())) for k, v in sorted(res.items())}}
+    main, ownership, contract = apply_ownership(full, c.binding.infrastructure, c.account, c.region, c.part)
+    # separate files: Terraform reads all; checkov scans main.tf.json (its JSON parser rejects provider blocks)
+    files = {"providers.tf.json": providers, "main.tf.json": main}
+    if ownership:
+        files["ownership.tf.json"] = ownership
+    return files, contract
 
 
 def _dispatcher(c: _Ctx, res: dict[str, dict[str, Any]], variables: dict[str, Any], retention: int) -> None:

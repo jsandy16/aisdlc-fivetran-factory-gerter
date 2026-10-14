@@ -1,7 +1,7 @@
 {
   "files": {
     "destinations.schema.json": "0756f5b8ed929f315c70d782c2d59aa00919d2f245acec66a29d42e459d38cbd",
-    "environments.schema.json": "dc035a64c08cf0678a3a383563e89c54311f701463a10547b1c02d7b6d1a2037",
+    "environments.schema.json": "7e81ad9837b8707558676377759ceb65ea0eee6f5d68291568f62076f185774b",
     "factory-toml.schema.json": "8c5e6d8cddf5acd3754db9a31c794c062eebd43c03010ad5b8e50d3b819b9a77",
     "integrations.schema.json": "8fc7c60936a833e49223d4d8a6179cfa3cb0e2bc6daea6b5bb459d727569da50",
     "pipeline.schema.json": "c3a34547b7622663f28831ab2cd87fb1c028eebe5b55bcf89cf29a17faea61e3",
