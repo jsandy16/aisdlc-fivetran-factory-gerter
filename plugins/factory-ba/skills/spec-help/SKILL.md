@@ -11,5 +11,8 @@ description: Help a business analyst read, change and check a Pipeline Factory s
 - Ask one question at a time; never fill governance, security, destinations, environments or secrets yourself:
   those belong to governance and the platform team.
 - Useful checks: `factory --json test`, `plan`, `cost`, `build` (the output under `build/` is generated: never edit it).
+- Before a change ships: `factory --json change plan <pipeline> --base origin/main` explains it in full (what
+  changed, breaking or not, files, infrastructure, rules to re-review, cost delta, approvals); `factory --json verify`
+  proves the build matches the spec.
 - `factory accept` is for a person to run after reading the review package. Never run it; the hooks refuse it.
 - Never print, read or ask for secret values. Specs hold references only.

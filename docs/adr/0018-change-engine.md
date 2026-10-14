@@ -24,3 +24,12 @@ After generation, requirement changes must touch only the affected artefacts, sh
 ## Alternatives considered
 
 - *Predicting impact from spec diffs alone:* rejected, because it misses transitive effects.
+
+## Phase 6 amendments
+
+- Offline, *what infrastructure* is a resource-address diff of the generated `.tf.json` (create / update / destroy);
+  `terraform plan -json` against real state joins in Phase 8.
+- Breaking = task added or removed, `depends_on`, trigger type, `run_key`; majors 0 and 1 keep `<pipeline>` as the
+  `dag_id`, major ≥ 2 gets `<pipeline>__v<major>`. Approvals are flagged (governance: security and destinations;
+  platform: breaking changes and destroyed stateful resources), never granted by the CLI.
+- `changes/<n>.json` holds the request, the plan and its sha256; approvers are filled from the PR.

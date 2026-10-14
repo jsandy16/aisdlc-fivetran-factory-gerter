@@ -24,3 +24,23 @@ Decisions (defaults agreed):
   `terraform plan -json` against real state is Phase 8.
 - **Calibrated prices** come from the platform team (`<platform settings>/pricing.json`, `status: calibrated`);
   without it the catalog placeholders are used. A change plan prices both sides with the same basis.
+
+## As built
+
+- **M0 not done:** still no `ANTHROPIC_API_KEY` in this environment.
+- **Change engine** (`factory/change/`): the base is a git ref (`git ls-tree` + `git show`, no checkout) or a folder,
+  copied into a scratch repo that shares this repo's platform settings and price basis. Both sides are rendered by
+  the same code as `factory build` (`gen/build.render`), so the file and Terraform deltas are exact. The plan also
+  refuses `pipeline_id` changes and a changed spec without a higher `spec_version` (`spec_version_not_bumped`).
+  `--record` writes `changes/<n>.json` only when the plan has no issues; the BA guard hook refuses edits to it.
+- **DAG files are named by `dag_id`** (`dags/<env>/<pipeline>__v2.py` after a major bump), so the old and new DAG
+  can coexist while the old one drains; the dispatcher's `FACTORY_DAG_ID` follows.
+- **verify** tells `generated_file_edited` (file differs from its own manifest hash) from `build_stale` (consistent
+  build, changed spec). `BUILD-MANIFEST.json` now records `dag_id`, `spec_version`, `image` and the price basis + sha.
+- **Prices:** `Repo.prices` is the calibrated file or the catalog, never a mix; a calibrated file must say
+  `status: calibrated`. `factory plan`, `cost`, `build` and `change plan` all use it; reports carry `basis` and `note`.
+- **Docs:** `docs/runbook.md`, `lineage.md` (Mermaid), `alerts.md` in every build; ids, names and secret names only.
+- **Pods** now map exit codes in `cleanup` (75 or no exit code → retried; others fail at once); proven in the real
+  Airflow DagBag probe. **CI:** `factory build` + `verify` in the main job; new `factory-opt-in` job runs
+  `-m "airflow or iac"`. **tflint** still not added: GitHub is blocked here, so no version or checksum could be pinned.
+- **Tests:** 663 passed on 3.13 and 3.11; opt-in Airflow + IaC: 5 passed.

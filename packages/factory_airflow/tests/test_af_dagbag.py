@@ -55,6 +55,24 @@ for code in (0, 75, 65, 77, 78):
     except AirflowFailException: res[code] = "fail"
     except AirflowException: res[code] = "retry"
 out["lambda"] = res
+from kubernetes.client import models as k8s
+from factory_airflow.operators import FactoryPodOperator
+rt = {"bundle": "s3://b/x.zip", "sha256": "d" * 64, "task": "t", "run_key": "k", "attempt": 1, "run_id": "r"}
+pods = {}
+for code in (75, 65, 77, 78, None):
+    op = FactoryPodOperator(task_id="t3", runtime=rt, cpu="1", memory="1Gi", image="x", namespace="n")
+    op.process_pod_deletion = lambda *a, **k: True
+    op.patch_already_checked = lambda *a, **k: None
+    op.is_istio_enabled = lambda *a, **k: False  # no cluster here: the real check reads the pod
+    term = k8s.V1ContainerState(terminated=k8s.V1ContainerStateTerminated(exit_code=code)) if code else None
+    st = k8s.V1ContainerStatus(name="base", state=term, image="x", image_id="x", ready=False, restart_count=0)
+    status = k8s.V1PodStatus(phase="Failed", container_statuses=[st])
+    pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="p"), status=status)
+    try:
+        op.cleanup(pod, pod); pods[str(code)] = "ok"
+    except AirflowFailException: pods[str(code)] = "fail"
+    except AirflowException: pods[str(code)] = "retry"
+out["pod"] = pods
 s = FactoryPollSensor(task_id="s", function_name="f", runtime={}, hook=Hook(75))
 out["sensor_75"] = s.poke({}); out["sensor_mode"] = s.mode
 print(json.dumps(out))
@@ -81,3 +99,4 @@ def test_generated_dags_load_in_airflow(tmp_path: Path) -> None:
     assert out["dags"]["unit_fivetran"]["t1_sync"]["type"] == "FactoryPollSensor"
     assert out["lambda"] == {"0": "ok", "75": "retry", "65": "fail", "77": "fail", "78": "fail"}
     assert (out["sensor_75"], out["sensor_mode"]) == (False, "reschedule")
+    assert out["pod"] == {"75": "retry", "65": "fail", "77": "fail", "78": "fail", "None": "retry"}

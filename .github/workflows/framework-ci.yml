@@ -71,3 +71,40 @@ jobs:
         run: |
           uv run --project ../../packages factory --json validate study_pkg_delivery
           uv run --project ../../packages factory lock study_pkg_delivery --check
+      - name: Build is reproducible (factory verify regenerates and compares)
+        working-directory: examples/team-pipelines
+        run: |
+          uv run --project ../../packages factory build study_pkg_delivery
+          uv run --project ../../packages factory verify study_pkg_delivery
+
+  # Opt-in checks that need tools outside the workspace: a real Airflow 3.3.1 DagBag (-m airflow) and offline
+  # terraform validate + checkov against the generated .tf.json (-m iac). tflint joins when its release is pinned.
+  factory-opt-in:
+    runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: '3.12'
+      UV_PYTHON_DOWNLOADS: never
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install uv and the locked workspace
+        working-directory: packages
+        run: |
+          pip install uv==0.11.32
+          uv sync --locked --all-packages
+      - name: Terraform, AWS provider mirror and checkov
+        run: scripts/install-iac-tools.sh "$RUNNER_TEMP/iac" | tail -1 | sed 's/^export //' >> "$GITHUB_ENV"
+      - name: Airflow 3.3.1 with the MWAA providers (official constraints)
+        run: |
+          python -m venv "$RUNNER_TEMP/af"
+          "$RUNNER_TEMP/af/bin/pip" install -q "apache-airflow[amazon,cncf.kubernetes]==3.3.1" \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.1/constraints-3.12.txt"
+          "$RUNNER_TEMP/af/bin/pip" install -q --no-deps -e packages/factory_airflow
+          echo "FACTORY_AIRFLOW_PYTHON=$RUNNER_TEMP/af/bin/python" >> "$GITHUB_ENV"
+      - name: Opt-in tests
+        working-directory: packages
+        run: uv run pytest -m "airflow or iac"

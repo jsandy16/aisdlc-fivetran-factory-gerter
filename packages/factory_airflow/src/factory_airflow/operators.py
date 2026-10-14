@@ -14,7 +14,7 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.sdk import BaseOperator, BaseSensorOperator
 from airflow.sdk.exceptions import AirflowException, AirflowFailException
 
-from .argv import runtime_argv
+from .argv import pod_exit_code, runtime_argv
 
 TRANSIENT = 75
 EXIT_MEANING = {65: "data", 70: "internal", 75: "transient", 77: "security", 78: "config"}
@@ -80,7 +80,11 @@ class FactoryPollSensor(BaseSensorOperator):
 
 
 class FactoryPodOperator(KubernetesPodOperator):
-    """`python -m factory_runtime.run` in the team namespace with the task's service account (IRSA)."""
+    """`python -m factory_runtime.run` in the team namespace with the task's service account (IRSA).
+
+    Exit codes map as for Lambda tasks: 75 is retried, 65/70/77/78 fail at once. A pod that never ran to completion
+    (eviction, image pull, node loss) has no exit code and is retried as infrastructure trouble.
+    """
 
     def __init__(self, *, runtime: dict[str, Any], cpu: str, memory: str, spot: bool = False, **kwargs: Any) -> None:
         from kubernetes.client import models as k8s
@@ -97,5 +101,17 @@ class FactoryPodOperator(KubernetesPodOperator):
             container_resources=resources,
             on_finish_action="delete_pod",
             get_logs=True,
+            log_pod_spec_on_failure=False,  # the pod spec carries ids only, but failures need not repeat it
             **kwargs,
         )
+
+    def cleanup(self, pod: Any, remote_pod: Any, *args: Any, **kwargs: Any) -> None:
+        try:
+            super().cleanup(pod, remote_pod, *args, **kwargs)
+        except AirflowException as exc:
+            code = pod_exit_code(remote_pod, self.base_container_name)
+            if code is None or code == TRANSIENT:
+                raise
+            raise AirflowFailException(
+                f"{self.task_id} ended {EXIT_MEANING.get(code, 'unknown')} ({code}); not retried"
+            ) from exc
