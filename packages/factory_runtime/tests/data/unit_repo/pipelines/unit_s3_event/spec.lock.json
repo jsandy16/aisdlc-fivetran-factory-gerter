@@ -1,0 +1,373 @@
+{
+  "api_version": "factory/v1",
+  "bindings": {
+    "dev": {
+      "destinations": [
+        {
+          "bucket": "unit-archive-dev",
+          "id": "archive_s3",
+          "kms_key": "alias/unit-archive-dev",
+          "max_classification": "internal",
+          "placement": "team",
+          "prefix_pattern": "copies/**",
+          "slots": [
+            "archive"
+          ],
+          "type": "s3"
+        }
+      ],
+      "environment": {
+        "alert_channels": {
+          "data_owner": {
+            "topic": "unit-data-alerts-dev",
+            "type": "sns"
+          },
+          "platform": {
+            "topic": "unit-platform-alerts-dev",
+            "type": "sns"
+          },
+          "security": {
+            "topic": "unit-security-alerts-dev",
+            "type": "sns"
+          }
+        },
+        "apis": {},
+        "enabled": true,
+        "placement": {
+          "orchestration": "mwaa",
+          "workload": "team"
+        },
+        "portal": null,
+        "queues": {
+          "object_created": {
+            "name": "unit-object-created-dev"
+          }
+        },
+        "schedule_cron": null,
+        "secrets": {
+          "aws_secrets_manager": {
+            "prefix": "factory/"
+          },
+          "vault": null
+        },
+        "sources": {
+          "source_bucket": {
+            "bucket": null,
+            "buckets": [
+              "unit-source-dev"
+            ],
+            "fivetran_group": null,
+            "placement": "team",
+            "prefix_roots": [
+              "incoming/"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "derived": {
+    "artifacts": {
+      "copied": {
+        "consumers": [],
+        "durability": "final",
+        "kind": "receipt",
+        "producer": "r_copy",
+        "task": "t1_copy"
+      },
+      "event": {
+        "consumers": [
+          "r_list_object"
+        ],
+        "durability": "staged",
+        "kind": "message",
+        "producer": "r_read_event",
+        "task": "t1_copy"
+      },
+      "objects": {
+        "consumers": [
+          "r_copy"
+        ],
+        "durability": "staged",
+        "kind": "object_listing",
+        "producer": "r_list_object",
+        "task": "t1_copy"
+      }
+    },
+    "op_contracts": {
+      "s3.copy": {
+        "contract_sha": "56970d364d1944970afd66ffeee2c6f367856c0bc34a31ed5b50fe91caa77738",
+        "version": "1.0.0"
+      },
+      "s3.list": {
+        "contract_sha": "323ffd44e668edf9be6be17b4eb07f4381e6be504e211a2643050a0590a7a432",
+        "version": "1.0.0"
+      },
+      "sqs.read": {
+        "contract_sha": "fd9394b68a0bb3d88f601e238051ca4cce8b43348c03681b20603d62c339d885",
+        "version": "1.0.0"
+      }
+    }
+  },
+  "hashes": {
+    "binding_sha": {
+      "dev": "c6fc0c85380efa2321a56db971b61658735a7bdd7c9122608114a588be8876c0"
+    },
+    "derived_sha": "16376c99376008e867af6579edaca5c94d2b1b9ef9e3da0b2db915633319d3db",
+    "logic_sha": "21da122e7474d67e1e6525bcacd8b647ba0897f2660c3f19d8cd443bec9a04fc"
+  },
+  "lock_version": 1,
+  "logic": {
+    "integrations": {
+      "apis": [],
+      "destinations": [
+        {
+          "allowed_types": [
+            "s3"
+          ],
+          "id": "archive",
+          "label": "Archive bucket",
+          "required": true,
+          "resolve": {
+            "entry": "archive_s3",
+            "path": "copies/{env}/",
+            "via": "static"
+          }
+        }
+      ],
+      "portal": null,
+      "secrets": {},
+      "sources": [
+        {
+          "id": "source_bucket",
+          "label": "Bucket that receives new objects",
+          "location": {
+            "bucket_field": "bucket",
+            "prefix_field": "key",
+            "via": "trigger"
+          },
+          "type": "s3"
+        }
+      ]
+    },
+    "pipeline": {
+      "api_version": "factory/v1",
+      "artifacts": {},
+      "cost": {
+        "budget_per_month_usd": "5.00",
+        "budget_per_run_usd": "0.01"
+      },
+      "kind": "Pipeline",
+      "metadata": {
+        "description": "Copy every new object from the source bucket to the archive bucket.",
+        "name": "S3 to S3 copy",
+        "owners": {
+          "business_owner": "@alice-ba",
+          "data_engineer": "@bob-de",
+          "governance": "@carol-qa",
+          "platform": "@dan-platform"
+        },
+        "pipeline_id": "unit_s3_event",
+        "requirements": [],
+        "spec_version": "0.1.0",
+        "tags": {
+          "cost_centre": "CC1234"
+        },
+        "team": "clinops_data"
+      },
+      "observability": {
+        "alerts": {
+          "config": "platform",
+          "data": "data_owner",
+          "security": "security",
+          "transient": "none"
+        },
+        "sla": 10800
+      },
+      "open_questions": [],
+      "orchestration": {
+        "dag": {
+          "catchup": false,
+          "max_active_runs": 2,
+          "timeout": 14400
+        },
+        "pool": null,
+        "tasks": [
+          {
+            "depends_on": [],
+            "engine": "lambda",
+            "label": "Copy the new object",
+            "retry": null,
+            "rules": [
+              "r_read_event",
+              "r_list_object",
+              "r_copy"
+            ],
+            "task_id": "t1_copy",
+            "timeout": 600
+          }
+        ]
+      },
+      "reliability": {
+        "replay_window": 2592000,
+        "retry": {
+          "backoff": "exponential_jitter",
+          "base": 10,
+          "max": 300,
+          "max_attempts": 3
+        },
+        "run_key": "{bucket}-{key}-{version_id}"
+      },
+      "schema_version": "1.0.0",
+      "trigger": {
+        "key_prefix": "incoming/",
+        "key_suffix": null,
+        "max_receive_count": 5,
+        "queue": "object_created",
+        "type": "s3_event"
+      },
+      "variables": {
+        "bucket": "trigger.object.bucket",
+        "key": "trigger.object.key",
+        "version_id": "trigger.object.version_id"
+      },
+      "workload": {
+        "bytes_per_run": {
+          "max": 2000000000,
+          "p50": 10000000,
+          "p95": 500000000
+        },
+        "files_per_run": {
+          "max": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "runs_per_day": 500
+      }
+    },
+    "rules": {
+      "rules": [
+        {
+          "category": "upload",
+          "implementation": {
+            "kind": "builtin",
+            "op": "s3.copy",
+            "params": {
+              "object_name": null,
+              "slot": "archive"
+            }
+          },
+          "inputs": [
+            "objects"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "copied"
+          ],
+          "plain_english": "Copy the object to the archive bucket without changing it, and never overwrite an existing copy.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_copy",
+          "test_cases": []
+        },
+        {
+          "category": "extract",
+          "implementation": {
+            "kind": "builtin",
+            "op": "s3.list",
+            "params": {
+              "exclude": [],
+              "include": [
+                "*"
+              ],
+              "max_objects": 1,
+              "max_total_bytes": null,
+              "recursive": false,
+              "source": "source_bucket"
+            }
+          },
+          "inputs": [
+            "event"
+          ],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "objects"
+          ],
+          "plain_english": "Find the new object named in the event and check that it exists.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_list_object",
+          "test_cases": []
+        },
+        {
+          "category": "integration",
+          "implementation": {
+            "kind": "builtin",
+            "op": "sqs.read",
+            "params": {}
+          },
+          "inputs": [],
+          "on_failure": {
+            "action": "fail",
+            "error_class": "data"
+          },
+          "outputs": [
+            "event"
+          ],
+          "plain_english": "Take the S3 event that started this run, exactly as it was received.",
+          "preconditions": [],
+          "requirements": [],
+          "rule_id": "r_read_event",
+          "test_cases": []
+        }
+      ]
+    },
+    "security": {
+      "security_and_access": {
+        "audit": {
+          "enabled": true,
+          "events": [
+            "delivery",
+            "destination_resolution",
+            "portal_call",
+            "rule_result",
+            "secret_access"
+          ],
+          "evidence_retention": "10y"
+        },
+        "checksums": {
+          "delivery_sidecars": [],
+          "manifest": [
+            "sha256"
+          ]
+        },
+        "data_classification": "internal",
+        "encryption_at_rest": {
+          "s3_destinations": "sse_kms",
+          "staging": "sse_kms"
+        },
+        "gxp_tier": "non_gxp",
+        "package_encryption": "none",
+        "residency": {
+          "allowed_regions": [
+            "eu-west-1"
+          ]
+        },
+        "retention": {
+          "run_logs": "400d",
+          "staging_after_failure": "30d",
+          "staging_after_success": "7d"
+        }
+      }
+    }
+  },
+  "pipeline_id": "unit_s3_event",
+  "schema_version": "1.0.0",
+  "spec_version": "0.1.0"
+}

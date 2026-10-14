@@ -160,3 +160,33 @@ def test_drill_bundle_tampering_is_77(world: dict[str, Any]) -> None:
     s3.put_object(Bucket=bucket, Key=key, Body=bytes(data))  # the stored bundle no longer has its hash
     with SftpServer(w["tmp"] / "sftp") as sftp, _vault(w):
         assert _run(w, "t1_collect", "REQ-00000001", sftp.port) == 77
+
+
+def test_s3_event_starter_end_to_end(tmp_path: Path, workdir: Path, aws: None) -> None:
+    """s3_to_s3_event (filled): an S3 event names one object; it is copied to the archive, write-once."""
+    from rt_helpers import UNIT_REPO
+
+    repo = copy_repo(UNIT_REPO, tmp_path / "repo", environments=["dev"])
+    pdir = repo / "pipelines" / "unit_s3_event"
+    cfg = make_config(workdir, "unit_s3_event")
+    setup_stores(cfg)
+    s3 = boto3.client("s3", region_name=REGION)
+    for b in ("unit-source-dev", "unit-archive-dev"):
+        s3.create_bucket(Bucket=b, CreateBucketConfiguration={"LocationConstraint": REGION})
+    s3.put_bucket_versioning(Bucket="unit-source-dev", VersioningConfiguration={"Status": "Enabled"})
+    put = s3.put_object(Bucket="unit-source-dev", Key="incoming/batch 7/a.csv", Body=b"id\n1\n")
+    s3.put_object(Bucket="unit-source-dev", Key="incoming/batch 7/a.csv.bak", Body=b"not this one")
+    uri, sha = publish_bundle(cfg, pdir)
+    event = {"Records": [{"eventName": "ObjectCreated:Put", "s3": {"bucket": {"name": "unit-source-dev"}, "object": {
+        "key": "incoming/batch+7/a.csv", "size": 5, "sequencer": "0A1", "versionId": put["VersionId"]}}}]}  # fmt: skip
+    trigger = Recorder()
+    dcfg = cfg.model_copy(update={"bundle_uri": uri, "bundle_sha256": sha, "dag_id": "unit_s3_event"})
+    d = dispatch.build(Services.build(dcfg), trigger)
+    assert d.handle_batch({"Records": [{"messageId": "m-1", "body": json.dumps(event)}]})[0] == {
+        "batchItemFailures": []
+    }
+    (conf,) = trigger.runs.values()
+    assert run_task(cfg, uri, sha, "t1_copy", conf["run_key"]) == 0
+    archived = s3.list_objects_v2(Bucket="unit-archive-dev")["Contents"]
+    assert [o["Key"] for o in archived] == ["copies/dev/a.csv"]
+    assert s3.get_object(Bucket="unit-archive-dev", Key="copies/dev/a.csv")["Body"].read() == b"id\n1\n"

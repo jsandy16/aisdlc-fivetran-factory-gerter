@@ -29,3 +29,7 @@ The brief requires a documented decision matrix and no hard-coded engine choices
 
 - *LLM chooses the engine:* rejected, because it is not reproducible.
 - *A fixed cost order (Lambda < Fivetran < MWAA < EKS):* replaced by per-task estimates.
+
+## Phase 3 amendments
+
+- Planner in `factory/plan/engine.py`; placeholder prices in `factory_spec/catalog/pricing.v1.json` (decimal strings). Decisions are printed by `factory plan`, never written to the lock (P3-8).

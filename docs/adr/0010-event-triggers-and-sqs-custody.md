@@ -27,3 +27,8 @@ A package is uploaded to S3 in the team account, and its metadata (bucket, prefi
 ## Alternatives considered
 
 - *AssetWatcher SQS scheduling:* only for non-GxP pipelines that accept its semantics.
+
+## Phase 3 amendments
+
+- Dispatcher states `received → snapshotted → triggered` in run-state (`DISP`); body-only custody snapshot; per-message receipt; poison messages quarantined in staging and acknowledged; only transient failures go to `batchItemFailures`.
+- `s3_event`: one run per created object; `s3.list` lists exactly that object (prefix filters and the S3 test event handled).

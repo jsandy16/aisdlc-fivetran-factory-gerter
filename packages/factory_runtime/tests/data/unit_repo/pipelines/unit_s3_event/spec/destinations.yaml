@@ -1,0 +1,4 @@
+# destinations.yaml: approved delivery targets per environment (ADR-0024). Owner: governance.
+destinations:
+  dev:
+    - {id: archive_s3, type: s3, slots: [archive], bucket: unit-archive-dev, prefix_pattern: "copies/**", placement: team, kms_key: alias/unit-archive-dev, max_classification: internal}

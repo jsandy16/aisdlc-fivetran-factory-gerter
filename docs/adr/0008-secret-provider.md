@@ -28,3 +28,8 @@ Secrets must be references only and must never appear in specs, code, logs, the 
 
 - *A custom Airflow backend wrapping the provider (allowed by the brief):* rejected, because it would let the shared execution role read team secrets.
 - *Injecting secrets as pod environment variables:* rejected, because they are visible in pod specs.
+
+## Phase 3 amendments
+
+- Vault via a built-in httpx client (AWS IAM login, KV v2 by version, renew/lookup, health); hvac removed (P3-1). Transit and AppRole deferred.
+- Values are registered with the log redactor at construction, with derived forms (url-encoded, base64, JSON-escaped, Basic auth, access tokens). Team namespace for KV and auth mount (P3-6). Custom rules get no secrets (P3-7).

@@ -29,3 +29,7 @@ The portal returns, per study or package, where the package must be delivered: a
 
 - *A PR-gated ("materialized") portal:* dropped by user decision D4.
 - *JSONPath:* implementations differ.
+
+## Phase 3 amendments
+
+- Client in `factory_runtime/apiclient.py` + `ops/portal.py`. Snapshot = mapped entries only, staged write-once and adopted on 412; raw response hash in the audit only. Redirects refused, `trust_env` off, mTLS key files 0600 and deleted after load; `expect` mismatch → 77; missing required slot → 78.

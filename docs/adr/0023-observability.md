@@ -22,3 +22,7 @@ Every error must be classified and routed. Runs must be traceable from source fi
 ## Alternatives considered
 
 - *Engine-specific logging:* rejected.
+
+## Phase 3 amendments
+
+- Third-party loggers clamped to WARNING; logs carry the run key as a hash only; delivery targets appear hashed in logs and in full only in the access-controlled audit store (`<pipeline>/<run_dir>/<task>/attempt-<n>.jsonl`).

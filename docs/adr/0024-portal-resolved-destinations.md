@@ -40,3 +40,7 @@ The portal names the destination(s) of each package at run time: another S3 buck
 
 - *Trusting portal URIs:* exfiltration risk.
 - *A PR gate on every portal change:* rejected by the user (D4).
+
+## Phase 3 amendments
+
+- A destination URI is a folder; the target is folder + one safe object name. SFTP pins `host_key_algorithm`; folders are created only below the entry's fixed root (P3-4). HTTPS verification is the best evidence available (digest, read-back, size only, none) and is recorded (P3-3). The staged destination set is resolved again at delivery.

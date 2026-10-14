@@ -28,3 +28,9 @@ Pipelines are custom, numerous and must be reproducible and safe to rerun. Build
 - *Per-pipeline images:* rejected, because of build and scan volume.
 - *ConfigMaps for the lock:* rejected, because of the 1 MiB limit and mutability.
 - *XCom for data:* rejected, because it is visible and size-limited.
+
+## Phase 3 amendments
+
+- Bundle = ZIP_STORED, deterministic: `spec/*.yaml`, `spec.lock.json`, `rules/`, `BUNDLE-MANIFEST.json`; sha verified (77); the bundled lock must equal the lock rebuilt by this runtime (78).
+- Run pin `{bundle_sha, image_digest, logic_sha, binding_sha, pinned_at}` written by the first task; `run_dir = sanitised(run_key)[:200]-sha12`; staging `s3://<staging>/<pipeline>/<run_dir>/`.
+- Error precedence: security never downgraded, transient never reclassified, `on_failure` applies to check failures only; `warn` only for rules without outputs; `quarantine` = data (65) + `QUAR#` record. An empty in_task queue ends the run as `no_work` (exit 0).

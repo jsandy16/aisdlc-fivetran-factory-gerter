@@ -31,3 +31,7 @@ Custom code is the escape hatch for logic the op library cannot express. LLM-wri
 ## Alternatives considered
 
 - *Running plugins in separate sandboxes (gVisor/Firecracker):* deferred, and can be revisited for gxp_direct.
+
+## Phase 3 amendments
+
+- Plugin API `factory_runtime.plugin_api`; loader checks `code_sha256` (77) and the import allow-list again before executing (77). Context calls are recorded and enforced against declared side effects at run time. This is a lint, not a sandbox.

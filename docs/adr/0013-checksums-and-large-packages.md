@@ -23,3 +23,7 @@ Packages are at most 10 GB per run (D10). The S3 ETag is not an MD5 for SSE-KMS 
 ## Alternatives considered
 
 - *Using the ETag as the checksum:* it is wrong for KMS/multipart objects.
+
+## Phase 3 amendments
+
+- Hash record (`<artifact>.meta.json`) is written before Complete; `zip64: auto|always`; STORED entries use data descriptors (Java `ZipInputStream` reads them); byte-identical output within one image (zlib version recorded). Spike S6: ~2 GB locally with flat memory; 10 GB in Phase 8.

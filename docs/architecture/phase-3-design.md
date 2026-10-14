@@ -389,8 +389,8 @@ Short notes; the full ADR and doc amendments of §5 move to Phase 4 (scope cut a
   Lambda stays the cheaper choice for short work, as the decision matrix intends.
 
 **Open items, decided at the Phase 3 review**
-- `s3_event` triggers: s3.list must list the single object named by the event. Fixed in Phase 4.
+- `s3_event` triggers: s3.list lists the single object named by the event (fixed in Phase 4 M0).
 - HTTPS POST endpoints: uploads go to `<folder>/<name>`; no upload-to-folder variant is needed.
 - s3.copy: size-only verification (conditional on the listed ETag) is accepted until a server-side checksum is tested
   in Phase 8.
-- ADR/doc amendments listed in §5: Phase 4.
+- ADR amendments: done in Phase 4 M0 (a "Phase 3 amendments" section in each affected ADR).

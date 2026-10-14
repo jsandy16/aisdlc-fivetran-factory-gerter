@@ -29,3 +29,7 @@ Runs must be safe to rerun. SQS delivers at least once. Airflow 3 can leave `log
 ## Alternatives considered
 
 - *Using `logical_date` as the key:* rejected, because it can be null in Airflow 3.
+
+## Phase 3 amendments
+
+- Receipts and custody snapshots are adopted on retry (first answer wins); rule checkpoints make a retry complete only what is missing (x delivered, y retried).
