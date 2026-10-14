@@ -190,3 +190,61 @@ def test_s3_event_starter_end_to_end(tmp_path: Path, workdir: Path, aws: None) -
     archived = s3.list_objects_v2(Bucket="unit-archive-dev")["Contents"]
     assert [o["Key"] for o in archived] == ["copies/dev/a.csv"]
     assert s3.get_object(Bucket="unit-archive-dev", Key="copies/dev/a.csv")["Body"].read() == b"id\n1\n"
+
+
+def _dag_tasks(src: str) -> list[tuple[str, dict[str, Any]]]:
+    """(task_id, runtime payload) in dependency order, read from generated DAG source (as Airflow would build it)."""
+    import ast
+
+    tree = ast.parse(src)
+    runtime: dict[str, Any] = {}
+    tasks: dict[str, dict[str, Any]] = {}
+    edges: list[tuple[str, str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "RUNTIME":
+            runtime = ast.literal_eval(node.value)
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+            kw = {k.arg: k.value for k in node.value.keywords}
+            if "task_id" in kw:
+                tasks[ast.literal_eval(kw["task_id"])] = {**runtime, "task": ast.literal_eval(kw["task_id"])}
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.RShift):
+            edges.append((node.left.id, node.right.id))  # type: ignore[attr-defined]
+    order: list[str] = []
+    while len(order) < len(tasks):
+        order += [t for t in tasks if t not in order and all(a in order for a, b in edges if b == t)]
+    return [(t, tasks[t]) for t in order]
+
+
+def test_generated_dag_commands_deliver_end_to_end(world: dict[str, Any]) -> None:
+    """Phase 5 M5: the task commands of the generated DAG (not hand-written argv) run the worked example."""
+    from factory.gen.dag import generate_dag
+    from factory.gen.names import Deploy
+    from factory_airflow.argv import runtime_argv
+    from factory_runtime.run import main
+    from factory_spec.load import load_spec
+
+    w = world
+    cfg = w["cfg"]
+    spec = load_spec(w["tmp"] / "repo" / "pipelines" / "study_pkg_delivery").spec
+    assert spec is not None
+    deploy = Deploy(env="dev", team=cfg.team, region=REGION, bundle_uri=w["uri"], bundle_sha256=w["sha"],
+                    image="factory-runtime@" + cfg.image_digest, staging_bucket=cfg.staging_bucket,
+                    run_state_table=cfg.run_state_table, bundle_store=cfg.bundle_store,
+                    audit_store=cfg.audit_store)  # fmt: skip
+    tasks = _dag_tasks(generate_dag(spec, deploy, "f" * 64))
+    assert [t for t, _ in tasks] == list(TASKS)
+    with SftpServer(w["tmp"] / "sftp") as sftp, _vault(w):
+        run_key = _dispatch(w)
+        dag_run_id = run_dir(run_key)
+        hosts = {(PORTAL, 443): ("127.0.0.1", w["portal"].port), (DEV_SFTP_HOST, 22): ("127.0.0.1", sftp.port)}
+        for _task, rt in tasks:
+            rendered = {k: (v.replace("{{ (dag_run.conf or {}).get('run_key') or run_id }}", run_key)
+                             .replace("{{ ti.try_number }}", "1").replace("{{ run_id }}", dag_run_id)
+                            if isinstance(v, str) else v) for k, v in rt.items()}  # fmt: skip
+            assert "{{" not in json.dumps(rendered)
+            with netmap(hosts):
+                code = main(runtime_argv(rendered), config=cfg, overrides=Overrides(extra_ca_pem=w["ca"].cert_pem),
+                            environ={})  # fmt: skip
+            assert code == 0, _task
+        delivered = sorted(p.name for p in sftp.file("/inbound/ONC101").iterdir())
+    assert delivered == [NAME, f"{NAME}.manifest.json", f"{NAME}.md5", f"{NAME}.sha256"]

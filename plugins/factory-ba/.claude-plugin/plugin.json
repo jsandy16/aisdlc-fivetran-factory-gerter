@@ -1,0 +1,5 @@
+{
+  "name": "factory-ba",
+  "description": "Pipeline Factory for business analysts and engineers: drive `factory --json`, review specs read-only, and guard rails that keep person-only actions, generated files and secrets out of reach.",
+  "version": "0.2.0"
+}

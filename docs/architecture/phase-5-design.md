@@ -17,4 +17,21 @@ network allows, otherwise structural tests + checkov with the gap reported; one 
 
 ## As built
 
-_Filled in at the end of Phase 5._
+- **M0 not done:** no `ANTHROPIC_API_KEY` in this environment; recordings stay synthetic until it is added.
+- **Layout:** generators live in the build-time CLI package (`factory/gen/`: names, dag, terraform, cost, build);
+  `packages/factory_airflow` holds only the operators the DAGs import on MWAA (plus `argv`, importable without
+  Airflow). The BA plugin is `plugins/factory-ba/` (skill, read-only reviewer agent, fail-closed guard hook).
+- **DAGs:** Lambda tasks map the runtime exit code (75 retried; 65/70/77/78 fail at once). Pods retry on any
+  failure (KubernetesPodOperator cannot tell exit codes apart without more work; a Phase 8 item). Fivetran/MWAA
+  tasks are a reschedule-mode sensor; each poke invokes the runtime Lambda with `FACTORY_POLL_BUDGET_S`, so no
+  secret ever reaches Airflow. Loaded in a real Airflow 3.3.1 DagBag (`-m airflow`).
+- **Terraform:** two files per pipeline and environment (`providers.tf.json`, `main.tf.json`) because checkov's JSON
+  parser rejects provider blocks. KMS is scoped with `kms:ResourceAliases` (IAM cannot name keys by alias). VPC
+  ENI actions need `Resource: "*"` (IAM limitation). Team stores and KMS keys are platform resources, referenced,
+  not created. `terraform validate` runs offline against a local AWS provider 6.66.0 mirror
+  (`scripts/install-iac-tools.sh`); tflint is not available (GitHub blocked here). Two reviewed checkov waivers in
+  `platform/iac-waivers.yaml`.
+- **Cost:** adds `mwaa_share_per_pipeline_month` (placeholder) to the pricing file. Worked example: about
+  $25.81/month (budget $300).
+- **Integration:** the worked example runs end to end from the generated DAG's own task commands.
+- **Open for Phase 6+:** live recordings; pod exit-code mapping; tflint in CI; real prices.
